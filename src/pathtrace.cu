@@ -1,30 +1,23 @@
 /*
  ============================================================================
- Name        : CudaRT.cu
+ Name        : pathtrace.cu
  Author      : Tudor Matei Boran
  Version     :
  Copyright   : Your copyright notice
- Description : CUDA compute reciprocals
+ Description : CUDA raytracer
  ============================================================================
  */
 
 #include <iostream>
-#include <numeric>
-#include <stdlib.h>
-#include <cuda.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include "math.h"
-#include "geometry/geometry.h"
 
 static void CheckCudaErrorAux (const char *, unsigned, const char *, cudaError_t);
 #define CUDA_CHECK_RETURN(value) CheckCudaErrorAux(__FILE__,__LINE__, #value, value)
 
-int main(void)
-{
-	std::cout << "Ran!" << std::endl;
-	return 0;
-}
+//int main(void)
+//{
+//	std::cout << "Ran!" << std::endl;
+//	return 0;
+//}
 
 /**
  * Check the return value of the CUDA runtime API call and exit
