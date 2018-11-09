@@ -3,6 +3,7 @@
 
 #include <cuda_runtime.h> // for __host__  __device__
 #include <math.h>
+#include "obj_load.h"
 
 struct Vector3Df
 {
@@ -10,6 +11,9 @@ struct Vector3Df
 		struct { float x, y, z; };
 		float _v[3];
 	};
+
+	// For interop with obj_load.h
+	__host__ Vector3Df(const objl::Vector3& v) : x(v.X), y(v.Y), z(v.Z) {}
 
 	__host__ __device__ Vector3Df(float _x = 0, float _y = 0, float _z = 0) : x(_x), y(_y), z(_z) {}
 	__host__ __device__ Vector3Df(const Vector3Df& v) : x(v.x), y(v.y), z(v.z) {}

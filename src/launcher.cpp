@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
 	int samples = 1000;
 	int width = 800;
 	int height = 400;
-	string objPath = "./meshes/cornell.obj";
+	string objPath = "../meshes/cornell.obj";
 	bool multipleObjs = false;
 
 	//
@@ -91,7 +91,14 @@ int main(int argc, char* argv[]) {
 	// Initialize Scene : Load .obj
 	//
 	Scene scene(objPath);
+	cout << "\nLoaded " << scene.getNumMeshes() << " meshes " << endl;
+	for (int i = 0; i < scene.getNumMeshes(); i++) {
+		objl::Mesh mesh = scene.getMesh(i);
+		cout << "Mesh " << i << ": " << mesh.MeshName << endl \
+				<< "\t" << mesh.Vertices.size() << " vertices | \t" << mesh.Vertices.size() / 3 << " triangles" << endl;
+	}
 
+	cout << "Total number of triangles: " << scene.getNumTriangles() << endl;
 	return(0);
 
 }

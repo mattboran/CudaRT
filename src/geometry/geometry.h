@@ -3,15 +3,13 @@
 
 #include "linalg.h"
 
-struct Vertex : public Vector3Df {
+struct TriVertex : public Vector3Df {
 	// normal vector of this vertex
 	Vector3Df _normal;
-	// ambient occlusion of this vertex (pre-calculated in e.g. MeshLab)
-	float _ambientOcclusionCoeff;
 
-	Vertex(float x, float y, float z, float nx, float ny, float nz, float amb = 60.f)
+	TriVertex(float x, float y, float z, float nx, float ny, float nz)
 		:
-		Vector3Df(x, y, z), _normal(Vector3Df(nx, ny, nz)), _ambientOcclusionCoeff(amb)
+		Vector3Df(x, y, z), _normal(Vector3Df(nx, ny, nz))
 	{ }
 };
 
@@ -32,6 +30,8 @@ struct Triangle {
 	// Raytracing intersection pre-computed cache:
 	float _d, _d1, _d2, _d3;
 	Vector3Df _e1, _e2, _e3;
+	// Unoptimized triangles for moller-trombore
+	Vector3Df _v1, _v2, _v3;
 	// bounding box
 	Vector3Df _bottom;
 	Vector3Df _top;
