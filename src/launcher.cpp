@@ -5,8 +5,10 @@
 #include <algorithm>
 #include <vector>
 #include <string>
+#include "scene.h"
 
 using namespace std;
+using namespace scene;
 
 int main(int argc, char* argv[]) {
 	string outFile;
@@ -14,7 +16,11 @@ int main(int argc, char* argv[]) {
 	int width = 800;
 	int height = 400;
 	string objPath = "./meshes/cornell.obj";
+	bool multipleObjs = false;
 
+	//
+	//	Parse command line arguments
+	//
 	if (argc < 3) {
 		cerr << "Usage: CudaRT <options>\n" \
 				"-o \t<output file>\n" \
@@ -64,8 +70,15 @@ int main(int argc, char* argv[]) {
 	}
 
 	// .obj path
+	if ((find(args.begin(), args.end(), "-F") < args.end() - 1)) {
+		objPath = *(find(args.begin(), args.end(), "-F") + 1);
+		multipleObjs = true;
+		cerr << "Can't load multiple OBJs as of yet!" << endl;
+	}
+
 	if ((find(args.begin(), args.end(), "-f") < args.end() - 1)) {
 		objPath = *(find(args.begin(), args.end(), "-f") + 1);
+		multipleObjs = false;
 	}
 
 	cout << "Samples: " << samples << endl \
@@ -73,6 +86,11 @@ int main(int argc, char* argv[]) {
 			<< "Height: " << height << endl \
 			<< "Obj path: " << objPath << endl \
 			<< "Output: " << outFile << endl;
+
+	//
+	// Initialize Scene : Load .obj
+	//
+	Scene scene(objPath);
 
 	return(0);
 

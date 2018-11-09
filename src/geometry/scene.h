@@ -1,5 +1,6 @@
 // Prototypes for model loader - takes obj_load Loader objects and converts them into a format CUDA can use
-#pragma once
+#ifndef SCENE_H
+#define SCENE_H
 #include "obj_load.h"
 #include <vector>
 #include <string>
@@ -17,7 +18,7 @@ namespace scene
 		Scene(std::vector<std::string>& filenames);
 	private:
 		objl::Loader meshLoader;
-
 	};
 }
 
+#endif

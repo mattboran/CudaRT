@@ -1,5 +1,6 @@
 // Implementation for Scene functions. This file is responsible for setting up the scene for rendering
 
+//#include "obj_load.h"
 #include "scene.h"
 #include <iostream>
 
