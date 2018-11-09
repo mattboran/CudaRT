@@ -13,18 +13,21 @@ namespace scene
 		Scene() { }
 		~Scene();
 		Scene(std::string filename);
+		Scene(std::string filename, std::vector<std::string> emissiveMeshes, std::vector<Vector3Df> emissionValues);
 		Scene(std::vector<std::string>& filenames);
 
 		// Get methods
 		int getNumMeshes();
 		objl::Mesh getMesh(int i);
 		int getNumTriangles();
-		Triangle* getTriPtr();
+		geom::Triangle* getTriPtr();
 	private:
 		objl::Loader meshLoader;
-		Triangle* trianglesPtr = NULL;
+		geom::Triangle* trianglesPtr = NULL;
+		int numLights = 0;
 
-		Triangle* loadTriangles();
+		geom::Triangle* loadTriangles(std::vector<std::string> emissiveMeshes, std::vector<Vector3Df> emissionValues);
+
 	};
 }
 
