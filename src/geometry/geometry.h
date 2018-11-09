@@ -3,8 +3,7 @@
 
 #include "linalg.h"
 
-struct Vertex : public Vector3Df
-{
+struct Vertex : public Vector3Df {
 	// normal vector of this vertex
 	Vector3Df _normal;
 	// ambient occlusion of this vertex (pre-calculated in e.g. MeshLab)
@@ -13,9 +12,7 @@ struct Vertex : public Vector3Df
 	Vertex(float x, float y, float z, float nx, float ny, float nz, float amb = 60.f)
 		:
 		Vector3Df(x, y, z), _normal(Vector3Df(nx, ny, nz)), _ambientOcclusionCoeff(amb)
-	{
-		// assert |nx,ny,nz| = 1
-	}
+	{ }
 };
 
 struct Triangle {
@@ -31,6 +28,7 @@ struct Triangle {
 	Vector3Df _normal;
 	// ignore back-face culling flag
 	bool _twoSided;
+
 	// Raytracing intersection pre-computed cache:
 	float _d, _d1, _d2, _d3;
 	Vector3Df _e1, _e2, _e3;
