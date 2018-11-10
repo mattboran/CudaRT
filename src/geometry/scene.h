@@ -12,7 +12,6 @@ class Scene {
 public:
 	~Scene();
 	Scene(std::string filename);
-	Scene(std::string filename, std::vector<std::string> emissiveMeshes, std::vector<Vector3Df> emissionValues);
 	Scene(std::vector<std::string>& filenames);
 
 	// Get methods
@@ -26,14 +25,13 @@ public:
 	void setCamera(const Camera& cam);
 
 private:
-	int numLights = 0;
 	geom::Triangle* trianglesPtr = NULL;
 	objl::Loader meshLoader;
 	Camera camera;
 	Vector3Df sceneMin;
 	Vector3Df sceneMax;
 
-	geom::Triangle* loadTriangles(std::vector<std::string> emissiveMeshes, std::vector<Vector3Df> emissionValues);
+	geom::Triangle* loadTriangles();
 };
 
 

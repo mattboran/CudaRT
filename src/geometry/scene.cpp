@@ -9,15 +9,13 @@ using std::vector;
 
 
 // Constructors
-Scene::Scene(std::string filename) : Scene(filename, vector<std::string>(), vector<Vector3Df>()) { }
-
-Scene::Scene(std::string filename, vector<std::string> emissiveMeshes, vector<Vector3Df> emissionValues) {
+Scene::Scene(std::string filename) {
 	meshLoader = objl::Loader();
 	std::cout << "Loading single .obj as scene from " << filename << std::endl;
 	if (!meshLoader.LoadFile(filename)) {
 		std::cerr << "Failed to load mesh for " << filename << std::endl;
 	}
-	trianglesPtr = loadTriangles(emissiveMeshes, emissionValues);
+	trianglesPtr = loadTriangles();
 }
 
 Scene::Scene(vector<std::string>& filenames) {
@@ -53,11 +51,9 @@ void Scene::setCamera(const Camera& cam) {
 	camera = Camera(cam);
 }
 
-Triangle* Scene::loadTriangles(std::vector<std::string> emissiveMeshes, std::vector<Vector3Df> emissionValues) {
+Triangle* Scene::loadTriangles() {
 	Triangle* triPtr = new Triangle[getNumTriangles()];
 	Triangle* currentTriPtr = triPtr;
-
-	numLights = std::max(emissiveMeshes.size(), emissionValues.size());
 
 	// Also create bounding box for the whole scene
 	sceneMax = Vector3Df(FLT_MIN, FLT_MIN, FLT_MIN);
@@ -83,12 +79,8 @@ Triangle* Scene::loadTriangles(std::vector<std::string> emissiveMeshes, std::vec
 			// Materials
 			currentTriPtr->_colorDiffuse = Vector3Df(material.Kd);
 			currentTriPtr->_colorSpec = Vector3Df(material.Ks);
-			currentTriPtr->_colorEmit = Vector3Df(0.0f, 0.0f, 0.0f);
-			for (int i = 0; i < numLights; i++) {
-				if (emissiveMeshes[i] == mesh.MeshName) {
-					currentTriPtr->_colorEmit = Vector3Df(emissionValues[i]);
-				}
-			}
+			currentTriPtr->_colorEmit = Vector3Df(material.Ka);
+
 			currentTriPtr++;
 		}
 	}
