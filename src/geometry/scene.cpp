@@ -1,6 +1,5 @@
 // Implementation for Scene functions. This file is responsible for setting up the scene for rendering
 
-//#include "obj_load.h"
 #include "scene.h"
 #include <iostream>
 
@@ -24,7 +23,7 @@ Scene::Scene(vector<std::string>& filenames) {
 }
 
 Scene::~Scene() {
-	free(trianglesPtr);
+	delete trianglesPtr;
 }
 
 // Get methods
@@ -45,8 +44,7 @@ Triangle* Scene::getTriPtr() {
 }
 
 Triangle* Scene::loadTriangles(std::vector<std::string> emissiveMeshes, std::vector<Vector3Df> emissionValues) {
-	size_t trianglesSize = getNumTriangles()*sizeof(Triangle);
-	Triangle* triPtr = (Triangle*)malloc(trianglesSize);
+	Triangle* triPtr = new Triangle[getNumTriangles()];
 	Triangle* currentTriPtr = triPtr;
 
 	numLights = std::max(emissiveMeshes.size(), emissionValues.size());
@@ -64,6 +62,8 @@ Triangle* Scene::loadTriangles(std::vector<std::string> emissiveMeshes, std::vec
 			currentTriPtr->_v1 = Vector3Df(v1.Position);
 			currentTriPtr->_v2 = Vector3Df(v2.Position);
 			currentTriPtr->_v3 = Vector3Df(v3.Position);
+			Vector3Df faceNormal = (v1.Normal + v2.Normal + v3.Normal) / 3.0f;
+			currentTriPtr->_normal = Vector3Df(faceNormal);
 
 			// Materials
 			currentTriPtr->_colorDiffuse = Vector3Df(material.Kd);
@@ -77,6 +77,5 @@ Triangle* Scene::loadTriangles(std::vector<std::string> emissiveMeshes, std::vec
 			currentTriPtr++;
 		}
 	}
-
 	return triPtr;
 }

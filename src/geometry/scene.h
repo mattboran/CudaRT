@@ -1,10 +1,10 @@
 // Prototypes for model loader - takes obj_load Loader objects and converts them into a format CUDA can use
 #ifndef SCENE_H
 #define SCENE_H
-#include "obj_load.h"
 #include "geometry.h"
-#include <vector>
+#include "obj_load.h"
 #include <string>
+#include <vector>
 
 namespace scene
 {
@@ -18,13 +18,13 @@ namespace scene
 
 		// Get methods
 		int getNumMeshes();
-		objl::Mesh getMesh(int i);
 		int getNumTriangles();
 		geom::Triangle* getTriPtr();
+		objl::Mesh getMesh(int i);
 	private:
-		objl::Loader meshLoader;
-		geom::Triangle* trianglesPtr = NULL;
 		int numLights = 0;
+		geom::Triangle* trianglesPtr = NULL;
+		objl::Loader meshLoader;
 
 		geom::Triangle* loadTriangles(std::vector<std::string> emissiveMeshes, std::vector<Vector3Df> emissionValues);
 

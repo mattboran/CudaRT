@@ -1,20 +1,27 @@
 // This file is responsible for parsing command line arguments,
 // getting the scene set up, and launching the pathtrace kernel
 
-#include <iostream>
-#include <algorithm>
-#include <vector>
-#include <string>
+#include "pathtrace.h"
 #include "scene.h"
 
+#include <algorithm>
+#include <iostream>
+#include <string>
+#include <vector>
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stbi_save_image.h"
 using namespace std;
 using namespace scene;
+using namespace geom;
+
+static void saveImageToPng(string filename, int width, int height, const Vector3Df* data);
 
 int main(int argc, char* argv[]) {
 	string outFile;
-	int samples = 1000;
-	int width = 800;
-	int height = 400;
+	int samples = 10;
+	int width = 768;
+	int height = 512;
 	string objPath = "../meshes/cornell.obj";
 	bool multipleObjs = false;
 
@@ -55,6 +62,10 @@ int main(int argc, char* argv[]) {
 	if ((find(args.begin(), args.end(), "-w") < args.end() - 1)) {
 		try {
 			width = stoi(*(find(args.begin(), args.end(), "-w") + 1));
+			if (width % (blockWidth * blockWidth) != 0) {
+				cout << "Width should be a multiple of " << blockWidth \
+						<< ". You may see something weird happen because of this!" << endl;
+			}
 		} catch (invalid_argument& e) {
 			cerr << "Invalid argument to -w!" << endl;
 		}
@@ -64,6 +75,10 @@ int main(int argc, char* argv[]) {
 	if ((find(args.begin(), args.end(), "-h") < args.end() - 1)) {
 		try {
 			height = stoi(*(find(args.begin(), args.end(), "-h") + 1));
+			if (height % (blockWidth * blockWidth) != 0) {
+				cout << "Height should be a multiple of " << blockWidth \
+						<< ". You may see something weird happen because of this!" << endl;
+			}
 		} catch (invalid_argument& e) {
 			cerr << "Invalid argument to -h!" << endl;
 		}
@@ -90,7 +105,7 @@ int main(int argc, char* argv[]) {
 	//
 	// Initialize Scene : Load .obj
 	//
-	Scene scene(objPath);
+	Scene scene = Scene(objPath);
 	cout << "\nLoaded " << scene.getNumMeshes() << " meshes " << endl;
 	for (int i = 0; i < scene.getNumMeshes(); i++) {
 		objl::Mesh mesh = scene.getMesh(i);
@@ -99,6 +114,29 @@ int main(int argc, char* argv[]) {
 	}
 
 	cout << "Total number of triangles: " << scene.getNumTriangles() << endl;
-	return(0);
 
+	Vector3Df* imgData = pathtraceWrapper(scene, width, height, samples);
+	saveImageToPng(outFile, width, height, imgData);
+
+	delete[] imgData;
+	return(0);
 }
+
+
+static void saveImageToPng(string filename, int width, int height, const Vector3Df* data) {
+	const unsigned comp = 4;
+	const unsigned strideBytes = width * 4;
+	unsigned char* imageData = new unsigned char[width * height * comp];
+
+	unsigned char* currentPixelPtr = imageData;
+	for (int i = 0; i < width * height; i++) {
+		Vector3Df currentColor = data[i] * 255;
+		*currentPixelPtr = (unsigned char)currentColor.x; currentPixelPtr++;
+		*currentPixelPtr = (unsigned char)currentColor.y; currentPixelPtr++;
+		*currentPixelPtr = (unsigned char)currentColor.z; currentPixelPtr++;
+		*currentPixelPtr = (unsigned char)255u; currentPixelPtr++;
+	}
+	stbi_write_png(filename.c_str(), width, height, comp, imageData, strideBytes);
+	delete[] imageData;
+}
+
