@@ -75,7 +75,7 @@ Triangle* Scene::loadTriangles(std::vector<std::string> emissiveMeshes, std::vec
 			currentTriPtr->_v1 = Vector3Df(v1.Position);
 			currentTriPtr->_v2 = Vector3Df(v2.Position);
 			currentTriPtr->_v3 = Vector3Df(v3.Position);
-			Vector3Df faceNormal = normalize((Vector3Df(v1.Normal) + Vector3Df(v2.Normal) + Vector3Df(v3.Normal)) * 0.3333333f);
+			Vector3Df faceNormal = normalize(Vector3Df(v1.Normal) + Vector3Df(v2.Normal) + Vector3Df(v3.Normal));
 			currentTriPtr->_normal = Vector3Df(faceNormal);
 
 			sceneMax = max4(currentTriPtr->_v1, currentTriPtr->_v2, currentTriPtr->_v3, sceneMax);

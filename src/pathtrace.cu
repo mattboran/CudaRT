@@ -63,9 +63,9 @@ __global__ void renderKernel(geom::Triangle* d_triPtr, int numTriangles, Camera*
 	Vector3Df light(0.0f, 10.0f, 1.0f);
 	if (t < MAX_DISTANCE) {
 		Vector3Df hitPt = camRay.pointAlong(t);
-		Vector3Df lightDir = light - hitPt;
+		Vector3Df lightDir = normalize(light - hitPt);
 		Vector3Df normal = d_triPtr[hitId]._normal;
-		d_imgPtr[j * width + i] = Vector3Df(d_triPtr[hitId]._colorDiffuse * dot(lightDir, normal));
+		d_imgPtr[j * width + i] = Vector3Df(d_triPtr[hitId]._colorDiffuse * max(dot(lightDir, normal), 0.0f));
 	}
 }
 
