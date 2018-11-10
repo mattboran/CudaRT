@@ -12,7 +12,6 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stbi_save_image.h"
 using namespace std;
-using namespace scene;
 using namespace geom;
 
 static void saveImageToPng(string filename, int width, int height, const Vector3Df* data);
@@ -27,6 +26,7 @@ int main(int argc, char* argv[]) {
 
 	//
 	//	Parse command line arguments
+	// TODO: config.json instead of command line args
 	//
 	if (argc < 3) {
 		cerr << "Usage: CudaRT <options>\n" \
@@ -115,7 +115,20 @@ int main(int argc, char* argv[]) {
 
 	cout << "Total number of triangles: " << scene.getNumTriangles() << endl;
 
+	//
+	// Initialize Scene : Camera
+	// TODO: Load this from .obj using cam meshes
+	// alternatively, use a camera.json file
+	//
+	Vector3Df camPos(20.0f, 4.0f, 0.0f);
+	Vector3Df camTarget(0.0f, 4.0f, 0.0f);
+	Vector3Df camUp(0.0f, 5.0f, 0.0f);
+	Vector3Df camRt(-1.0f, 0.0f, 0.0f);
+
+	Camera camera = Camera(camPos, camTarget, camUp, camRt, 60.0f, width, height);
+	scene.setCamera(camera);
 	Vector3Df* imgData = pathtraceWrapper(scene, width, height, samples);
+
 	saveImageToPng(outFile, width, height, imgData);
 
 	delete[] imgData;

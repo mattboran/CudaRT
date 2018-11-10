@@ -2,10 +2,12 @@
 
 #include "scene.h"
 #include <iostream>
-
-using namespace scene;
+#include <limits>
+#include <math.h>
 using namespace geom;
 using std::vector;
+
+
 // Constructors
 Scene::Scene(std::string filename) : Scene(filename, vector<std::string>(), vector<Vector3Df>()) { }
 
@@ -43,12 +45,23 @@ Triangle* Scene::getTriPtr() {
 	return trianglesPtr;
 }
 
+Camera Scene::getCamera() {
+	return camera;
+}
+
+void Scene::setCamera(const Camera& cam) {
+	camera = Camera(cam);
+}
+
 Triangle* Scene::loadTriangles(std::vector<std::string> emissiveMeshes, std::vector<Vector3Df> emissionValues) {
 	Triangle* triPtr = new Triangle[getNumTriangles()];
 	Triangle* currentTriPtr = triPtr;
 
 	numLights = std::max(emissiveMeshes.size(), emissionValues.size());
 
+	// Also create bounding box for the whole scene
+	sceneMax = Vector3Df(FLT_MIN, FLT_MIN, FLT_MIN);
+	sceneMin = Vector3Df(FLT_MAX, FLT_MAX, FLT_MAX);
 	vector<objl::Mesh> meshes = meshLoader.LoadedMeshes;
 	for (auto const& mesh: meshes) {
 		vector<objl::Vertex> vertices = mesh.Vertices;
@@ -65,6 +78,8 @@ Triangle* Scene::loadTriangles(std::vector<std::string> emissiveMeshes, std::vec
 			Vector3Df faceNormal = (v1.Normal + v2.Normal + v3.Normal) / 3.0f;
 			currentTriPtr->_normal = Vector3Df(faceNormal);
 
+			sceneMax = max4(currentTriPtr->_v1, currentTriPtr->_v2, currentTriPtr->_v3, sceneMax);
+			sceneMin = min4(currentTriPtr->_v1, currentTriPtr->_v2, currentTriPtr->_v3, sceneMin);
 			// Materials
 			currentTriPtr->_colorDiffuse = Vector3Df(material.Kd);
 			currentTriPtr->_colorSpec = Vector3Df(material.Ks);
@@ -79,3 +94,4 @@ Triangle* Scene::loadTriangles(std::vector<std::string> emissiveMeshes, std::vec
 	}
 	return triPtr;
 }
+

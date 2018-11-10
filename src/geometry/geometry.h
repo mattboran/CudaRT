@@ -2,8 +2,17 @@
 #define __GEOMETRY_H_
 
 #include "linalg.h"
+#include <cuda_runtime_api.h>
+
+#define FLT_MAX std::numeric_limits<float>::max()
+#define FLT_MIN std::numeric_limits<float>::min()
+
+
+Vector3Df max4(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c, const Vector3Df& d);
+Vector3Df min4(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c, const Vector3Df& d);
 
 namespace geom {
+
 	struct Vertex : public Vector3Df {
 		// normal vector of this vertex
 		Vector3Df _normal;
@@ -12,6 +21,14 @@ namespace geom {
 			:
 			Vector3Df(x, y, z), _normal(Vector3Df(nx, ny, nz))
 		{ }
+	};
+
+	struct Ray {
+		Vector3Df origin;
+		Vector3Df dir;
+
+		__device__ Ray(Vector3Df o, Vector3Df d) : origin(o), dir(normalize(d)) { }
+		__device__ Vector3Df pointAlong(float t) { return Vector3Df(origin + dir*t); }
 	};
 
 	struct Triangle {
@@ -36,6 +53,4 @@ namespace geom {
 		Vector3Df _top;
 	} __attribute__ ((aligned (128))) ;
 }
-
-
 #endif

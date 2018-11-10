@@ -5,6 +5,6 @@
 
 const unsigned blockWidth = 16u;
 
-Vector3Df* pathtraceWrapper(scene::Scene& scene, int width, int height, int samples);
+Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples);
 
 #endif

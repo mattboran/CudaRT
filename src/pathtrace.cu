@@ -12,7 +12,6 @@
 #include <cuda.h>
 
 using namespace geom;
-using namespace scene;
 
 __global__ void renderKernel(geom::Triangle* d_triPtr, int numTriangles, Vector3Df* d_imgPtr, int width, int height);
 
