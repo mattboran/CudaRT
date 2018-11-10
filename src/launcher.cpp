@@ -120,8 +120,8 @@ int main(int argc, char* argv[]) {
 	// TODO: Load this from .obj using cam meshes
 	// alternatively, use a camera.json file
 	//
-	Vector3Df camPos(20.0f, 4.0f, 0.0f);
-	Vector3Df camTarget(0.0f, 4.0f, 0.0f);
+	Vector3Df camPos(11.0f, 6.0f, 0.0f);
+	Vector3Df camTarget(0.0f, 6.0f, 0.0f);
 	Vector3Df camUp(0.0f, 5.0f, 0.0f);
 	Vector3Df camRt(-1.0f, 0.0f, 0.0f);
 
