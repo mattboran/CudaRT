@@ -2,6 +2,7 @@
 #define __GEOMETRY_H_
 
 #include "linalg.h"
+#include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <limits>
 
@@ -34,6 +35,8 @@ namespace geom {
 		__device__ Vector3Df pointAlong(float t) { return Vector3Df(origin + dir*t); }
 	};
 
+	struct RayHit;
+
 	struct Triangle {
 		// RGB Color Vector3Df
 		Vector3Df _colorDiffuse;
@@ -43,8 +46,11 @@ namespace geom {
 		Vector3Df _normal;
 		// Unoptimized triangles for moller-trombore
 		Vector3Df _v1, _v2, _v3;
+		Vector3Df _e1, _e2;
+		Vector3Df _n1, _n2, _n3;
 
-		__device__ float intersect(const Ray &r) const;
+		__device__ float intersect(const Ray &r, RayHit& rh) const;
+		__device__ Vector3Df getNormal(const  RayHit& rh) const;
 		// TODO: Implement these properties
 		// Center point
 //		Vector3Df _center;
@@ -57,6 +63,11 @@ namespace geom {
 		// bounding box
 //		Vector3Df _bottom;
 //		Vector3Df _top;
-	} __attribute__ ((aligned (128))) ;
+	} __attribute__ ((aligned (64))) ;
+
+	struct RayHit {
+		Triangle* hitTriPtr;
+		float u, v;
+	};
 }
 #endif

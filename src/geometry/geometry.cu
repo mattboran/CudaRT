@@ -19,13 +19,10 @@ extern Vector3Df min4(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c
 	return Vector3Df(x,y,z);
 }
 
-__device__ float Triangle::intersect(const Ray& r) const
-{
-	Vector3Df edge1 = _v2 - _v1;
-	Vector3Df edge2 = _v3 - _v1;
+__device__ float Triangle::intersect(const Ray& r, RayHit& rh) const {
 	Vector3Df P, Q, T;
-	P = cross(r.dir, edge2);
-	float det = dot(edge1, P);
+	P = cross(r.dir, _e2);
+	float det = dot(_e1, P);
 
 	if(fabsf(det) < EPSILON)
 	{
@@ -39,16 +36,22 @@ __device__ float Triangle::intersect(const Ray& r) const
 		return MAX_DISTANCE;
 	}
 
-	Q = cross(T, edge1);
+	Q = cross(T, _e1);
 	float v = dot(r.dir, Q) * inv_det;
 	if ( v < 0.f || u + v > 1.f)
 	{
 		return MAX_DISTANCE;
 	}
-	float t = dot(edge2, Q) * inv_det;
+	float t = dot(_e2, Q) * inv_det;
 	if ( t > EPSILON)
 	{
+		rh.u = u;
+		rh.v = v;
 		return t;
 	}
 	return MAX_DISTANCE;
+}
+
+__device__ Vector3Df Triangle::getNormal(const RayHit& rh) const {
+	return Vector3Df(normalize(_n1 + _n2 + _n3));
 }

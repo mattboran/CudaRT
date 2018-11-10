@@ -15,7 +15,9 @@
 using namespace geom;
 
 __global__ void renderKernel(geom::Triangle* d_triPtr, int numTriangles, Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height);
-__device__ float intersectTriangles(geom::Triangle* d_triPtr, int numTriangles, unsigned int& hitId, const Ray& ray);
+__device__ float intersectTriangles(geom::Triangle* d_triPtr, int numTriangles, RayHit& hitData, const Ray& ray);
+
+
 
 Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples) {
 	int pixels = width * height;
@@ -58,26 +60,26 @@ __global__ void renderKernel(geom::Triangle* d_triPtr, int numTriangles, Camera*
 	j = blockIdx.y*blockDim.y + threadIdx.y;
 
 	Ray camRay = d_camPtr->computeCameraRay(i, j);
-	unsigned int hitId = 0;
-	float t = intersectTriangles(d_triPtr, numTriangles, hitId, camRay);
+	RayHit hitData;
+	float t = intersectTriangles(d_triPtr, numTriangles, hitData, camRay);
 	Vector3Df light(0.0f, 10.0f, 1.0f);
 	if (t < MAX_DISTANCE) {
 		Vector3Df hitPt = camRay.pointAlong(t);
 		Vector3Df lightDir = normalize(light - hitPt);
-		Vector3Df normal = d_triPtr[hitId]._normal;
-		d_imgPtr[j * width + i] = Vector3Df(d_triPtr[hitId]._colorDiffuse * max(dot(lightDir, normal), 0.0f));
+		Vector3Df normal = hitData.hitTriPtr->getNormal(hitData);
+		d_imgPtr[j * width + i] = Vector3Df(hitData.hitTriPtr->_colorDiffuse * max(dot(lightDir, normal), 0.0f));
 	}
 }
 
-__device__ float intersectTriangles(geom::Triangle* d_triPtr, int numTriangles, unsigned int& hitId, const Ray& ray) {
+__device__ float intersectTriangles(geom::Triangle* d_triPtr, int numTriangles, RayHit& hitData, const Ray& ray) {
 	float t = MAX_DISTANCE, tprime = MAX_DISTANCE;
 	for (unsigned i = 0; i < numTriangles; i++)
 	{
-		tprime = d_triPtr[i].intersect(ray);
+		tprime = d_triPtr[i].intersect(ray, hitData);
 		if (tprime < t && tprime > 0.f)
 		{
 			t = tprime;
-			hitId = i;
+			hitData.hitTriPtr = &d_triPtr[i];
 		}
 	}
 	return t;

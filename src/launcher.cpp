@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <iostream>
 #include <string>
+#include <time.h>
 #include <vector>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -109,11 +110,11 @@ int main(int argc, char* argv[]) {
 	cout << "\nLoaded " << scene.getNumMeshes() << " meshes " << endl;
 	for (int i = 0; i < scene.getNumMeshes(); i++) {
 		objl::Mesh mesh = scene.getMesh(i);
-		cout << "Mesh " << i << ": " << mesh.MeshName << endl \
+		cout << "Mesh " << i << ": `" << mesh.MeshName << "`"<< endl \
 				<< "\t" << mesh.Vertices.size() << " vertices | \t" << mesh.Vertices.size() / 3 << " triangles" << endl;
 	}
 
-	cout << "Total number of triangles: " << scene.getNumTriangles() << endl;
+	cout << "Total number of triangles:\t" << scene.getNumTriangles() << endl;
 
 	//
 	// Initialize Scene : Camera
@@ -127,9 +128,13 @@ int main(int argc, char* argv[]) {
 
 	Camera camera = Camera(camPos, camTarget, camUp, camRt, 60.0f, width, height);
 	scene.setCamera(camera);
+	clock_t start = clock();
 	Vector3Df* imgData = pathtraceWrapper(scene, width, height, samples);
-
 	saveImageToPng(outFile, width, height, imgData);
+	clock_t end = clock();
+
+	cout << "Sizeof(triangle) = " << sizeof(Triangle) << endl;
+	cout << "\nOutput to " << outFile << ":\t\t" << ((double)(end - start))/ CLOCKS_PER_SEC << " seconds " << endl;
 
 	delete[] imgData;
 	return(0);

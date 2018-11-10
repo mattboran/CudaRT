@@ -71,8 +71,11 @@ Triangle* Scene::loadTriangles() {
 			currentTriPtr->_v1 = Vector3Df(v1.Position);
 			currentTriPtr->_v2 = Vector3Df(v2.Position);
 			currentTriPtr->_v3 = Vector3Df(v3.Position);
-			Vector3Df faceNormal = normalize(Vector3Df(v1.Normal) + Vector3Df(v2.Normal) + Vector3Df(v3.Normal));
-			currentTriPtr->_normal = Vector3Df(faceNormal);
+			currentTriPtr->_n1 = Vector3Df(v1.Normal);
+			currentTriPtr->_n2 = Vector3Df(v2.Normal);
+			currentTriPtr->_n3 = Vector3Df(v3.Normal);
+			currentTriPtr->_e1 = currentTriPtr->_v2 - currentTriPtr->_v1;
+			currentTriPtr->_e2 = currentTriPtr->_v3 - currentTriPtr->_v1;
 
 			sceneMax = max4(currentTriPtr->_v1, currentTriPtr->_v2, currentTriPtr->_v3, sceneMax);
 			sceneMin = min4(currentTriPtr->_v1, currentTriPtr->_v2, currentTriPtr->_v3, sceneMin);
