@@ -67,19 +67,23 @@ __global__ void renderKernel(geom::Triangle* d_triPtr, int numTriangles, Camera*
 		Vector3Df hitPt = camRay.pointAlong(t);
 		Vector3Df lightDir = normalize(light - hitPt);
 		Vector3Df normal = hitData.hitTriPtr->getNormal(hitData);
+//		d_imgPtr[j * width + i] = normal;
 		d_imgPtr[j * width + i] = Vector3Df(hitData.hitTriPtr->_colorDiffuse * max(dot(lightDir, normal), 0.0f));
 	}
 }
 
 __device__ float intersectTriangles(geom::Triangle* d_triPtr, int numTriangles, RayHit& hitData, const Ray& ray) {
 	float t = MAX_DISTANCE, tprime = MAX_DISTANCE;
+	float u, v;
 	for (unsigned i = 0; i < numTriangles; i++)
 	{
-		tprime = d_triPtr[i].intersect(ray, hitData);
+		tprime = d_triPtr[i].intersect(ray, u, v);
 		if (tprime < t && tprime > 0.f)
 		{
 			t = tprime;
 			hitData.hitTriPtr = &d_triPtr[i];
+			hitData.u = u;
+			hitData.v = v;
 		}
 	}
 	return t;

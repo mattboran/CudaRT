@@ -38,6 +38,7 @@ namespace geom {
 	struct RayHit;
 
 	struct Triangle {
+		unsigned meshId;
 		// RGB Color Vector3Df
 		Vector3Df _colorDiffuse;
 		Vector3Df _colorSpec;
@@ -49,7 +50,7 @@ namespace geom {
 		Vector3Df _e1, _e2;
 		Vector3Df _n1, _n2, _n3;
 
-		__device__ float intersect(const Ray &r, RayHit& rh) const;
+		__device__ float intersect(const Ray &r, float &_u, float &_v) const;
 		__device__ Vector3Df getNormal(const  RayHit& rh) const;
 		// TODO: Implement these properties
 		// Center point

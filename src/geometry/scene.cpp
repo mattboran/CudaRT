@@ -59,12 +59,15 @@ Triangle* Scene::loadTriangles() {
 	sceneMax = Vector3Df(FLT_MIN, FLT_MIN, FLT_MIN);
 	sceneMin = Vector3Df(FLT_MAX, FLT_MAX, FLT_MAX);
 	vector<objl::Mesh> meshes = meshLoader.LoadedMeshes;
+	unsigned meshId = 0;
 	for (auto const& mesh: meshes) {
+		meshId++;
 		vector<objl::Vertex> vertices = mesh.Vertices;
 		vector<unsigned> indices = mesh.Indices;
 		objl::Material material = mesh.MeshMaterial;
 
 		for (int i = 0; i < vertices.size()/3; i++) {
+			currentTriPtr->meshId = meshId;
 			objl::Vertex v1 = vertices[indices[i*3]];
 			objl::Vertex v2 = vertices[indices[i*3 + 1]];
 			objl::Vertex v3 = vertices[indices[i*3 + 2]];
