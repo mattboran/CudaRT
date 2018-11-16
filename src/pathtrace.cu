@@ -23,14 +23,12 @@
 
 using namespace geom;
 
-__global__ void debugRenderKernel(Triangle* d_triPtr, int numTriangles, Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height);
-__global__ void renderKernel(Triangle* d_triPtr, int numTriangles, Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height);
-__device__ float intersectTriangles(Triangle* d_triPtr, int numTriangles, RayHit& hitData, const Ray& ray);
+__global__ void debugRenderKernel(Triangle* d_triPtr, int numTriangles, Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height, bool useTexMem);
+__global__ void renderKernel(Triangle* d_triPtr, int numTriangles, Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height, bool useTexMem);
+__device__ float intersectTriangles(Triangle* d_triPtr, int numTriangles, RayHit& hitData, const Ray& ray, bool useTexMem);
 //__host__ void configureTexture(texture_t &triTexture);
 //__host__ cudaArray* bindTrianglesToTexture(Triangle* triPtr, unsigned numTris, texture_t &triTexture);
 __device__ inline Triangle getTriangleFromTexture(unsigned i);
-
-__device__ static bool* d_useTextureMemory = NULL;
 
 texture_t triangleTexture;
 curandGenerator_t* generator;
@@ -67,8 +65,6 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, bo
 		configureTexture(triangleTexture);
 		d_triDataArray = bindTrianglesToTexture(triPtr, numTris, triangleTexture);
 	}
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_useTextureMemory, sizeof(bool)));
-	CUDA_CHECK_RETURN(cudaMemset((void*)d_useTextureMemory, (int)useTexMemory, sizeof(bool)));
 
 	// Launch kernel
 	dim3 block(blockWidth, blockWidth, 1);
@@ -76,7 +72,7 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, bo
 
 	for (int s = 0; s < samples; s++)
 	{
-		renderKernel <<<grid, block>>>(d_triPtr, numTris, d_camPtr, d_imgDataPtr, width, height);
+		renderKernel <<<grid, block>>>(d_triPtr, numTris, d_camPtr, d_imgDataPtr, width, height, useTexMemory);
 	}
 
 	CUDA_CHECK_RETURN(cudaMemcpy((void*)imgDataPtr, (void*)d_imgDataPtr, imageBytes, cudaMemcpyDeviceToHost));
@@ -87,16 +83,33 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, bo
 	return imgDataPtr;
 }
 
-__global__ void renderKernel(Triangle* d_triPtr, int numTriangles, Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height);
+__global__ void renderKernel(Triangle* d_triPtr, int numTriangles,
+		Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height, bool useTexMemory) {
+	unsigned int i, j;
+		i = blockIdx.x*blockDim.x + threadIdx.x;
+		j = blockIdx.y*blockDim.y + threadIdx.y;
 
-__global__ void debugRenderKernel(geom::Triangle* d_triPtr, int numTriangles, Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height) {
+		Ray camRay = d_camPtr->computeCameraRay(i, j);
+		RayHit hitData;
+		float t = intersectTriangles(d_triPtr, numTriangles, hitData, camRay, useTexMemory);
+		Vector3Df light(0.0f, 10.0f, 1.0f);
+		if (t < MAX_DISTANCE) {
+			Vector3Df hitPt = camRay.pointAlong(t);
+			Vector3Df lightDir = normalize(light - hitPt);
+			Vector3Df normal = hitData.hitTriPtr->getNormal(hitData);
+			d_imgPtr[j * width + i] = Vector3Df(hitData.hitTriPtr->_colorDiffuse * max(dot(lightDir, normal), 0.0f));
+		}
+}
+
+__global__ void debugRenderKernel(geom::Triangle* d_triPtr, int numTriangles,
+		Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height, bool useTexMemory) {
 	unsigned int i, j;
 	i = blockIdx.x*blockDim.x + threadIdx.x;
 	j = blockIdx.y*blockDim.y + threadIdx.y;
 
 	Ray camRay = d_camPtr->computeCameraRay(i, j);
 	RayHit hitData;
-	float t = intersectTriangles(d_triPtr, numTriangles, hitData, camRay);
+	float t = intersectTriangles(d_triPtr, numTriangles, hitData, camRay, useTexMemory);
 	Vector3Df light(0.0f, 10.0f, 1.0f);
 	if (t < MAX_DISTANCE) {
 		Vector3Df hitPt = camRay.pointAlong(t);
@@ -106,13 +119,14 @@ __global__ void debugRenderKernel(geom::Triangle* d_triPtr, int numTriangles, Ca
 	}
 }
 
-__device__ float intersectTriangles(geom::Triangle* d_triPtr, int numTriangles, RayHit& hitData, const Ray& ray) {
+__device__ float intersectTriangles(geom::Triangle* d_triPtr, int numTriangles,
+		RayHit& hitData, const Ray& ray, bool useTexMemory) {
 	float t = MAX_DISTANCE, tprime = MAX_DISTANCE;
 	float u, v;
 	for (unsigned i = 0; i < numTriangles; i++)
 	{
 		Triangle tri;
-		if (d_useTextureMemory) {
+		if (useTexMemory) {
 			Triangle tri = getTriangleFromTexture(i);
 			tprime = tri.intersect(ray, u, v);
 		} else {
