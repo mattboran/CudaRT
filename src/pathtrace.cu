@@ -12,14 +12,16 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include "cuda_error_check.h" // includes cuda.h and cuda_runtime_api.h
+#include <iostream>
 using namespace geom;
 
+#define TEX_ARRAY_MAX 8192
 typedef texture<float4, 1, cudaReadModeElementType> texture_t;
 
 __global__ void renderKernel(Triangle* d_triPtr, int numTriangles, Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height);
 __device__ float intersectTriangles(Triangle* d_triPtr, int numTriangles, RayHit& hitData, const Ray& ray);
 __host__ void configureTexture(texture_t &triTexture);
-__host__ float4* bindTrianglesToTexture(Triangle* triPtr, unsigned numTris, texture_t &triTexture);
+__host__ cudaArray* bindTrianglesToTexture(Triangle* triPtr, unsigned numTris, texture_t &triTexture);
 __device__ Triangle getTriangleFromTexture(unsigned i);
 
 __device__ static bool* d_useTextureMemory = NULL;
@@ -47,10 +49,11 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, bo
 	CUDA_CHECK_RETURN(cudaMemcpy((void*)d_camPtr, (void*)camPtr, sizeof(Camera), cudaMemcpyHostToDevice));
 
 	// Bind triangles to texture memory
-	float4* d_triDataPtr = NULL;
+	cudaArray* d_triDataArray = NULL;
 	if (useTexMemory) {
+		std::cout << "Using texture memory!" << std::endl;
 		configureTexture(triangleTexture);
-		d_triDataPtr = bindTrianglesToTexture(triPtr, numTris, triangleTexture);
+		d_triDataArray = bindTrianglesToTexture(triPtr, numTris, triangleTexture);
 	}
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_useTextureMemory, sizeof(bool)));
 	CUDA_CHECK_RETURN(cudaMemset((void*)d_useTextureMemory, (int)useTexMemory, sizeof(bool)));
@@ -67,7 +70,8 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, bo
 	CUDA_CHECK_RETURN(cudaMemcpy((void*)imgDataPtr, (void*)d_imgDataPtr, imageBytes, cudaMemcpyDeviceToHost));
 	cudaFree((void*)d_triPtr);
 	cudaFree((void*)d_imgDataPtr);
-	cudaFree((void*)d_triDataPtr);
+	if (useTexMemory)
+		cudaFreeArray(d_triDataArray);
 	return imgDataPtr;
 }
 
@@ -95,11 +99,11 @@ __device__ float intersectTriangles(geom::Triangle* d_triPtr, int numTriangles, 
 	{
 		Triangle tri;
 		if (d_useTextureMemory) {
-			tri = getTriangleFromTexture(i);
+			Triangle tri = getTriangleFromTexture(i);
+			tprime = tri.intersect(ray, u, v);
 		} else {
-			tri = d_triPtr[i];
+			tprime = d_triPtr[i].intersect(ray, u, v);
 		}
-		tprime = d_triPtr[i].intersect(ray, u, v);
 		if (tprime < t && tprime > 0.f)
 		{
 			t = tprime;
@@ -119,7 +123,7 @@ void configureTexture(texture_t &triTexture) {
 }
 
 // Note, this function returns the new pointer to the triangle data
-__host__ float4* bindTrianglesToTexture(Triangle* triPtr, unsigned numTris, texture_t &triTexture) {
+__host__ cudaArray* bindTrianglesToTexture(Triangle* triPtr, unsigned numTris, texture_t &triTexture) {
 	// 3 float3s for verts, 3 float3s for normals, 3 float3s for material
 	unsigned numElements = numTris * 9;
 	float4* triDataPtr = new float4[numElements];
@@ -154,13 +158,14 @@ __host__ float4* bindTrianglesToTexture(Triangle* triPtr, unsigned numTris, text
 		triDataPtr[i*9+8].z = triPtr->_colorEmit.z;
 	}
 
-	float4* d_triDataPtr = NULL;
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_triDataPtr, sizeof(float) * numElements));
-	CUDA_CHECK_RETURN(cudaMemcpy((void*)d_triDataPtr, triDataPtr, sizeof(float) * numElements, cudaMemcpyHostToDevice));
+	cudaArray* cuArray;
+	cudaChannelFormatDesc channelDesc =
+			cudaCreateChannelDesc(32, 32, 32, 32, cudaChannelFormatKindFloat );
+	CUDA_CHECK_RETURN(cudaMallocArray(&cuArray, &channelDesc, numElements));
+	CUDA_CHECK_RETURN(cudaMemcpyToArray(cuArray, 0, 0, triDataPtr, sizeof(float4)*numElements, cudaMemcpyHostToDevice));
 
-	size_t offset;
-	cudaBindTexture(&offset, triTexture, d_triDataPtr, sizeof(float) * numElements);
-	return d_triDataPtr;
+	CUDA_CHECK_RETURN(cudaBindTextureToArray(triTexture, cuArray, channelDesc));
+	return cuArray;
 }
 
 __device__ Triangle getTriangleFromTexture(unsigned i) {

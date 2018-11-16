@@ -108,6 +108,8 @@ int main(int argc, char* argv[]) {
 			<< "Height: " << height << endl \
 			<< "Obj path: " << objPath << endl \
 			<< "Output: " << outFile << endl;
+	if (useTextureMemory)
+		cout << "Using texture memory " << endl;
 
 	//
 	// Initialize Scene : Load .obj
@@ -139,7 +141,6 @@ int main(int argc, char* argv[]) {
 	saveImageToPng(outFile, width, height, imgData);
 	clock_t end = clock();
 
-	cout << "Sizeof(triangle) = " << sizeof(Triangle) << endl;
 	cout << "\nOutput to " << outFile << ":\t\t" << ((double)(end - start))/ CLOCKS_PER_SEC << " seconds " << endl;
 
 	delete[] imgData;
