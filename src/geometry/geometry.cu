@@ -19,6 +19,26 @@ extern Vector3Df min4(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c
 	return Vector3Df(x,y,z);
 }
 
+__device__ Triangle::Triangle(const float* data, unsigned i) {
+	_v1 = Vector3Df(data[i*12], data[i*12 + 1], data[i*12+2]);
+	_e1 = Vector3Df(data[i*12 + 3], data[i*12 + 4], data[i*12 + 5]);
+	_e1 = Vector3Df(data[i*12 + 6], data[i*12 + 7], data[i*12 + 8]);
+	_n1 = Vector3Df(data[i*12 + 9], data[i*12 + 10], data[i*12 + 11]);
+	_n2 = Vector3Df(data[i*12 + 12], data[i*12 + 13], data[i*12 + 14]);
+	_n3 = Vector3Df(data[i*12 + 15], data[i*12 + 16], data[i*12 + 17]);
+	_colorDiffuse = Vector3Df(data[i*12 + 18], data[i*12 + 19], data[i*12 + 20]);
+	_colorSpec = Vector3Df(data[i*12 + 21], data[i*12 + 22], data[i*12 + 23]);
+	_colorEmit = Vector3Df(data[i*12 + 24], data[i*12 + 25], data[i*12 + 26]);
+}
+
+__device__ Triangle::Triangle(float3 v1, float3 e1, float3 e2, float3 n1, float3 n2, float3 n3, float3 diff, float3 spec, float3 emit) :
+	_v1(v1), _e1(e1), _e2(e2), _n1(n1), _n2(n2), _n3(n3), _colorDiffuse(diff), _colorSpec(spec), _colorEmit(emit)
+		{ }
+
+__device__ Triangle::Triangle(float4 v1, float4 e1, float4 e2, float4 n1, float4 n2, float4 n3, float4 diff, float4 spec, float4 emit) :
+	_v1(v1), _e1(e1), _e2(e2), _n1(n1), _n2(n2), _n3(n3), _colorDiffuse(diff), _colorSpec(spec), _colorEmit(emit)
+		{ }
+
 __device__ float Triangle::intersect(const Ray& r, float &_u, float &_v) const {
 	Vector3Df P, Q, T;
 	P = cross(r.dir, _e2);

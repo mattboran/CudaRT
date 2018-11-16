@@ -17,6 +17,7 @@ struct Vector3Df
 
 	__host__ __device__ Vector3Df(float _x = 0, float _y = 0, float _z = 0) : x(_x), y(_y), z(_z) {}
 	__host__ __device__ Vector3Df(const Vector3Df& v) : x(v.x), y(v.y), z(v.z) {}
+	__host__ __device__ Vector3Df(const float3& v) : x(v.x), y(v.y), z(v.z) {}
 	__host__ __device__ Vector3Df(const float4& v) : x(v.x), y(v.y), z(v.z) {}
 	inline __host__ __device__ float length(){ return sqrtf(x*x + y*y + z*z); }
 	// sometimes we dont need the sqrt, we are just comparing one length with another

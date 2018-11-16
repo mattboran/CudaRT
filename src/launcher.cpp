@@ -24,6 +24,7 @@ int main(int argc, char* argv[]) {
 	int height = 512;
 	string objPath = "../meshes/cornell.obj";
 	bool multipleObjs = false;
+	bool useTextureMemory = false;
 
 	//
 	//	Parse command line arguments
@@ -36,7 +37,8 @@ int main(int argc, char* argv[]) {
 				"-w \t<width>\tdefault:800px\n" \
 				"-h \t<height>\tdefault:400px\n" \
 				"-f \t<path to .obj to render>\tdefault:./meshes/cornell.obj\n" \
-				"-F \t<path to .obj directory>\tdefault:./meshes\n"
+				"-F \t<path to .obj directory>\tdefault:./meshes\n" \
+				"-t \t<use texture memory for triangles, default = false>"
 				;
 		return(1);
 	}
@@ -97,6 +99,10 @@ int main(int argc, char* argv[]) {
 		multipleObjs = false;
 	}
 
+	if ((find(args.begin(), args.end(), "-t") < args.end())) {
+		useTextureMemory = true;
+	}
+
 	cout << "Samples: " << samples << endl \
 			<< "Width: " << width << endl \
 			<< "Height: " << height << endl \
@@ -129,7 +135,7 @@ int main(int argc, char* argv[]) {
 	Camera camera = Camera(camPos, camTarget, camUp, camRt, 90.0f, width, height);
 	scene.setCamera(camera);
 	clock_t start = clock();
-	Vector3Df* imgData = pathtraceWrapper(scene, width, height, samples);
+	Vector3Df* imgData = pathtraceWrapper(scene, width, height, samples, useTextureMemory);
 	saveImageToPng(outFile, width, height, imgData);
 	clock_t end = clock();
 

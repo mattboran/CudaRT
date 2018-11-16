@@ -52,7 +52,7 @@ void Scene::setCamera(const Camera& cam) {
 }
 
 Triangle* Scene::loadTriangles() {
-	Triangle* triPtr = new Triangle[getNumTriangles()];
+	Triangle* triPtr = (Triangle*)malloc(sizeof(Triangle) * getNumTriangles());
 	Triangle* currentTriPtr = triPtr;
 
 	// Also create bounding box for the whole scene
@@ -67,7 +67,6 @@ Triangle* Scene::loadTriangles() {
 		objl::Material material = mesh.MeshMaterial;
 
 		for (int i = 0; i < vertices.size()/3; i++) {
-			currentTriPtr->meshId = meshId;
 			objl::Vertex v1 = vertices[indices[i*3]];
 			objl::Vertex v2 = vertices[indices[i*3 + 1]];
 			objl::Vertex v3 = vertices[indices[i*3 + 2]];
