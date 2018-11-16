@@ -28,7 +28,7 @@ __device__ static bool* d_useTextureMemory = NULL;
 
 texture_t triangleTexture;
 
-Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, bool useTexMemory) {
+Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, bool &useTexMemory) {
 	int pixels = width * height;
 	unsigned numTris = scene.getNumTriangles();
 	size_t triangleBytes = sizeof(Triangle) * numTris;
@@ -50,6 +50,11 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, bo
 
 	// Bind triangles to texture memory
 	cudaArray* d_triDataArray = NULL;
+	if (useTexMemory && numTris*9 > TEX_ARRAY_MAX) {
+		std::cout << "Not using texture memory because we cannot fit " \
+				<< numTris << " triangles in 1D cudaArray" << std::endl;
+		useTexMemory = false;
+	}
 	if (useTexMemory) {
 		std::cout << "Using texture memory!" << std::endl;
 		configureTexture(triangleTexture);
