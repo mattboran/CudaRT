@@ -20,8 +20,8 @@ static void saveImageToPng(string filename, int width, int height, const Vector3
 int main(int argc, char* argv[]) {
 	string outFile;
 	int samples = 10;
-	int width = 768;
-	int height = 512;
+	int width = 480;
+	int height = 320;
 	string objPath = "../meshes/cornell.obj";
 	bool multipleObjs = false;
 	bool useTextureMemory = false;
@@ -34,8 +34,8 @@ int main(int argc, char* argv[]) {
 		cerr << "Usage: CudaRT <options>\n" \
 				"-o \t<output file>\n" \
 				"-s \t<number of samples>\tdefault:1000\n" \
-				"-w \t<width>\tdefault:800px\n" \
-				"-h \t<height>\tdefault:400px\n" \
+				"-w \t<width>\tdefault:480px\n" \
+				"-h \t<height>\tdefault:320px\n" \
 				"-f \t<path to .obj to render>\tdefault:./meshes/cornell.obj\n" \
 				"-F \t<path to .obj directory>\tdefault:./meshes\n" \
 				"-t \t<use texture memory for triangles, default = false>"
