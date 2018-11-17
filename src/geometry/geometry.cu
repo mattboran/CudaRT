@@ -91,3 +91,13 @@ __device__ Vector3Df Triangle::getNormal(const RayHit& rh) const {
 	float v = rh.v;
 	return Vector3Df(normalize(_n1 *w + _n2 *u+ _n3*v));
 }
+
+__device__ bool Triangle::isEmissive() const {
+	return _colorEmit.lengthsq() > 0.0f;
+}
+__device__ bool Triangle::isSpecular() const {
+	return _colorSpec.lengthsq() > 0.0f;
+}
+__device__ bool Triangle::isDiffuse() const {
+	return _colorDiffuse.lengthsq() > 0.0f;
+}
