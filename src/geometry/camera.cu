@@ -2,6 +2,7 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 
+
 using namespace geom;
 
 __host__ Camera::Camera(Vector3Df pos, Vector3Df target, Vector3Df upv, Vector3Df rt, float _fov, int x, int y) :
@@ -11,10 +12,28 @@ __host__ Camera::Camera(Vector3Df pos, Vector3Df target, Vector3Df upv, Vector3D
 	rebase();
 }
 
-__device__ Ray Camera::computeCameraRay(int i, int j) const
+// Compute tent filtered ray
+__device__ Ray Camera::computeCameraRay(int i, int j, curandState* randState) const
 {
-	 float normalized_i = 1.0f - ((float)i / (float)xpixels) - 0.5f;
-	float normalized_j = 1.0f - ((float)j / (float)ypixels) - 0.5f;
+	float r1 = 2 * curand_uniform(randState);
+	float dx;
+	if (r1 < 1.f){
+		dx = sqrtf(r1) - 1.f;
+	}
+	else{
+		dx = 1.f - sqrtf(2.f - r1);
+	}
+	float r2 = 2 * curand_uniform(randState);
+	float dy;
+	if (r2 < 1){
+		dy = sqrtf(r2) - 1.f;
+	}
+	else{
+		dy = 1.f - sqrtf(2.f - r2);
+	}
+
+	float normalized_i = 1.0f - (((float)i + dx) / (float)xpixels) - 0.5;
+	float normalized_j = 1.0f - (((float)j + dy) / (float)ypixels) - 0.5f;
 
 	Vector3Df direction = dir;
 	direction += ((right * -1.0f) * fov * aspect * normalized_i);
