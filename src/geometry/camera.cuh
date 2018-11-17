@@ -3,6 +3,8 @@
 #include "geometry.cuh"
 
 #include <cuda_runtime_api.h>
+#include <curand.h>
+#include <curand_kernel.h>
 
 class Camera
 {
@@ -12,7 +14,7 @@ public:
 
 	__host__ void rebase();
 
-	__device__ geom::Ray computeCameraRay(int i, int j) const;
+	__device__ geom::Ray computeCameraRay(int i, int j, curandState* randState) const;
 
 private:
 	Vector3Df eye;

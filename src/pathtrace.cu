@@ -8,27 +8,38 @@
  ============================================================================
  */
 #include "camera.cuh"
+#include "cuda_textures.cuh"
 #include "pathtrace.h"
+
 #include <cuda.h>
 #include <cuda_runtime_api.h>
-#include "cuda_error_check.h" // includes cuda.h and cuda_runtime_api.h
+#include <curand.h>
+#include <curand_kernel.h>
+
 #include <iostream>
+
+#include "cuda_error_check.h" // includes cuda.h and cuda_runtime_api.h
+// Random  number generation with CUDA
+
 using namespace geom;
 
-#define TEX_ARRAY_MAX 8192
-typedef texture<float4, 1, cudaReadModeElementType> texture_t;
-
-__global__ void renderKernel(Triangle* d_triPtr, int numTriangles, Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height);
-__device__ float intersectTriangles(Triangle* d_triPtr, int numTriangles, RayHit& hitData, const Ray& ray);
-__host__ void configureTexture(texture_t &triTexture);
-__host__ cudaArray* bindTrianglesToTexture(Triangle* triPtr, unsigned numTris, texture_t &triTexture);
-__device__ Triangle getTriangleFromTexture(unsigned i);
-
-__device__ static bool* d_useTextureMemory = NULL;
+__global__ void debugRenderKernel(Triangle* d_triPtr, int numTriangles,
+		Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height,
+		bool useTexMem);
+__global__ void setupCurandKernel(curandState *randState);
+__global__ void renderKernel(Triangle* d_triPtr, int numTriangles,
+		Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height,
+		bool useTexMem, curandState *randState);
+__global__ void averageSamplesKernel(Vector3Df* d_imgPtr, int width, int height,
+		unsigned samples);
+__device__ float intersectTriangles(Triangle* d_triPtr, int numTriangles,
+		RayHit& hitData, const Ray& ray, bool useTexMem);
+__device__ inline Triangle getTriangleFromTexture(unsigned i);
 
 texture_t triangleTexture;
 
-Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, bool &useTexMemory) {
+Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples,
+		bool &useTexMemory) {
 	int pixels = width * height;
 	unsigned numTris = scene.getNumTriangles();
 	size_t triangleBytes = sizeof(Triangle) * numTris;
@@ -41,76 +52,170 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, bo
 	Vector3Df* d_imgDataPtr = NULL;
 	Camera* camPtr = scene.getCameraPtr();
 	Camera* d_camPtr = NULL;
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_triPtr, triangleBytes));
-	CUDA_CHECK_RETURN(cudaMemcpy((void*)d_triPtr, (void*)triPtr, triangleBytes, cudaMemcpyHostToDevice));
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_imgDataPtr, imageBytes));
-	CUDA_CHECK_RETURN(cudaMemcpy((void*)d_imgDataPtr, (void*)imgDataPtr, imageBytes, cudaMemcpyHostToDevice));
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_camPtr, sizeof(Camera)));
-	CUDA_CHECK_RETURN(cudaMemcpy((void*)d_camPtr, (void*)camPtr, sizeof(Camera), cudaMemcpyHostToDevice));
+	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_triPtr, triangleBytes));
+	CUDA_CHECK_RETURN(
+			cudaMemcpy((void* )d_triPtr, (void* )triPtr, triangleBytes,
+					cudaMemcpyHostToDevice));
+	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_imgDataPtr, imageBytes));
+	CUDA_CHECK_RETURN(
+			cudaMemcpy((void* )d_imgDataPtr, (void* )imgDataPtr, imageBytes,
+					cudaMemcpyHostToDevice));
+	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_camPtr, sizeof(Camera)));
+	CUDA_CHECK_RETURN(
+			cudaMemcpy((void* )d_camPtr, (void* )camPtr, sizeof(Camera),
+					cudaMemcpyHostToDevice));
 
-	// Bind triangles to texture memory
+	// Bind triangles to texture memory -- texture memory doesn't quite work
 	cudaArray* d_triDataArray = NULL;
-	if (useTexMemory && numTris*9 > TEX_ARRAY_MAX) {
-		std::cout << "Not using texture memory because we cannot fit " \
+	if (useTexMemory && numTris > TEX_ARRAY_MAX) {
+		std::cout << "Not using texture memory because we cannot fit "
 				<< numTris << " triangles in 1D cudaArray" << std::endl;
 		useTexMemory = false;
 	}
 	if (useTexMemory) {
 		std::cout << "Using texture memory!" << std::endl;
 		configureTexture(triangleTexture);
-		d_triDataArray = bindTrianglesToTexture(triPtr, numTris, triangleTexture);
+		d_triDataArray = bindTrianglesToTexture(triPtr, numTris,
+				triangleTexture);
 	}
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_useTextureMemory, sizeof(bool)));
-	CUDA_CHECK_RETURN(cudaMemset((void*)d_useTextureMemory, (int)useTexMemory, sizeof(bool)));
 
-	// Launch kernel
+	// Launch kernels
+	const unsigned int threadsPerBlock = blockWidth * blockWidth;
+	const unsigned int gridBlocks = width / blockWidth * height / blockWidth;
 	dim3 block(blockWidth, blockWidth, 1);
-	dim3 grid(width/blockWidth, height/blockWidth, 1);
+	dim3 grid(width / blockWidth, height / blockWidth, 1);
 
-	for (int s = 0; s < samples; s++)
-	{
-		renderKernel <<<grid, block>>>(d_triPtr, numTris, d_camPtr, d_imgDataPtr, width, height);
+	// Setup cuRand
+	curandState* d_curandState;
+	CUDA_CHECK_RETURN(
+			cudaMalloc((void** )&d_curandState,
+					threadsPerBlock * gridBlocks * sizeof(curandState)));
+	setupCurandKernel<<<grid, block>>>(d_curandState);
+
+	for (int s = 0; s < samples; s++) {
+		renderKernel<<<grid, block>>>(d_triPtr, numTris, d_camPtr, d_imgDataPtr,
+				width, height, useTexMemory, d_curandState);
 	}
 
-	CUDA_CHECK_RETURN(cudaMemcpy((void*)imgDataPtr, (void*)d_imgDataPtr, imageBytes, cudaMemcpyDeviceToHost));
-	cudaFree((void*)d_triPtr);
-	cudaFree((void*)d_imgDataPtr);
+	averageSamplesKernel<<<grid, block>>>(d_imgDataPtr, width, height, samples);
+
+	CUDA_CHECK_RETURN(
+			cudaMemcpy((void* )imgDataPtr, (void* )d_imgDataPtr, imageBytes,
+					cudaMemcpyDeviceToHost));
+	cudaFree((void*) d_triPtr);
+	cudaFree((void*) d_imgDataPtr);
+	cudaFree((void*) d_curandState);
 	if (useTexMemory)
 		cudaFreeArray(d_triDataArray);
 	return imgDataPtr;
 }
 
-__global__ void renderKernel(geom::Triangle* d_triPtr, int numTriangles, Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height) {
+__global__ void renderKernel(Triangle* d_triPtr, int numTriangles,
+		Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height,
+		bool useTexMemory, curandState *randState) {
+	int idx = (blockIdx.x + blockIdx.y * gridDim.x) * (blockDim.x * blockDim.y)
+			+ (threadIdx.y * blockDim.x) + threadIdx.x;
 	unsigned int i, j;
-	i = blockIdx.x*blockDim.x + threadIdx.x;
-	j = blockIdx.y*blockDim.y + threadIdx.y;
+	i = blockIdx.x * blockDim.x + threadIdx.x;
+	j = blockIdx.y * blockDim.y + threadIdx.y;
 
-	Ray camRay = d_camPtr->computeCameraRay(i, j);
+	Ray ray = d_camPtr->computeCameraRay(i, j, &randState[idx]);
 	RayHit hitData;
-	float t = intersectTriangles(d_triPtr, numTriangles, hitData, camRay);
+	Vector3Df colorAtPixel;
+	Vector3Df nextDir;
+	Vector3Df mask(1.0f, 1.0f, 1.0f);
+
+	for (unsigned bounces = 0; bounces < 6; bounces++) {
+		float t = intersectTriangles(d_triPtr, numTriangles, hitData, ray,
+				useTexMemory);
+		if (t < MAX_DISTANCE) {
+			Vector3Df hitPt = ray.pointAlong(t);
+			Triangle* hitTriPtr = hitData.hitTriPtr;
+			Vector3Df normal = hitTriPtr->getNormal(hitData);
+			colorAtPixel += mask * hitTriPtr->_colorEmit;
+
+			if (hitTriPtr->isDiffuse()) {
+				float r1 = 2 * M_PI * curand_uniform(&randState[idx]);
+				float r2 = curand_uniform(&randState[idx]);
+				float r2sq = sqrtf(r2);
+
+				// calculate orthonormal coordinates u, v, w, at hitpt
+				Vector3Df w = normal;
+				Vector3Df u = normalize(
+						cross(
+								(fabs(w.x) > 0.1f ?
+										make_float3(0.f, 1.f, 0.f) :
+										make_float3(1.f, 0.f, 0.f)), w));
+				Vector3Df v = cross(w, u);
+
+				// Random point on unit hemisphere @ hit_point and centered at normal
+				nextDir = normalize(
+						u * cosf(r1) * r2sq + v * sinf(r1) * r2sq
+								+ w * sqrtf(1.f - r2));
+				// Division by 1/2 for this PDF weighted by cosine
+				mask *= hitTriPtr->_colorDiffuse * dot(nextDir, normal) * 2.f;
+				// Shift hitpoint outward by an epsilon
+				hitPt += normal * EPSILON;
+			}
+			ray = Ray(hitPt, nextDir);
+		}
+	}
+	d_imgPtr[j * width + i] += colorAtPixel;
+}
+
+__global__ void debugRenderKernel(geom::Triangle* d_triPtr, int numTriangles,
+		Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height,
+		bool useTexMemory) {
+	unsigned int i, j;
+	i = blockIdx.x * blockDim.x + threadIdx.x;
+	j = blockIdx.y * blockDim.y + threadIdx.y;
+	curandState d_curandState;
+	curand_init(1234, i * j + i, 0, &d_curandState);
+
+	Ray camRay = d_camPtr->computeCameraRay(i, j, &d_curandState);
+	RayHit hitData;
+	float t = intersectTriangles(d_triPtr, numTriangles, hitData, camRay,
+			useTexMemory);
 	Vector3Df light(0.0f, 10.0f, 1.0f);
 	if (t < MAX_DISTANCE) {
 		Vector3Df hitPt = camRay.pointAlong(t);
 		Vector3Df lightDir = normalize(light - hitPt);
 		Vector3Df normal = hitData.hitTriPtr->getNormal(hitData);
-		d_imgPtr[j * width + i] = Vector3Df(hitData.hitTriPtr->_colorDiffuse * max(dot(lightDir, normal), 0.0f));
+		d_imgPtr[j * width + i] = Vector3Df(
+				hitData.hitTriPtr->_colorDiffuse
+						* max(dot(lightDir, normal), 0.0f));
 	}
 }
 
-__device__ float intersectTriangles(geom::Triangle* d_triPtr, int numTriangles, RayHit& hitData, const Ray& ray) {
+__global__ void averageSamplesKernel(Vector3Df* d_imgPtr, int width, int height,
+		unsigned samples) {
+	int idx = (blockIdx.x + blockIdx.y * gridDim.x) * (blockDim.x * blockDim.y)
+			+ (threadIdx.y * blockDim.x) + threadIdx.x;
+	d_imgPtr[idx] *= 1.0f / (float) samples;
+	d_imgPtr[idx].x = fminf(d_imgPtr[idx].x, 1.0f);
+	d_imgPtr[idx].y = fminf(d_imgPtr[idx].y, 1.0f);
+	d_imgPtr[idx].z = fminf(d_imgPtr[idx].z, 1.0f);
+}
+
+__global__ void setupCurandKernel(curandState *randState) {
+	int idx = (blockIdx.x + blockIdx.y * gridDim.x) * (blockDim.x * blockDim.y)
+			+ (threadIdx.y * blockDim.x) + threadIdx.x;
+	curand_init(1234, idx, 0, &randState[idx]);
+}
+
+__device__ float intersectTriangles(geom::Triangle* d_triPtr, int numTriangles,
+		RayHit& hitData, const Ray& ray, bool useTexMemory) {
 	float t = MAX_DISTANCE, tprime = MAX_DISTANCE;
 	float u, v;
-	for (unsigned i = 0; i < numTriangles; i++)
-	{
+	for (unsigned i = 0; i < numTriangles; i++) {
 		Triangle tri;
-		if (d_useTextureMemory) {
+		if (useTexMemory) {
 			Triangle tri = getTriangleFromTexture(i);
 			tprime = tri.intersect(ray, u, v);
 		} else {
 			tprime = d_triPtr[i].intersect(ray, u, v);
 		}
-		if (tprime < t && tprime > 0.f)
-		{
+		if (tprime < t && tprime > 0.f) {
 			t = tprime;
 			hitData.hitTriPtr = &d_triPtr[i];
 			hitData.u = u;
@@ -120,60 +225,7 @@ __device__ float intersectTriangles(geom::Triangle* d_triPtr, int numTriangles, 
 	return t;
 }
 
-void configureTexture(texture_t &triTexture) {
-	triTexture.addressMode[0] = cudaAddressModeBorder;
-	triTexture.addressMode[1] = cudaAddressModeBorder;
-	triTexture.filterMode = cudaFilterModePoint;
-	triTexture.normalized = false;
-}
-
-// Note, this function returns the new pointer to the triangle data
-__host__ cudaArray* bindTrianglesToTexture(Triangle* triPtr, unsigned numTris, texture_t &triTexture) {
-	// 3 float3s for verts, 3 float3s for normals, 3 float3s for material
-	unsigned numElements = numTris * 9;
-	float4* triDataPtr = new float4[numElements];
-	// TODO Replace this with cudaArray
-	for (unsigned i = 0; i < numTris; i++) {
-		triDataPtr[i*9].x = triPtr->_v1.x;
-		triDataPtr[i*9].y = triPtr->_v1.y;
-		triDataPtr[i*9].z = triPtr->_v1.z;
-		triDataPtr[i*9+1].x = triPtr->_e1.x;
-		triDataPtr[i*9+1].y = triPtr->_e1.y;
-		triDataPtr[i*9+1].z = triPtr->_e1.z;
-		triDataPtr[i*9+2].x = triPtr->_e2.x;
-		triDataPtr[i*9+2].y = triPtr->_e2.y;
-		triDataPtr[i*9+2].z = triPtr->_e2.z;
-		triDataPtr[i*9+3].x = triPtr->_n1.x;
-		triDataPtr[i*9+3].y = triPtr->_n1.y;
-		triDataPtr[i*9+3].z = triPtr->_n1.z;
-		triDataPtr[i*9+4].x = triPtr->_n2.x;
-		triDataPtr[i*9+4].y = triPtr->_n2.y;
-		triDataPtr[i*9+4].z = triPtr->_n2.z;
-		triDataPtr[i*9+5].x = triPtr->_n3.x;
-		triDataPtr[i*9+5].y = triPtr->_n3.y;
-		triDataPtr[i*9+5].z = triPtr->_n3.z;
-		triDataPtr[i*9+6].x = triPtr->_colorDiffuse.x;
-		triDataPtr[i*9+6].y = triPtr->_colorDiffuse.y;
-		triDataPtr[i*9+6].z = triPtr->_colorDiffuse.z;
-		triDataPtr[i*9+7].x = triPtr->_colorSpec.x;
-		triDataPtr[i*9+7].y = triPtr->_colorSpec.y;
-		triDataPtr[i*9+7].z = triPtr->_colorSpec.z;
-		triDataPtr[i*9+8].x = triPtr->_colorEmit.x;
-		triDataPtr[i*9+8].y = triPtr->_colorEmit.y;
-		triDataPtr[i*9+8].z = triPtr->_colorEmit.z;
-	}
-
-	cudaArray* cuArray;
-	cudaChannelFormatDesc channelDesc =
-			cudaCreateChannelDesc(32, 32, 32, 32, cudaChannelFormatKindFloat );
-	CUDA_CHECK_RETURN(cudaMallocArray(&cuArray, &channelDesc, numElements));
-	CUDA_CHECK_RETURN(cudaMemcpyToArray(cuArray, 0, 0, triDataPtr, sizeof(float4)*numElements, cudaMemcpyHostToDevice));
-
-	CUDA_CHECK_RETURN(cudaBindTextureToArray(triTexture, cuArray, channelDesc));
-	return cuArray;
-}
-
-__device__ Triangle getTriangleFromTexture(unsigned i) {
+__device__ inline Triangle getTriangleFromTexture(unsigned i) {
 	float4 v1, e1, e2, n1, n2, n3, diff, spec, emit;
 	v1 = tex1Dfetch(triangleTexture, i * 9);
 	e1 = tex1Dfetch(triangleTexture, i * 9 + 1);
@@ -186,3 +238,4 @@ __device__ Triangle getTriangleFromTexture(unsigned i) {
 	emit = tex1Dfetch(triangleTexture, i * 9 + 8);
 	return Triangle(v1, e1, e2, n1, n2, n3, diff, spec, emit);
 }
+
