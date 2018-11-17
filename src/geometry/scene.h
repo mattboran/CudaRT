@@ -1,9 +1,11 @@
 // Prototypes for model loader - takes obj_load Loader objects and converts them into a format CUDA can use
 #ifndef SCENE_H
 #define SCENE_H
+
 #include "camera.cuh"
 #include "geometry.cuh"
 #include "obj_load.h"
+
 #include <string>
 #include <vector>
 
@@ -17,7 +19,10 @@ public:
 	// Get methods
 	int getNumMeshes();
 	int getNumTriangles();
+	int getNumLights();
+	float getLightsSurfaceArea();
 	geom::Triangle* getTriPtr();
+	geom::Triangle* getLightsPtr();
 	objl::Mesh getMesh(int i);
 	Camera* getCameraPtr();
 
@@ -26,6 +31,7 @@ public:
 
 private:
 	geom::Triangle* trianglesPtr = NULL;
+	std::vector<geom::Triangle> lightsList;
 	objl::Loader meshLoader;
 	Camera camera;
 	Vector3Df sceneMin;

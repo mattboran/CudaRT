@@ -1,6 +1,7 @@
 // Implementation for Scene functions. This file is responsible for setting up the scene for rendering
 
 #include "scene.h"
+#include <algorithm>
 #include <iostream>
 #include <limits>
 #include <math.h>
@@ -39,8 +40,23 @@ int Scene::getNumTriangles() {
 	return meshLoader.LoadedVertices.size() / 3;
 }
 
+int Scene::getNumLights() {
+	return lightsList.size();
+}
+
+float Scene::getLightsSurfaceArea() {
+	float surfaceArea;
+	for (auto light: lightsList) {
+		surfaceArea += light._surfaceArea;
+	}
+	return surfaceArea;
+}
 Triangle* Scene::getTriPtr() {
 	return trianglesPtr;
+}
+
+Triangle* Scene::getLightsPtr(){
+	return &lightsList[0];
 }
 
 Camera* Scene::getCameraPtr() {
@@ -59,9 +75,7 @@ Triangle* Scene::loadTriangles() {
 	sceneMax = Vector3Df(FLT_MIN, FLT_MIN, FLT_MIN);
 	sceneMin = Vector3Df(FLT_MAX, FLT_MAX, FLT_MAX);
 	vector<objl::Mesh> meshes = meshLoader.LoadedMeshes;
-	unsigned meshId = 0;
 	for (auto const& mesh: meshes) {
-		meshId++;
 		vector<objl::Vertex> vertices = mesh.Vertices;
 		vector<unsigned> indices = mesh.Indices;
 		objl::Material material = mesh.MeshMaterial;
@@ -86,9 +100,19 @@ Triangle* Scene::loadTriangles() {
 			currentTriPtr->_colorSpec = Vector3Df(material.Ks);
 			currentTriPtr->_colorEmit = Vector3Df(material.Ka) * 5.0f;
 
+			currentTriPtr->_surfaceArea = cross(currentTriPtr->_e1, currentTriPtr->_e2).length()/2.0f;
+
+			if (currentTriPtr->_colorEmit.lengthsq() > 0.0f) {
+				std::cout << "Found a light with surface area " << currentTriPtr->_surfaceArea << std::endl;
+				lightsList.push_back(*currentTriPtr);
+			}
+
 			currentTriPtr++;
 		}
 	}
+	std::sort(lightsList.begin(), lightsList.end(),
+			[](const Triangle &a, const Triangle &b) -> bool {
+		return a._surfaceArea > b._surfaceArea;
+	});
 	return triPtr;
 }
-
