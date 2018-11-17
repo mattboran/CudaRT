@@ -76,6 +76,16 @@ __device__ Vector3Df Triangle::getNormal(const RayHit& rh) const {
 	return Vector3Df(normalize(_n1 *w + _n2 *u+ _n3*v));
 }
 
+__device__ Vector3Df Triangle::getPointOn(curandState *randState) const {
+	float u = curand_uniform(randState);
+	float v = curand_uniform(randState);
+	if (u + v >= 1.0f) {
+		u = 1.0f - u;
+		v = 1.0f - v;
+	}
+	return Vector3Df(_v1 + (_v1-_v2) * v + (_v1-_v3) * u);
+}
+
 __device__ bool Triangle::isEmissive() const {
 	return _colorEmit.lengthsq() > 0.0f;
 }

@@ -148,6 +148,8 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, bo
 	free(h_tris);
 	cudaFree((void*) d_lightTrianglePtr);
 	cudaFree((void*) d_triPtr);
+	cudaFree((void*) d_tris);
+	cudaFree((void*) d_settings);
 	cudaFree((void*) d_imgDataPtr);
 	cudaFree((void*) d_curandState);
 	if (useTexMemory)
@@ -168,17 +170,46 @@ __global__ void renderKernel(TrianglesData* d_tris,
 	j = blockIdx.y * blockDim.y + threadIdx.y;
 
 	Ray ray = d_camPtr->computeCameraRay(i, j, &randState[idx]);
-	RayHit hitData;
-	Vector3Df colorAtPixel;
-	Vector3Df nextDir;
+	RayHit hitData, lightHitData;
+	Triangle* hitTriPtr;
+	Vector3Df hitPt, normal, nextDir, colorAtPixel;
 	Vector3Df mask(1.0f, 1.0f, 1.0f);
 
-	for (unsigned bounces = 0; bounces < 6; bounces++) {
-		float t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
+	// First see if the camera ray hits anything. If not, return black.
+	float t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
+	if (t < MAX_DISTANCE) {
+		hitPt = ray.pointAlong(t);
+		hitTriPtr = hitData.hitTriPtr;
+		normal = hitTriPtr->getNormal(hitData);
+	} else {
+		d_imgPtr[j * d_settings->width + i] += Vector3Df(0.0f, 0.0f, 0.0f);
+		return;
+	}
+
+	// Direct lighting: select light at random, test for intersection, add contribution
+	// Get a new ray going towards a random point on the selected light
+	float randomNumber = curand_uniform(&randState[idx]);
+	randomNumber *= (float)d_lights->numLights - 1.0f + 0.9999999f;
+	int selectedLightIndex = (int)truncf(randomNumber);
+	Triangle selectedLight = d_lights->lightsPtr[selectedLightIndex];
+
+	Vector3Df lightRayDir = selectedLight.getPointOn(&randState[idx]) - hitPt;
+	Ray lightRay(hitPt + normal * 0.01f, lightRayDir);
+	t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, lightHitData, lightRay, d_settings->useTexMem);
+	if (t > lightRayDir.length())  {
+		float distanceFactor = 1.0f;
+		float numLightsFactor = 1.0f/(float)d_lights->numLights;
+		colorAtPixel = selectedLight._colorEmit * hitData.hitTriPtr->_colorDiffuse * distanceFactor * numLightsFactor;
+	}
+
+	for (unsigned bounces = 0; bounces < 4; bounces++) {
+		t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
 		if (t < MAX_DISTANCE) {
+
 			Vector3Df hitPt = ray.pointAlong(t);
 			Triangle* hitTriPtr = hitData.hitTriPtr;
 			Vector3Df normal = hitTriPtr->getNormal(hitData);
+
 			colorAtPixel += mask * hitTriPtr->_colorEmit;
 
 			if (hitTriPtr->isDiffuse()) {

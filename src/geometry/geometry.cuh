@@ -56,7 +56,7 @@ namespace geom {
 		__device__ Triangle(float4 v1, float4 e1, float4 e2, float4 n1, float4 n2, float4 n3, float4 diff, float4 spec, float4 emit);
 		__device__ float intersect(const Ray &r, float &_u, float &_v) const;
 		__device__ Vector3Df getNormal(const  RayHit& rh) const;
-		__device__ Vector3Df getPointOn(curandState randState);
+		__device__ Vector3Df getPointOn(curandState *randState) const;
 		__device__ bool isEmissive() const;
 		__device__ bool isSpecular() const;
 		__device__ bool isDiffuse() const;

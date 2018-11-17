@@ -98,7 +98,7 @@ Triangle* Scene::loadTriangles() {
 			// Materials
 			currentTriPtr->_colorDiffuse = Vector3Df(material.Kd);
 			currentTriPtr->_colorSpec = Vector3Df(material.Ks);
-			currentTriPtr->_colorEmit = Vector3Df(material.Ka) * 5.0f;
+			currentTriPtr->_colorEmit = Vector3Df(material.Ka) * 2.0f;
 
 			currentTriPtr->_surfaceArea = cross(currentTriPtr->_e1, currentTriPtr->_e2).length()/2.0f;
 
