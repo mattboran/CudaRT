@@ -182,6 +182,7 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		hitPt = ray.pointAlong(t);
 		hitTriPtr = hitData.hitTriPtr;
 		normal = hitTriPtr->getNormal(hitData);
+		// if we hit a light directly, add its contribution here so as not to double dip in the BSDF calculations below
 		if (hitTriPtr->isEmissive()) {
 			d_imgPtr[j * d_settings->width + i] += hitTriPtr->_colorEmit;
 			return;
@@ -191,37 +192,39 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		return;
 	}
 
-	// Direct lighting: select light at random, test for intersection, add contribution
-	// Get a new ray going towards a random point on the selected light
-	float randomNumber = curand_uniform(&randState[idx]);
-	randomNumber *= (float)d_lights->numLights - 1.0f + 0.9999999f;
-	int selectedLightIndex = (int)truncf(randomNumber);
-	Triangle selectedLight = d_lights->lightsPtr[selectedLightIndex];
-	Vector3Df lightRayDir = normalize(selectedLight.getRandomPointOn(&randState[idx]) - hitPt);
-
-	Ray lightRay(hitPt + normal * EPSILON, lightRayDir);
-	t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, lightHitData, lightRay, d_settings->useTexMem);
-	if (t < MAX_DISTANCE){
-		// See if we've hit the light we tested for
-		Triangle* lightRayHitPtr = lightHitData.hitTriPtr;
-		if (lightRayHitPtr->_triId == selectedLight._triId) {
-			float surfaceArea = selectedLight._surfaceArea;
-			float distanceSquared = t*t; // scale by factor of 10
-			float incidenceAngle = fabs(dot(selectedLight.getNormal(lightHitData), -lightRayDir));
-			float weightFactor = surfaceArea/distanceSquared * incidenceAngle;
-			colorAtPixel = selectedLight._colorEmit * hitData.hitTriPtr->_colorDiffuse * weightFactor;
-		}
-	}
 
 	for (unsigned bounces = 0; bounces < 4; bounces++) {
+		// DIFFUSE BSDF:
+
+		// Direct lighting: select light at random, test for intersection, add contribution
+		// Get a new ray going towards a random point on the selected light
+		float randomNumber = curand_uniform(&randState[idx]);
+		randomNumber *= (float)d_lights->numLights - 1.0f + 0.9999999f;
+		int selectedLightIndex = (int)truncf(randomNumber);
+		Triangle selectedLight = d_lights->lightsPtr[selectedLightIndex];
+		Vector3Df lightRayDir = normalize(selectedLight.getRandomPointOn(&randState[idx]) - hitPt);
+
+		Ray lightRay(hitPt + normal * EPSILON, lightRayDir);
+		t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, lightHitData, lightRay, d_settings->useTexMem);
+		if (t < MAX_DISTANCE){
+			// See if we've hit the light we tested for
+			Triangle* lightRayHitPtr = lightHitData.hitTriPtr;
+			if (lightRayHitPtr->_triId == selectedLight._triId) {
+				float surfaceArea = selectedLight._surfaceArea;
+				float distanceSquared = t*t; // scale by factor of 10
+				float incidenceAngle = fabs(dot(selectedLight.getNormal(lightHitData), -lightRayDir));
+				float weightFactor = surfaceArea/distanceSquared * incidenceAngle;
+				colorAtPixel += mask * selectedLight._colorEmit * hitData.hitTriPtr->_colorDiffuse * weightFactor;
+			}
+		}
+
+		// Now compute indirect lighting
 		t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
 		if (t < MAX_DISTANCE) {
 
 			Vector3Df hitPt = ray.pointAlong(t);
 			Triangle* hitTriPtr = hitData.hitTriPtr;
 			Vector3Df normal = hitTriPtr->getNormal(hitData);
-
-			colorAtPixel += mask * hitTriPtr->_colorEmit;
 
 			if (hitTriPtr->isDiffuse()) {
 				float r1 = 2 * M_PI * curand_uniform(&randState[idx]);
