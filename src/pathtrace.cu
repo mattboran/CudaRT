@@ -81,7 +81,7 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, bo
 	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_lightTrianglePtr, lightTrianglesBytes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_lightTrianglePtr, (void *)lightsPtr, lightTrianglesBytes, cudaMemcpyHostToDevice));
 
-	LightsData* h_lights = (LightsData*)malloc(sizeof(LightsData));
+	LightsData* h_lights = (LightsData*)malloc(sizeof(LightsData) + lightTrianglesBytes);
 	LightsData* d_lights = NULL;
 	h_lights->lightsPtr = d_lightTrianglePtr;
 	h_lights->numLights = scene.getNumLights();
@@ -148,6 +148,7 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, bo
 	free(h_tris);
 	cudaFree((void*) d_lightTrianglePtr);
 	cudaFree((void*) d_triPtr);
+	cudaFree((void*) d_lights);
 	cudaFree((void*) d_tris);
 	cudaFree((void*) d_settings);
 	cudaFree((void*) d_imgDataPtr);
@@ -172,7 +173,7 @@ __global__ void renderKernel(TrianglesData* d_tris,
 	Ray ray = d_camPtr->computeCameraRay(i, j, &randState[idx]);
 	RayHit hitData, lightHitData;
 	Triangle* hitTriPtr;
-	Vector3Df hitPt, normal, nextDir, colorAtPixel;
+	Vector3Df hitPt, nextDir, normal, colorAtPixel;
 	Vector3Df mask(1.0f, 1.0f, 1.0f);
 
 	// First see if the camera ray hits anything. If not, return black.
@@ -181,6 +182,10 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		hitPt = ray.pointAlong(t);
 		hitTriPtr = hitData.hitTriPtr;
 		normal = hitTriPtr->getNormal(hitData);
+		if (hitTriPtr->isEmissive()) {
+			d_imgPtr[j * d_settings->width + i] += hitTriPtr->_colorEmit;
+			return;
+		}
 	} else {
 		d_imgPtr[j * d_settings->width + i] += Vector3Df(0.0f, 0.0f, 0.0f);
 		return;
@@ -192,14 +197,20 @@ __global__ void renderKernel(TrianglesData* d_tris,
 	randomNumber *= (float)d_lights->numLights - 1.0f + 0.9999999f;
 	int selectedLightIndex = (int)truncf(randomNumber);
 	Triangle selectedLight = d_lights->lightsPtr[selectedLightIndex];
+	Vector3Df lightRayDir = normalize(selectedLight.getRandomPointOn(&randState[idx]) - hitPt);
 
-	Vector3Df lightRayDir = selectedLight.getPointOn(&randState[idx]) - hitPt;
-	Ray lightRay(hitPt + normal * 0.01f, lightRayDir);
+	Ray lightRay(hitPt + normal * EPSILON, lightRayDir);
 	t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, lightHitData, lightRay, d_settings->useTexMem);
-	if (t > lightRayDir.length())  {
-		float distanceFactor = 1.0f;
-		float numLightsFactor = 1.0f/(float)d_lights->numLights;
-		colorAtPixel = selectedLight._colorEmit * hitData.hitTriPtr->_colorDiffuse * distanceFactor * numLightsFactor;
+	if (t < MAX_DISTANCE){
+		// See if we've hit the light we tested for
+		Triangle* lightRayHitPtr = lightHitData.hitTriPtr;
+		if (lightRayHitPtr->_triId == selectedLight._triId) {
+			float surfaceArea = selectedLight._surfaceArea;
+			float distanceSquared = t*t; // scale by factor of 10
+			float incidenceAngle = fabs(dot(selectedLight.getNormal(lightHitData), -lightRayDir));
+			float weightFactor = surfaceArea/distanceSquared * incidenceAngle;
+			colorAtPixel = selectedLight._colorEmit * hitData.hitTriPtr->_colorDiffuse * weightFactor;
+		}
 	}
 
 	for (unsigned bounces = 0; bounces < 4; bounces++) {

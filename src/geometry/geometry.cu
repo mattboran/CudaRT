@@ -20,11 +20,11 @@ extern Vector3Df min4(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c
 }
 
 __device__ __host__ Triangle::Triangle(const Triangle &t) :
-	_v1(t._v1), _e1(t._e1), _e2(t._e2), _n1(t._n1), _n2(t._n2), _n3(t._n3), _colorDiffuse(t._colorDiffuse), _colorSpec(t._colorSpec), _colorEmit(t._colorEmit), _surfaceArea(t._surfaceArea){}
+	_v1(t._v1), _e1(t._e1), _e2(t._e2), _n1(t._n1), _n2(t._n2), _n3(t._n3), _colorDiffuse(t._colorDiffuse), _colorSpec(t._colorSpec), _colorEmit(t._colorEmit), _surfaceArea(t._surfaceArea), _triId(t._triId) {}
 
 // NOTE: Do not use these functions as they calculate surface area on the fly and this is not great. Ever more reason texture memory use sucks
-__device__ Triangle::Triangle(float3 v1, float3 e1, float3 e2, float3 n1, float3 n2, float3 n3, float3 diff, float3 spec, float3 emit) :
-	_v1(v1), _e1(e1), _e2(e2), _n1(n1), _n2(n2), _n3(n3), _colorDiffuse(diff), _colorSpec(spec), _colorEmit(emit)
+__device__ Triangle::Triangle(float3 v1, float3 e1, float3 e2, float3 n1, float3 n2, float3 n3, float3 diff, float3 spec, float3 emit, unsigned triId) :
+	_v1(v1), _e1(e1), _e2(e2), _n1(n1), _n2(n2), _n3(n3), _colorDiffuse(diff), _colorSpec(spec), _colorEmit(emit), _triId(triId)
 {
 	_surfaceArea = cross(_e1, _e2).length()/2.0f;
 }
@@ -76,14 +76,14 @@ __device__ Vector3Df Triangle::getNormal(const RayHit& rh) const {
 	return Vector3Df(normalize(_n1 *w + _n2 *u+ _n3*v));
 }
 
-__device__ Vector3Df Triangle::getPointOn(curandState *randState) const {
+__device__ Vector3Df Triangle::getRandomPointOn(curandState *randState) const {
 	float u = curand_uniform(randState);
 	float v = curand_uniform(randState);
 	if (u + v >= 1.0f) {
 		u = 1.0f - u;
 		v = 1.0f - v;
 	}
-	return Vector3Df(_v1 + (_v1-_v2) * v + (_v1-_v3) * u);
+	return Vector3Df(_v1 + _e1 * u + _e2 * v);
 }
 
 __device__ bool Triangle::isEmissive() const {

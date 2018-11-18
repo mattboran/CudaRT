@@ -75,6 +75,7 @@ Triangle* Scene::loadTriangles() {
 	sceneMax = Vector3Df(FLT_MIN, FLT_MIN, FLT_MIN);
 	sceneMin = Vector3Df(FLT_MAX, FLT_MAX, FLT_MAX);
 	vector<objl::Mesh> meshes = meshLoader.LoadedMeshes;
+	unsigned triId = 0;
 	for (auto const& mesh: meshes) {
 		vector<objl::Vertex> vertices = mesh.Vertices;
 		vector<unsigned> indices = mesh.Indices;
@@ -101,6 +102,7 @@ Triangle* Scene::loadTriangles() {
 			currentTriPtr->_colorEmit = Vector3Df(material.Ka) * 2.0f;
 
 			currentTriPtr->_surfaceArea = cross(currentTriPtr->_e1, currentTriPtr->_e2).length()/2.0f;
+			currentTriPtr->_triId = triId++;
 
 			if (currentTriPtr->_colorEmit.lengthsq() > 0.0f) {
 				std::cout << "Found a light with surface area " << currentTriPtr->_surfaceArea << std::endl;
