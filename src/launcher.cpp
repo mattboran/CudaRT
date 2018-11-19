@@ -25,6 +25,7 @@ int main(int argc, char* argv[]) {
 	string objPath = "../meshes/cornell.obj";
 	bool multipleObjs = false;
 	bool useTextureMemory = false;
+	int numStreams = 1;
 
 	//
 	//	Parse command line arguments
@@ -38,7 +39,8 @@ int main(int argc, char* argv[]) {
 				"-h \t<height>\tdefault:320px\n" \
 				"-f \t<path to .obj to render>\tdefault:./meshes/cornell.obj\n" \
 				"-F \t<path to .obj directory>\tdefault:./meshes\n" \
-				"-t \t<use texture memory for triangles, default = false>"
+				"-t \t<use texture memory for triangles, default = false>" \
+				"-c \t<number of concurrent streams, default = 1>" \
 				;
 		return(1);
 	}
@@ -82,6 +84,15 @@ int main(int argc, char* argv[]) {
 				cout << "Height should be a multiple of " << blockWidth \
 						<< ". You may see something weird happen because of this!" << endl;
 			}
+		} catch (invalid_argument& e) {
+			cerr << "Invalid argument to -h!" << endl;
+		}
+	}
+
+	// Streams
+	if ((find(args.begin(), args.end(), "-c") < args.end() - 1)) {
+		try {
+			numStreams = stoi(*(find(args.begin(), args.end(), "-c") + 1));
 		} catch (invalid_argument& e) {
 			cerr << "Invalid argument to -h!" << endl;
 		}
@@ -137,7 +148,7 @@ int main(int argc, char* argv[]) {
 	Camera camera = Camera(camPos, camTarget, camUp, camRt, 90.0f, width, height);
 	scene.setCamera(camera);
 	clock_t start = clock();
-	Vector3Df* imgData = pathtraceWrapper(scene, width, height, samples, useTextureMemory);
+	Vector3Df* imgData = pathtraceWrapper(scene, width, height, samples, numStreams, useTextureMemory);
 	saveImageToPng(outFile, width, height, imgData);
 	clock_t end = clock();
 
@@ -164,4 +175,3 @@ static void saveImageToPng(string filename, int width, int height, const Vector3
 	stbi_write_png(filename.c_str(), width, height, comp, imageData, strideBytes);
 	delete[] imageData;
 }
-

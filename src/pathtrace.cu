@@ -39,21 +39,22 @@ struct SettingsData {
 	int height;
 	int samples;
 	bool useTexMem;
+	int numStreams;
 };
 
 __global__ void debugRenderKernel(Triangle* d_triPtr, int numTriangles,
 		Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height,
 		bool useTexMem);
 __global__ void setupCurandKernel(curandState *randState);
-__global__ void renderKernel(TrianglesData* d_tris, Camera* d_camPtr, Vector3Df* d_imgPtr, LightsData* d_lights, SettingsData* d_settings, curandState *randState);
-__global__ void averageSamplesKernel(Vector3Df* d_imgPtr, SettingsData* d_settings);
+__global__ void renderKernel(TrianglesData* d_tris, Camera* d_camPtr, Vector3Df* d_imgPtr, LightsData* d_lights, SettingsData* d_settings, curandState *randState, int streamId);
+__global__ void averageSamplesKernel(Vector3Df* d_streamImgDataPtr, Vector3Df* d_imgPtr, SettingsData* d_settings);
 __device__ float intersectTriangles(Triangle* d_triPtr, int numTriangles, RayHit& hitData, const Ray& ray, bool useTexMem);
 __device__ inline Triangle getTriangleFromTexture(unsigned i);
 
 
 texture_t triangleTexture;
 
-Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, bool &useTexMemory) {
+Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool &useTexMemory) {
 	int pixels = width * height;
 	unsigned numTris = scene.getNumTriangles();
 	size_t triangleBytes = sizeof(Triangle) * numTris;
@@ -74,6 +75,20 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, bo
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_tris, sizeof(TrianglesData) + triangleBytes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void*)d_tris, (void*)h_tris, sizeof(TrianglesData) + triangleBytes, cudaMemcpyHostToDevice));
 
+	// Bind triangles to texture memory -- texture memory doesn't quite work
+	cudaArray* d_triDataArray = NULL;
+	if (useTexMemory && numTris > TEX_ARRAY_MAX) {
+		std::cout << "Not using texture memory because we cannot fit "
+				<< numTris << " triangles in 1D cudaArray" << std::endl;
+		useTexMemory = false;
+	}
+	if (useTexMemory) {
+		std::cout << "Using texture memory!" << std::endl;
+		configureTexture(triangleTexture);
+		d_triDataArray = bindTrianglesToTexture(h_triPtr, numTris,
+				triangleTexture);
+	}
+
 	// Lights -> d_lights
 	Triangle* lightsPtr = scene.getLightsPtr();
 	Triangle* d_lightTrianglePtr = NULL;
@@ -89,6 +104,12 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, bo
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_lights, sizeof(LightsData) + lightTrianglesBytes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_lights, h_lights, sizeof(LightsData) + lightTrianglesBytes, cudaMemcpyHostToDevice));
 
+	// Camera
+	Camera* camPtr = scene.getCameraPtr();
+	Camera* d_camPtr = NULL;
+	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_camPtr, sizeof(Camera)));
+	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_camPtr, (void* )camPtr, sizeof(Camera), cudaMemcpyHostToDevice));
+
 	// Setup settings -> d_settings
 	SettingsData h_settings;
 	SettingsData* d_settings;
@@ -96,34 +117,9 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, bo
 	h_settings.height = height;
 	h_settings.samples = samples;
 	h_settings.useTexMem = useTexMemory;
+	h_settings.numStreams = numStreams;
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_settings, sizeof(SettingsData)));
 	CUDA_CHECK_RETURN(cudaMemcpy((void*)d_settings, &h_settings, sizeof(SettingsData), cudaMemcpyHostToDevice));
-
-	// Image
-	Vector3Df* imgDataPtr = new Vector3Df[pixels]();
-	Vector3Df* d_imgDataPtr = NULL;
-	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_imgDataPtr, imageBytes));
-	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_imgDataPtr, (void* )imgDataPtr, imageBytes, cudaMemcpyHostToDevice));
-
-	// Camera
-	Camera* camPtr = scene.getCameraPtr();
-	Camera* d_camPtr = NULL;
-	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_camPtr, sizeof(Camera)));
-	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_camPtr, (void* )camPtr, sizeof(Camera), cudaMemcpyHostToDevice));
-
-	// Bind triangles to texture memory -- texture memory doesn't quite work
-	cudaArray* d_triDataArray = NULL;
-	if (useTexMemory && numTris > TEX_ARRAY_MAX) {
-		std::cout << "Not using texture memory because we cannot fit "
-				<< numTris << " triangles in 1D cudaArray" << std::endl;
-		useTexMemory = false;
-	}
-	if (useTexMemory) {
-		std::cout << "Using texture memory!" << std::endl;
-		configureTexture(triangleTexture);
-		d_triDataArray = bindTrianglesToTexture(h_triPtr, numTris,
-				triangleTexture);
-	}
 
 	// Launch kernels
 	const unsigned int threadsPerBlock = blockWidth * blockWidth;
@@ -131,16 +127,37 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, bo
 	dim3 block(blockWidth, blockWidth, 1);
 	dim3 grid(width / blockWidth, height / blockWidth, 1);
 
-	// Setup cuRand kernel
-	curandState* d_curandState;
-	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_curandState, threadsPerBlock * gridBlocks * sizeof(curandState)));
-	setupCurandKernel<<<grid, block>>>(d_curandState);
+	cudaStream_t streams[numStreams];
 
-	for (int s = 0; s < samples; s++) {
-		renderKernel<<<grid, block>>>(d_tris, d_camPtr, d_imgDataPtr, d_lights, d_settings, d_curandState);
+	// Image
+	Vector3Df* imgDataPtr = new Vector3Df[pixels]();
+	Vector3Df* d_imgDataPtr = NULL;
+	Vector3Df* d_streamImgDataPtr;
+	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_imgDataPtr, imageBytes));
+	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_imgDataPtr, (void* )imgDataPtr, imageBytes, cudaMemcpyHostToDevice));
+
+	// Setup cuRand kernel and data in streams
+	curandState* d_curandState;
+	int imagePixels = width * height;
+	int curandStateSize = threadsPerBlock * gridBlocks;
+	size_t curandStateBytes = sizeof(curandState) * curandStateSize;
+	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_streamImgDataPtr, imageBytes * numStreams));
+	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_curandState, curandStateBytes * numStreams));
+	for (int s = 0; s < numStreams; s++) {
+		cudaStreamCreate(&streams[s]);
+		curandState* d_curandStatePtr = &d_curandState[curandStateSize * s];
+		setupCurandKernel<<<grid, block, 0, streams[s]>>>(d_curandStatePtr);
+		CUDA_CHECK_RETURN(cudaMemcpy((void* )&d_streamImgDataPtr[s * imagePixels], (void* )imgDataPtr, imageBytes, cudaMemcpyHostToDevice));
 	}
 
-	averageSamplesKernel<<<grid, block>>>(d_imgDataPtr, d_settings);
+	for (int s = 0; s < samples; s++) {
+		int streamId = s % numStreams;
+		Vector3Df* streamImgData = &d_streamImgDataPtr[streamId * imagePixels];
+		curandState* d_curandStatePtr = &d_curandState[curandStateSize * streamId];
+		renderKernel<<<grid, block, 0, streams[streamId]>>>(d_tris, d_camPtr, streamImgData, d_lights, d_settings, d_curandStatePtr, streamId);
+	}
+
+	averageSamplesKernel<<<grid, block>>>(d_streamImgDataPtr, d_imgDataPtr, d_settings);
 
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )imgDataPtr, (void* )d_imgDataPtr, imageBytes, cudaMemcpyDeviceToHost));
 
@@ -163,7 +180,8 @@ __global__ void renderKernel(TrianglesData* d_tris,
 							Vector3Df* d_imgPtr,
 							LightsData* d_lights,
 							SettingsData* d_settings,
-							curandState *randState) {
+							curandState *randState,
+							int streamId) {
 	int idx = (blockIdx.x + blockIdx.y * gridDim.x) * (blockDim.x * blockDim.y)
 			+ (threadIdx.y * blockDim.x) + threadIdx.x;
 	unsigned int i, j;
@@ -275,13 +293,20 @@ __global__ void debugRenderKernel(geom::Triangle* d_triPtr, int numTriangles,
 	}
 }
 
-__global__ void averageSamplesKernel(Vector3Df* d_imgPtr, SettingsData* d_settings) {
+__global__ void averageSamplesKernel(Vector3Df* d_streamImgDataPtr, Vector3Df* d_imgPtr, SettingsData* d_settings) {
 	int idx = (blockIdx.x + blockIdx.y * gridDim.x) * (blockDim.x * blockDim.y)
 			+ (threadIdx.y * blockDim.x) + threadIdx.x;
-	d_imgPtr[idx] *= 1.0f / (float) d_settings->samples;
-	d_imgPtr[idx].x = fminf(d_imgPtr[idx].x, 1.0f);
-	d_imgPtr[idx].y = fminf(d_imgPtr[idx].y, 1.0f);
-	d_imgPtr[idx].z = fminf(d_imgPtr[idx].z, 1.0f);
+
+	Vector3Df pixel(0.0f, 0.0f, 0.0f);
+	int pixelsInImage = d_settings->width*d_settings->height;
+	for (int s = 0; s < d_settings->numStreams; s++) {
+		pixel += d_streamImgDataPtr[idx + s*pixelsInImage];
+	}
+
+	pixel *= (1.0f / (float) d_settings->samples);
+	d_imgPtr[idx].x = fminf(pixel.x, 1.0f);
+	d_imgPtr[idx].y = fminf(pixel.y, 1.0f);
+	d_imgPtr[idx].z = fminf(pixel.z, 1.0f);
 }
 
 __global__ void setupCurandKernel(curandState *randState) {
@@ -328,4 +353,3 @@ __device__ inline Triangle getTriangleFromTexture(unsigned i) {
 	emit = tex1Dfetch(triangleTexture, i * 9 + 8);
 	return Triangle(v1, e1, e2, n1, n2, n3, diff, spec, emit);
 }
-
