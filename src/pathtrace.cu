@@ -45,7 +45,7 @@ struct SettingsData {
 __global__ void debugRenderKernel(Triangle* d_triPtr, int numTriangles,
 		Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height,
 		bool useTexMem);
-__global__ void setupCurandKernel(curandState *randState);
+__global__ void setupCurandKernel(curandState *randState, int streamOffset);
 __global__ void renderKernel(TrianglesData* d_tris, Camera* d_camPtr, Vector3Df* d_imgPtr, LightsData* d_lights, SettingsData* d_settings, curandState *randState, int streamId);
 __global__ void averageSamplesKernel(Vector3Df* d_streamImgDataPtr, Vector3Df* d_imgPtr, SettingsData* d_settings);
 __device__ float intersectTriangles(Triangle* d_triPtr, int numTriangles, RayHit& hitData, const Ray& ray, bool useTexMem);
@@ -145,8 +145,8 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_curandState, curandStateBytes * numStreams));
 	for (int s = 0; s < numStreams; s++) {
 		cudaStreamCreate(&streams[s]);
-		curandState* d_curandStatePtr = &d_curandState[curandStateSize * s];
-		setupCurandKernel<<<grid, block, 0, streams[s]>>>(d_curandStatePtr);
+		curandState* d_curandStatePtr = &d_curandState[s * curandStateSize];
+		setupCurandKernel<<<grid, block, 0, streams[s]>>>(d_curandStatePtr, s);
 		CUDA_CHECK_RETURN(cudaMemcpy((void* )&d_streamImgDataPtr[s * imagePixels], (void* )imgDataPtr, imageBytes, cudaMemcpyHostToDevice));
 	}
 
@@ -157,19 +157,28 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 		renderKernel<<<grid, block, 0, streams[streamId]>>>(d_tris, d_camPtr, streamImgData, d_lights, d_settings, d_curandStatePtr, streamId);
 	}
 
+	// Combine the different streams into a single image
 	averageSamplesKernel<<<grid, block>>>(d_streamImgDataPtr, d_imgDataPtr, d_settings);
 
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )imgDataPtr, (void* )d_imgDataPtr, imageBytes, cudaMemcpyDeviceToHost));
 
+	// Clean up the streams
+	for (int s = 0; s < numStreams; s++) {
+		cudaStreamDestroy(streams[s]);
+	}
+
+	// Clean up host memory
 	free(h_lights);
 	free(h_tris);
-	cudaFree((void*) d_lightTrianglePtr);
+	// Clean up device memory
+	cudaFree((void*) d_tris);
 	cudaFree((void*) d_triPtr);
 	cudaFree((void*) d_lights);
-	cudaFree((void*) d_tris);
+	cudaFree((void*) d_lightTrianglePtr);
 	cudaFree((void*) d_settings);
-	cudaFree((void*) d_imgDataPtr);
 	cudaFree((void*) d_curandState);
+	cudaFree((void*) d_imgDataPtr);
+	cudaFree((void*) d_streamImgDataPtr);
 	if (useTexMemory)
 		cudaFreeArray(d_triDataArray);
 	return imgDataPtr;
@@ -309,10 +318,10 @@ __global__ void averageSamplesKernel(Vector3Df* d_streamImgDataPtr, Vector3Df* d
 	d_imgPtr[idx].z = fminf(pixel.z, 1.0f);
 }
 
-__global__ void setupCurandKernel(curandState *randState) {
+__global__ void setupCurandKernel(curandState *randState, int streamOffset) {
 	int idx = (blockIdx.x + blockIdx.y * gridDim.x) * (blockDim.x * blockDim.y)
 			+ (threadIdx.y * blockDim.x) + threadIdx.x;
-	curand_init(1234, idx, 0, &randState[idx]);
+	curand_init(1234 + streamOffset, idx, 0, &randState[idx]);
 }
 
 __device__ float intersectTriangles(geom::Triangle* d_triPtr,
