@@ -74,7 +74,7 @@ namespace geom {
 		// bounding box
 //		Vector3Df _bottom;
 //		Vector3Df _top;
-	} __attribute__ ((aligned (64))) ;
+	} __attribute__ ((aligned (128))) ;
 
 	struct RayHit {
 		Triangle* hitTriPtr;
