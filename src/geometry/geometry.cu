@@ -22,7 +22,7 @@ extern Vector3Df min4(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c
 __device__ __host__ Triangle::Triangle(const Triangle &t) :
 	_v1(t._v1), _e1(t._e1), _e2(t._e2), _n1(t._n1), _n2(t._n2), _n3(t._n3), _colorDiffuse(t._colorDiffuse), _colorSpec(t._colorSpec), _colorEmit(t._colorEmit), _surfaceArea(t._surfaceArea), _triId(t._triId) {}
 
-// NOTE: Do not use these functions as they calculate surface area on the fly and this is not great. Ever more reason texture memory use sucks
+// NOTE: Do not use these functions as they calculate surface area on the fly and this is not great. Ever more reason texture memory use sucks for this
 __device__ Triangle::Triangle(float3 v1, float3 e1, float3 e2, float3 n1, float3 n2, float3 n3, float3 diff, float3 spec, float3 emit, unsigned triId) :
 	_v1(v1), _e1(e1), _e2(e2), _n1(n1), _n2(n2), _n3(n3), _colorDiffuse(diff), _colorSpec(spec), _colorEmit(emit), _triId(triId)
 {

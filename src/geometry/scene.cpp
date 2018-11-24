@@ -1,6 +1,8 @@
 // Implementation for Scene functions. This file is responsible for setting up the scene for rendering
 
 #include "scene.h"
+#include "bvh.h"
+
 #include <algorithm>
 #include <iostream>
 #include <limits>
@@ -17,6 +19,9 @@ Scene::Scene(std::string filename) {
 		std::cerr << "Failed to load mesh for " << filename << std::endl;
 	}
 	trianglesPtr = loadTriangles();
+	vertexIndices = &meshLoader.LoadedIndices[0];
+	verticesPtr = &meshLoader.LoadedVertices[0];
+	CreateBoundingVolumeHeirarchy(this);
 }
 
 Scene::Scene(vector<std::string>& filenames) {
@@ -44,6 +49,10 @@ int Scene::getNumLights() {
 	return lightsList.size();
 }
 
+unsigned Scene::getNumVertices() {
+	return meshLoader.LoadedVertices.size();
+}
+
 float Scene::getLightsSurfaceArea() {
 	float surfaceArea;
 	for (auto light: lightsList) {
@@ -59,21 +68,54 @@ Triangle* Scene::getLightsPtr(){
 	return &lightsList[0];
 }
 
+objl::Vertex* Scene::getVertexPtr() {
+	return vertexPtr;
+}
+
+unsigned* Scene::getVertexIndicesPtr(){
+	return vertexIndices;
+}
+
+BVHNode* Scene::getSceneBVHPtr() {
+	return sceneBVH;
+}
+
+CacheFriendlyBVHNode* Scene::getSceneCFBVHPtr() {
+	return sceneCFBVH;
+}
+
 Camera* Scene::getCameraPtr() {
 	return &camera;
+}
+
+unsigned Scene::getNumBVHNodes() {
+	return numBVHNodes;
+}
+
+unsigned Scene::getNumCacheFriendlyBVHNodes() {
+	return numCacheFriendlyBVHNodes;
 }
 
 void Scene::setCamera(const Camera& cam) {
 	camera = Camera(cam);
 }
 
+void Scene::setBVHPtr(BVHNode *bvhPtr) {
+	sceneBVH = bvhPtr;
+}
+
+void Scene::setCacheFriendlyVBHPtr(CacheFriendlyBVHNode* bvhPtr) {
+	sceneCFBVH = bvhPtr;
+}
+
+
 Triangle* Scene::loadTriangles() {
 	Triangle* triPtr = (Triangle*)malloc(sizeof(Triangle) * getNumTriangles());
 	Triangle* currentTriPtr = triPtr;
 
-	// Also create bounding box for the whole scene
-	sceneMax = Vector3Df(FLT_MIN, FLT_MIN, FLT_MIN);
-	sceneMin = Vector3Df(FLT_MAX, FLT_MAX, FLT_MAX);
+	// Min and max for creating bounding boxes.
+	const Vector3Df vectorMax = Vector3Df(FLT_MIN, FLT_MIN, FLT_MIN);
+	const Vector3Df vectorMin = Vector3Df(FLT_MAX, FLT_MAX, FLT_MAX);
 	vector<objl::Mesh> meshes = meshLoader.LoadedMeshes;
 	unsigned triId = 0;
 	for (auto const& mesh: meshes) {
@@ -82,20 +124,24 @@ Triangle* Scene::loadTriangles() {
 		objl::Material material = mesh.MeshMaterial;
 
 		for (int i = 0; i < vertices.size()/3; i++) {
+			currentTriPtr->_id1 = indices[i*3];
+			currentTriPtr->_id2 = indices[i*3 + 1];
+			currentTriPtr->_id3 = indices[i*3 + 2];
 			objl::Vertex v1 = vertices[indices[i*3]];
 			objl::Vertex v2 = vertices[indices[i*3 + 1]];
 			objl::Vertex v3 = vertices[indices[i*3 + 2]];
-			currentTriPtr->_v1 = Vector3Df(v1.Position);
-			currentTriPtr->_v2 = Vector3Df(v2.Position);
-			currentTriPtr->_v3 = Vector3Df(v3.Position);
+			Vector3Df _v1(v1.Position);
+			Vector3Df _v2(v2.Position);
+			Vector3Df _v3(v3.Position);
+			currentTriPtr->_v1 = _v1;
 			currentTriPtr->_n1 = Vector3Df(v1.Normal);
 			currentTriPtr->_n2 = Vector3Df(v2.Normal);
 			currentTriPtr->_n3 = Vector3Df(v3.Normal);
-			currentTriPtr->_e1 = currentTriPtr->_v2 - currentTriPtr->_v1;
-			currentTriPtr->_e2 = currentTriPtr->_v3 - currentTriPtr->_v1;
+			currentTriPtr->_e1 = _v2 - _v1;
+			currentTriPtr->_e2 = _v3 - _v1;
 
-			sceneMax = max4(currentTriPtr->_v1, currentTriPtr->_v2, currentTriPtr->_v3, sceneMax);
-			sceneMin = min4(currentTriPtr->_v1, currentTriPtr->_v2, currentTriPtr->_v3, sceneMin);
+			sceneMax = max4(_v1, _v2, _v3, sceneMax);
+			sceneMin = min4(_v1, _v2, _v3, sceneMin);
 			// Materials
 			currentTriPtr->_colorDiffuse = Vector3Df(material.Kd);
 			currentTriPtr->_colorSpec = Vector3Df(material.Ks);
@@ -105,9 +151,12 @@ Triangle* Scene::loadTriangles() {
 			currentTriPtr->_triId = triId++;
 
 			if (currentTriPtr->_colorEmit.lengthsq() > 0.0f) {
-				std::cout << "Found a light with surface area " << currentTriPtr->_surfaceArea << std::endl;
 				lightsList.push_back(*currentTriPtr);
 			}
+
+			currentTriPtr->_center = (_v1 + _v2 + _v3) / 3.0f;
+			currentTriPtr->_bottom = min4(_v1, _v2, _v3, vectorMax);
+			currentTriPtr->_top = max4(_v1, _v2, _v3, vectorMin);
 
 			currentTriPtr++;
 		}

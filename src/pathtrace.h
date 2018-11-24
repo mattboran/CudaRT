@@ -2,6 +2,7 @@
 #define PATHTRACE_CU
 
 #include "scene.h"
+#include <ctime>
 
 const unsigned blockWidth = 16u;
 
@@ -25,14 +26,17 @@ struct SettingsData {
 	int numStreams;
 } __attribute__ ((aligned (32)));
 
-Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool &useTexMemory);
+struct Clock {
+	unsigned firstValue;
+	Clock() { reset(); }
+	void reset() { firstValue = clock(); }
+	unsigned readS() { return (clock() - firstValue) / (CLOCKS_PER_SEC); }
+};
 
-__global__ void debugRenderKernel(geom::Triangle* d_triPtr, int numTriangles,
-		Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height,
-		bool useTexMem);
+Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool &useTexMemory);
 __global__ void setupCurandKernel(curandState *randState, int streamOffset);
 __global__ void renderKernel(TrianglesData* d_tris, Camera* d_camPtr, Vector3Df* d_imgPtr, LightsData* d_lights, SettingsData* d_settings, curandState *randState, int streamId);
-__global__ void averageSamplesKernel(Vector3Df* d_streamImgDataPtr, Vector3Df* d_imgPtr, SettingsData* d_settings);
+__global__ void averageSamplesAndGammaCorrectKernel(Vector3Df* d_streamImgDataPtr, Vector3Df* d_imgPtr, SettingsData* d_settings);
 __device__ float intersectTriangles(geom::Triangle* d_triPtr, int numTriangles, geom::RayHit& hitData, const geom::Ray& ray, bool useTexMem);
 __device__ inline geom::Triangle getTriangleFromTexture(unsigned i);
 

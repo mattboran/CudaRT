@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <iostream>
 #include <string>
-#include <time.h>
 #include <vector>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -147,12 +146,11 @@ int main(int argc, char* argv[]) {
 
 	Camera camera = Camera(camPos, camTarget, camUp, camRt, 90.0f, width, height);
 	scene.setCamera(camera);
-	clock_t start = clock();
+	Clock timer = Clock();
 	Vector3Df* imgData = pathtraceWrapper(scene, width, height, samples, numStreams, useTextureMemory);
 	saveImageToPng(outFile, width, height, imgData);
-	clock_t end = clock();
 
-	cout << "\nOutput to " << outFile << ":\t\t" << ((double)(end - start))/ CLOCKS_PER_SEC << " seconds " << endl;
+	cout << "Total time from start to output to " << outFile << ":\t\t" << (double)timer.readS() << " seconds " << endl;
 
 	delete[] imgData;
 	return(0);

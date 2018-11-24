@@ -1,11 +1,13 @@
-#ifndef __BVH_H_
-#define __BVH_H_
+#ifndef _BVH_H_
+#define _BVH_H_
 
 #include <list>
 #include "linalg.h"
+#include "scene.h"
 #include "geometry.cuh"
 
-// The nice version of the BVH - a shallow hierarchy of inner and leaf nodes
+class Scene;
+
 struct BVHNode {
 	Vector3Df _bottom;
 	Vector3Df _top;
@@ -50,6 +52,6 @@ struct CacheFriendlyBVHNode {
 void CreateCFBVH(); // CacheFriendlyBVH
 
 // The single-point entrance to the BVH - call only this
-void UpdateBoundingVolumeHierarchy(const char *filename);
+void CreateBoundingVolumeHeirarchy(Scene* scene);
 
 #endif

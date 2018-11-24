@@ -8,9 +8,7 @@
 #include <curand_kernel.h>
 #include <limits>
 
-#define FLT_MAX std::numeric_limits<float>::max()
 #define MAX_DISTANCE 100000000.0f
-#define FLT_MIN std::numeric_limits<float>::min()
 #define EPSILON 0.00001f
 
 
@@ -47,11 +45,13 @@ namespace geom {
 		Vector3Df _colorSpec;
 		Vector3Df _colorEmit;
 
+		// Vertex indices will be used for intersection soon (see github issues)
+		unsigned _id1, _id2, _id3;
 		// Unoptimized triangles for moller-trombore
-		Vector3Df _v1, _v2, _v3;
+		Vector3Df _v1;
 		Vector3Df _e1, _e2;
 		Vector3Df _n1, _n2, _n3;
-		float _surfaceArea;
+		float _surfaceArea = 0.0f;
 		__device__ __host__ Triangle() {}
 		__device__ __host__ Triangle(const Triangle &t);
 		__device__ Triangle(float3 v1, float3 e1, float3 e2, float3 n1, float3 n2, float3 n3, float3 diff, float3 spec, float3 emit, unsigned triId);
@@ -64,16 +64,13 @@ namespace geom {
 		__device__ bool isDiffuse() const;
 		// TODO: Implement these properties
 		// Center point
-//		Vector3Df _center;
-		// ignore back-face culling flag
-//		bool _twoSided;
+		Vector3Df _center;
+		Vector3Df _bottom;
+		Vector3Df _top;
 
 		// Raytracing intersection pre-computed cache:
 //		float _d, _d1, _d2, _d3;
 //		Vector3Df _e1, _e2, _e3;
-		// bounding box
-//		Vector3Df _bottom;
-//		Vector3Df _top;
 	} __attribute__ ((aligned (128))) ;
 
 	struct RayHit {

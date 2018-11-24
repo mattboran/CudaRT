@@ -129,7 +129,7 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	}
 
 	// Combine the different streams into a single image
-	averageSamplesKernel<<<grid, block>>>(d_streamImgDataPtr, d_imgDataPtr, d_settings);
+	averageSamplesAndGammaCorrectKernel<<<grid, block>>>(d_streamImgDataPtr, d_imgDataPtr, d_settings);
 
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )imgDataPtr, (void* )d_imgDataPtr, imageBytes, cudaMemcpyDeviceToHost));
 
@@ -249,44 +249,22 @@ __global__ void renderKernel(TrianglesData* d_tris,
 	d_imgPtr[j * d_settings->width + i] += colorAtPixel;
 }
 
-__global__ void debugRenderKernel(geom::Triangle* d_triPtr, int numTriangles,
-		Camera* d_camPtr, Vector3Df* d_imgPtr, int width, int height,
-		bool useTexMemory) {
-	unsigned int i, j;
-	i = blockIdx.x * blockDim.x + threadIdx.x;
-	j = blockIdx.y * blockDim.y + threadIdx.y;
-	curandState d_curandState;
-	curand_init(1234, i * j + i, 0, &d_curandState);
-
-	Ray camRay = d_camPtr->computeCameraRay(i, j, &d_curandState);
-	RayHit hitData;
-	float t = intersectTriangles(d_triPtr, numTriangles, hitData, camRay,
-			useTexMemory);
-	Vector3Df light(0.0f, 10.0f, 1.0f);
-	if (t < MAX_DISTANCE) {
-		Vector3Df hitPt = camRay.pointAlong(t);
-		Vector3Df lightDir = normalize(light - hitPt);
-		Vector3Df normal = hitData.hitTriPtr->getNormal(hitData);
-		d_imgPtr[j * width + i] = Vector3Df(
-				hitData.hitTriPtr->_colorDiffuse
-						* max(dot(lightDir, normal), 0.0f));
-	}
-}
-
-__global__ void averageSamplesKernel(Vector3Df* d_streamImgDataPtr, Vector3Df* d_imgPtr, SettingsData* d_settings) {
+__global__ void averageSamplesAndGammaCorrectKernel(Vector3Df* d_streamImgDataPtr, Vector3Df* d_imgPtr, SettingsData* d_settings) {
 	int idx = (blockIdx.x + blockIdx.y * gridDim.x) * (blockDim.x * blockDim.y)
 			+ (threadIdx.y * blockDim.x) + threadIdx.x;
 
-	Vector3Df pixel(0.0f, 0.0f, 0.0f);
 	int pixelsInImage = d_settings->width*d_settings->height;
+	Vector3Df pixel(0.0f, 0.0f, 0.0f);
+	float gamma = 2.2f;
+	float invGamma = 1.0f/gamma;
+	float invSamples = 1.0f/(float)d_settings->samples;
 	for (int s = 0; s < d_settings->numStreams; s++) {
 		pixel += d_streamImgDataPtr[idx + s*pixelsInImage];
 	}
-
-	pixel *= (1.0f / (float) d_settings->samples);
-	d_imgPtr[idx].x = fminf(pixel.x, 1.0f);
-	d_imgPtr[idx].y = fminf(pixel.y, 1.0f);
-	d_imgPtr[idx].z = fminf(pixel.z, 1.0f);
+	pixel *= invSamples;
+	d_imgPtr[idx].x = powf(fminf(pixel.x, 1.0f), invGamma);
+	d_imgPtr[idx].y = powf(fminf(pixel.y, 1.0f), invGamma);
+	d_imgPtr[idx].z = powf(fminf(pixel.z, 1.0f), invGamma);
 }
 
 __global__ void setupCurandKernel(curandState *randState, int streamOffset) {
