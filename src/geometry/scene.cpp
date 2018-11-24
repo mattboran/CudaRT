@@ -5,7 +5,7 @@
 
 #include <algorithm>
 #include <iostream>
-#include <limits>
+#include <cfloat>
 #include <math.h>
 using namespace geom;
 using std::vector;
@@ -20,7 +20,10 @@ Scene::Scene(std::string filename) {
 	}
 	trianglesPtr = loadTriangles();
 	vertexIndices = &meshLoader.LoadedIndices[0];
-	verticesPtr = &meshLoader.LoadedVertices[0];
+	vertexPtr = &meshLoader.LoadedVertices[0];
+
+	// Create BVH and CFBVH
+	triIndexBVHPtr = new unsigned[getNumTriangles()];
 	CreateBoundingVolumeHeirarchy(this);
 }
 
@@ -30,6 +33,11 @@ Scene::Scene(vector<std::string>& filenames) {
 
 Scene::~Scene() {
 	delete trianglesPtr;
+	delete sceneBVH;
+	delete sceneCFBVH;
+	delete triIndexBVHPtr;
+	delete vertexIndices;
+	delete vertexPtr;
 }
 
 // Get methods
@@ -84,17 +92,18 @@ CacheFriendlyBVHNode* Scene::getSceneCFBVHPtr() {
 	return sceneCFBVH;
 }
 
-Camera* Scene::getCameraPtr() {
-	return &camera;
+unsigned *Scene::getTriIndexBVHPtr() {
+	return triIndexBVHPtr;
 }
 
 unsigned Scene::getNumBVHNodes() {
 	return numBVHNodes;
 }
 
-unsigned Scene::getNumCacheFriendlyBVHNodes() {
-	return numCacheFriendlyBVHNodes;
+Camera* Scene::getCameraPtr() {
+	return &camera;
 }
+
 
 void Scene::setCamera(const Camera& cam) {
 	camera = Camera(cam);
@@ -108,6 +117,13 @@ void Scene::setCacheFriendlyVBHPtr(CacheFriendlyBVHNode* bvhPtr) {
 	sceneCFBVH = bvhPtr;
 }
 
+void Scene::setNumBVHNodes(unsigned i) {
+	numBVHNodes = i;
+}
+
+void Scene::allocateCFBVHNodeArray(unsigned nodes) {
+	sceneCFBVH = new CacheFriendlyBVHNode[nodes];
+}
 
 Triangle* Scene::loadTriangles() {
 	Triangle* triPtr = (Triangle*)malloc(sizeof(Triangle) * getNumTriangles());
@@ -140,8 +156,6 @@ Triangle* Scene::loadTriangles() {
 			currentTriPtr->_e1 = _v2 - _v1;
 			currentTriPtr->_e2 = _v3 - _v1;
 
-			sceneMax = max4(_v1, _v2, _v3, sceneMax);
-			sceneMin = min4(_v1, _v2, _v3, sceneMin);
 			// Materials
 			currentTriPtr->_colorDiffuse = Vector3Df(material.Kd);
 			currentTriPtr->_colorSpec = Vector3Df(material.Ks);

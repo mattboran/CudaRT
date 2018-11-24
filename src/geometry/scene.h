@@ -32,8 +32,8 @@ public:
 
 	BVHNode* getSceneBVHPtr();
 	CacheFriendlyBVHNode* getSceneCFBVHPtr();
+	unsigned *getTriIndexBVHPtr();
 	unsigned getNumBVHNodes();
-	unsigned getNumCacheFriendlyBVHNodes();
 
 	objl::Mesh getMesh(int i);
 	Camera* getCameraPtr();
@@ -43,13 +43,17 @@ public:
 	void setBVHPtr(BVHNode* bvhPtr);
 	void setCacheFriendlyVBHPtr(CacheFriendlyBVHNode* bvhPtr);
 	void setNumBVHNodes(unsigned i);
-	void setNumCacheFriendlyBVHNodes(unsigned i);
+	void allocateCFBVHNodeArray(unsigned nodes);
 private:
-	// global variables
+	// BVH Variables
 	BVHNode* sceneBVH;
 	CacheFriendlyBVHNode* sceneCFBVH;
 	unsigned numBVHNodes;
 	unsigned numCacheFriendlyBVHNodes;
+	// Corresponds with the sceneCFBVH: an index into trianglesPtr
+	unsigned* triIndexBVHPtr;
+
+	// Geometry - todo: phase these out if possible
 	geom::Triangle* trianglesPtr = NULL;
 	std::vector<geom::Triangle> lightsList;
 	objl::Loader meshLoader;
