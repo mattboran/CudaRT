@@ -4,6 +4,7 @@
 #include "../pathtrace.h"
 
 #include <algorithm>
+#include <iostream>
 #include <vector>
 #include <cfloat>
 #include <string>
@@ -55,7 +56,6 @@ typedef std::vector<BBoxTmp> BBoxEntries;  // vector of triangle bounding boxes 
 
 BVHNode *Recurse(BBoxEntries& work, REPORTPRM(float pct = 0.) int depth = 0)
 {
-
 	REPORT(float pctSpan = 11. / pow(3.f, depth);)
 
 	// terminate recursion case:
@@ -63,12 +63,11 @@ BVHNode *Recurse(BBoxEntries& work, REPORTPRM(float pct = 0.) int depth = 0)
 	// and create a list of the triangles contained in the node
 
 	if (work.size() < 4) {
-
 		BVHLeaf *leaf = new BVHLeaf;
 		for (BBoxEntries::iterator it = work.begin(); it != work.end(); it++)
 			leaf->_triangles.push_back(it->_pTri);
 		return leaf;
-		}
+	}
 
 	// else, work size > 4, divide  node further into smaller nodes
 	// start by finding the working list's bounding box (top and bottom)
@@ -77,7 +76,7 @@ BVHNode *Recurse(BBoxEntries& work, REPORTPRM(float pct = 0.) int depth = 0)
 	Vector3Df top(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
 	// loop over all bboxes in current working list, expanding/growing the working list bbox
-	for (unsigned i = 0; i < work.size(); i++) {  // meer dan 4 bboxen in work
+	for (unsigned i = 0; i < work.size(); i++) {
 		BBoxTmp& v = work[i];
 		bottom = min3(bottom, v._bottom);
 		top = max3(top, v._top);
@@ -123,9 +122,10 @@ BVHNode *Recurse(BBoxEntries& work, REPORTPRM(float pct = 0.) int depth = 0)
 
 		// In that axis, do the bounding boxes in the work queue "span" across, (meaning distributed over a reasonable distance)?
 		// Or are they all already "packed" on the axis? Meaning that they are too close to each other
-		if (fabsf(stop - start)<1e-4)
+		if (fabsf(stop - start)<1e-4) {
 			// BBox side along this axis too short, we must move to a different axis!
 			continue; // go to next axis
+		}
 
 		// Binning: Try splitting at a uniform sampling (at equidistantly spaced planes) that gets smaller the deeper we go:
 		// size of "sampling grid": 1024 (depth 0), 512 (depth 1), etc
@@ -161,7 +161,6 @@ BVHNode *Recurse(BBoxEntries& work, REPORTPRM(float pct = 0.) int depth = 0)
 			// For each test split (or bin), allocate triangles in remaining work list based on their bbox centers
 			// this is a fast O(N) pass, no triangle sorting needed (yet)
 			for (unsigned i = 0; i<work.size(); i++) {
-
 				BBoxTmp& v = work[i];
 
 				// compute bbox center
@@ -312,7 +311,7 @@ void CreateBVH(Scene *scene)
 	objl::Vertex *vertices = scene->getVertexPtr();
 
 	Triangle* triPtr = scene->getTriPtr();
-	puts("Gathering bounding box info from all triangles...");
+	printf("Gathering bounding box info from all %d triangles...\n", scene->getNumTriangles());
 	// for each triangle
 	for (unsigned j = 0; j < scene->getNumTriangles(); j++) {
 
@@ -331,9 +330,9 @@ void CreateBVH(Scene *scene)
 		b._bottom = min3(b._bottom, v2);
 		b._bottom = min3(b._bottom, v3);
 
-		b._bottom = max3(b._bottom, v1);
-		b._bottom = max3(b._bottom, v2);
-		b._bottom = max3(b._bottom, v3);
+		b._top = max3(b._top, v1);
+		b._top = max3(b._top, v2);
+		b._top = max3(b._top, v3);
 
 		// expand working list bbox by largest and smallest triangle bbox bounds
 		bottom = min3(bottom, b._bottom);
@@ -412,7 +411,7 @@ void PopulateCacheFriendlyBVH(
 	CFBVHPtr[currIdxBoxes]._bottom = root->_bottom;
 	CFBVHPtr[currIdxBoxes]._top = root->_top;
 
-	//DEPTH FIRST APPROACH (left first until complete)
+	//DEPTH FIRST APPROACH
 	if (!root->IsLeaf()) { // inner node
 		BVHInner *p = dynamic_cast<BVHInner*>(root);
 		// recursively populate left and right
@@ -444,17 +443,17 @@ void CreateCFBVH(Scene* scene)
 
 	geom::Triangle* triPtr = scene->getTriPtr();
 	BVHNode* sceneBVHPtr = scene->getSceneBVHPtr();
-	CacheFriendlyBVHNode* sceneCFBVHPtr = scene->getSceneCFBVHPtr();
 	unsigned* triIndexPtr = scene->getTriIndexBVHPtr();
 
 	unsigned numCFBVHNodes = CountBoxes(scene->getSceneBVHPtr());
 	scene->setNumBVHNodes(numCFBVHNodes);
 	scene->allocateCFBVHNodeArray(numCFBVHNodes);
-
+	printf("Allocated CFBVHNodeArray: num nodes: %d\n",scene->getNumBVHNodes());
+	CacheFriendlyBVHNode* sceneCFBVHPtr = scene->getSceneCFBVHPtr();
 	PopulateCacheFriendlyBVH(&triPtr[0], sceneBVHPtr, sceneCFBVHPtr, triIndexPtr, idxBoxes, idxTriList);
 
 	if ((idxBoxes != scene->getNumBVHNodes() - 1) || (idxTriList != scene->getNumTriangles())) {
-		puts("Internal bug in CreateCFBVH, please report it..."); fflush(stdout);
+		puts("Something went wrong in CreateCFBVH\n"); fflush(stdout);
 		exit(1);
 	}
 
