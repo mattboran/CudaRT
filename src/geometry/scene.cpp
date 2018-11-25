@@ -32,12 +32,10 @@ Scene::Scene(vector<std::string>& filenames) {
 }
 
 Scene::~Scene() {
-	delete trianglesPtr;
-	delete sceneBVH;
-	delete sceneCFBVH;
-	delete triIndexBVHPtr;
-	delete vertexIndices;
-	delete vertexPtr;
+	// TODO: Find out why there's a memory corruption or double free when we delete
+	// the other pointers in this class
+//	delete sceneCFBVH;
+//	delete triIndexBVHPtr;
 }
 
 // Get methods

@@ -16,8 +16,6 @@
 using namespace std;
 using namespace geom;
 
-#define BVH_STACK_SIZE 64
-
 // report progress during BVH construction
 #define PROGRESS_REPORT
 #ifdef PROGRESS_REPORT
@@ -398,7 +396,6 @@ void CountDepth(BVHNode *root, int depth, int& maxDepth)
 
 // Writes in the g_pCFBVH and g_triIndexListNo arrays,
 // creating a cache-friendly version of the BVH
-// TODO: - Have this take a scene* instead.
 void PopulateCacheFriendlyBVH(
 	const Triangle *pFirstTriangle,
 	BVHNode *root,
@@ -431,6 +428,9 @@ void PopulateCacheFriendlyBVH(
 
 		for (std::list<const Triangle*>::iterator it = p->_triangles.begin(); it != p->_triangles.end(); it++)
 		{
+			cout << "In triIndexList["<<idxTriList<<"] for box " <<idxBoxes;
+			cout << " putting pointer to " << *it - pFirstTriangle << " which corresponds to ";
+			cout << "triangle " << pFirstTriangle[*it - pFirstTriangle]._triId << endl;
 			triIndexListPtr[idxTriList++] = *it - pFirstTriangle;
 		}
 	}

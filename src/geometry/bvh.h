@@ -6,6 +6,8 @@
 #include "scene.h"
 #include "geometry.cuh"
 
+#define BVH_STACK_SIZE 32
+
 class Scene;
 
 struct BVHNode {

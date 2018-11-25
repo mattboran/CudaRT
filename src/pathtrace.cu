@@ -17,11 +17,10 @@
 #include <curand_kernel.h>
 
 #include <iostream>
-
+#include <cfloat>
 #include "cuda_error_check.h" // includes cuda.h and cuda_runtime_api.h
 
 using namespace geom;
-
 
 
 texture_t triangleTexture;
@@ -29,8 +28,11 @@ texture_t triangleTexture;
 Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool &useTexMemory) {
 	int pixels = width * height;
 	unsigned numTris = scene.getNumTriangles();
+	unsigned numBVHNodes = scene.getNumBVHNodes();
+
 	size_t triangleBytes = sizeof(Triangle) * numTris;
 	size_t imageBytes = sizeof(Vector3Df) * width * height;
+	size_t bvhBytes = sizeof(CacheFriendlyBVHNode) * numBVHNodes;
 
 	// Initialize CUDA memory
 	// Triangles -> d_tris
@@ -39,10 +41,24 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_triPtr, triangleBytes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_triPtr, (void* )h_triPtr, triangleBytes, cudaMemcpyHostToDevice));
 
+	unsigned* h_triIndexPtr = scene.getTriIndexBVHPtr();
+	unsigned* d_triIndexPtr = NULL;
+	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_triIndexPtr, sizeof(unsigned) * numTris));
+	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_triIndexPtr, (void* )h_triIndexPtr, sizeof(unsigned) * numTris, cudaMemcpyHostToDevice));
+
+	// CacheFriendlyBVHNodes -> d_bvh
+	CacheFriendlyBVHNode* h_bvh = scene.getSceneCFBVHPtr();
+	CacheFriendlyBVHNode* d_bvh = NULL;
+	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_bvh, bvhBytes));
+	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_bvh, (void* )h_bvh, bvhBytes, cudaMemcpyHostToDevice));
+
 	TrianglesData* h_tris = (TrianglesData*)malloc(sizeof(TrianglesData) + triangleBytes);
-	TrianglesData* d_tris = NULL;
 	h_tris->numTriangles = numTris;
 	h_tris->triPtr = d_triPtr;
+	h_tris->numBVHNodes = numBVHNodes;
+	h_tris->bvhPtr = d_bvh;
+	h_tris->triIndexPtr = d_triIndexPtr;
+	TrianglesData* d_tris = NULL;
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_tris, sizeof(TrianglesData) + triangleBytes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void*)d_tris, (void*)h_tris, sizeof(TrianglesData) + triangleBytes, cudaMemcpyHostToDevice));
 
@@ -68,10 +84,10 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_lightTrianglePtr, (void *)lightsPtr, lightTrianglesBytes, cudaMemcpyHostToDevice));
 
 	LightsData* h_lights = (LightsData*)malloc(sizeof(LightsData) + lightTrianglesBytes);
-	LightsData* d_lights = NULL;
 	h_lights->lightsPtr = d_lightTrianglePtr;
 	h_lights->numLights = scene.getNumLights();
 	h_lights->totalSurfaceArea = scene.getLightsSurfaceArea();
+	LightsData* d_lights = NULL;
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_lights, sizeof(LightsData) + lightTrianglesBytes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_lights, h_lights, sizeof(LightsData) + lightTrianglesBytes, cudaMemcpyHostToDevice));
 
@@ -83,12 +99,12 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 
 	// Setup settings -> d_settings
 	SettingsData h_settings;
-	SettingsData* d_settings;
 	h_settings.width = width;
 	h_settings.height = height;
 	h_settings.samples = samples;
 	h_settings.useTexMem = useTexMemory;
 	h_settings.numStreams = numStreams;
+	SettingsData* d_settings;
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_settings, sizeof(SettingsData)));
 	CUDA_CHECK_RETURN(cudaMemcpy((void*)d_settings, &h_settings, sizeof(SettingsData), cudaMemcpyHostToDevice));
 
@@ -141,9 +157,11 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	// Clean up host memory
 	free(h_lights);
 	free(h_tris);
+	free(h_bvh);
 	// Clean up device memory
 	cudaFree((void*) d_tris);
 	cudaFree((void*) d_triPtr);
+	cudaFree((void*) d_bvh);
 	cudaFree((void*) d_lights);
 	cudaFree((void*) d_lightTrianglePtr);
 	cudaFree((void*) d_settings);
@@ -176,7 +194,7 @@ __global__ void renderKernel(TrianglesData* d_tris,
 
 	// First see if the camera ray hits anything. If not, return black.
 	float t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
-	if (t < MAX_DISTANCE) {
+	if (t < FLT_MAX) {
 		hitPt = ray.pointAlong(t);
 		hitTriPtr = hitData.hitTriPtr;
 		normal = hitTriPtr->getNormal(hitData);
@@ -204,7 +222,7 @@ __global__ void renderKernel(TrianglesData* d_tris,
 
 		Ray lightRay(hitPt + normal * EPSILON, lightRayDir);
 		t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, lightHitData, lightRay, d_settings->useTexMem);
-		if (t < MAX_DISTANCE){
+		if (t < FLT_MAX){
 			// See if we've hit the light we tested for
 			Triangle* lightRayHitPtr = lightHitData.hitTriPtr;
 			if (lightRayHitPtr->_triId == selectedLight._triId) {
@@ -218,7 +236,7 @@ __global__ void renderKernel(TrianglesData* d_tris,
 
 		// Now compute indirect lighting
 		t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
-		if (t < MAX_DISTANCE) {
+		if (t < FLT_MAX) {
 
 			Vector3Df hitPt = ray.pointAlong(t);
 			Triangle* hitTriPtr = hitData.hitTriPtr;
@@ -278,7 +296,7 @@ __device__ float intersectTriangles(geom::Triangle* d_triPtr,
 									RayHit& hitData,
 									const Ray& ray,
 									bool useTexMemory) {
-	float t = MAX_DISTANCE, tprime = MAX_DISTANCE;
+	float t = FLT_MAX, tprime = FLT_MAX;
 	float u, v;
 	for (unsigned i = 0; i < numTriangles; i++) {
 		Triangle tri;
@@ -296,6 +314,109 @@ __device__ float intersectTriangles(geom::Triangle* d_triPtr,
 		}
 	}
 	return t;
+}
+
+__device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
+							  Triangle* d_triPtr,
+							  unsigned* d_triIndexPtr,
+							  RayHit& hitData,
+							  const Ray& ray,
+							  bool useTexMemory) {
+	int stack[BVH_STACK_SIZE];
+	int stackIdx = 0;
+	stack[stackIdx++] = 0;
+	Vector3Df hitpoint;
+
+	// while the stack is not empty
+	while (stackIdx) {
+		// pop a BVH node from the stack
+		int boxIdx = stack[stackIdx - 1];
+		CacheFriendlyBVHNode* pCurrent = &d_bvh[boxIdx];
+		stackIdx--;
+
+		unsigned count = pCurrent->u.leaf._count & 0x80000000;
+		if (!count) {   // INNER NODE
+			// if ray intersects inner node, push indices of left and right child nodes on the stack
+			if (rayIntersectsBox(ray, pCurrent)) {
+				stack[stackIdx++] = pCurrent->u.inner._idxRight;
+				stack[stackIdx++] = pCurrent->u.inner._idxLeft;
+				// return if stack size is exceeded
+				if (stackIdx>BVH_STACK_SIZE) {
+					return FLT_MAX;
+				}
+			}
+		} else { // LEAF NODE
+			Triangle* boxTriPtr = &d_triPtr[d_triIndexPtr[pCurrent->u.leaf._startIndexInTriIndexList]];
+			return intersectTriangles(boxTriPtr, count, hitData, ray, useTexMemory);
+		}
+	}
+	return FLT_MAX;
+}
+
+__device__ bool rayIntersectsBox(const Ray& ray, const CacheFriendlyBVHNode &bvhNode) {
+	float tnear = -FLT_MAX;
+	float tfar = FLT_MAX;
+	float2 bounds;
+
+	// For each axis plane, store bounds and process separately
+	bounds.x = bvhNode._bottom.x;
+	bounds.y = bvhNode._top.x;
+
+	// X
+	if (ray.dir.x == 0.f) {
+		if (ray.origin.x < bounds.x) return false;
+		if (ray.origin.x > bounds.y) return false;
+	} else {
+		float t1 = (bounds.x - ray.origin.x)/ray.dir.x;
+		float t2 = (bounds.y - ray.origin.x)/ray.dir.x;
+		if (t1 > t2) {
+			float tmp = t1; t1 = t2; t2 = tmp;
+		}
+		if (t1 > tnear) tnear = t1;
+		if (t2 < tfar) tfar = t2;
+		if (tnear > tfar) return false;
+		if (tfar < 0.f) return false;
+	}
+
+	bounds.x = bvhNode._bottom.y;
+	bounds.y = bvhNode._top.y;
+
+	// Y
+	if (ray.dir.y == 0.f) {
+		if (ray.origin.y < bounds.x) return false;
+		if (ray.origin.y > bounds.y) return false;
+	} else {
+		float t1 = (bounds.x - ray.origin.y)/ray.dir.y;
+		float t2 = (bounds.y - ray.origin.y)/ray.dir.y;
+		if (t1 > t2) {
+			float tmp = t1; t1 = t2; t2 = tmp;
+		}
+		if (t1 > tnear) tnear = t1;
+		if (t2 < tfar) tfar = t2;
+		if (tnear > tfar) return false;
+		if (tfar < 0.f) return false;
+	}
+
+	bounds.x = bvhNode._bottom.z;
+	bounds.y = bvhNode._top.z;
+
+	// Z
+	if (ray.dir.z == 0.f) {
+		if (ray.origin.y < bounds.x) return false;
+		if (ray.origin.y > bounds.y) return false;
+	} else {
+		float t1 = (bounds.x - ray.origin.z)/ray.dir.z;
+		float t2 = (bounds.y - ray.origin.z)/ray.dir.z;
+		if (t1 > t2) {
+			float tmp = t1; t1 = t2; t2 = tmp;
+		}
+		if (t1 > tnear) tnear = t1;
+		if (t2 < tfar) tfar = t2;
+		if (tnear > tfar) return false;
+		if (tfar < 0.f) return false;
+	}
+
+	return true;
 }
 
 __device__ inline Triangle getTriangleFromTexture(unsigned i) {

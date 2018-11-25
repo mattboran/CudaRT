@@ -8,7 +8,6 @@
 #include <curand_kernel.h>
 #include <limits>
 
-#define MAX_DISTANCE 100000000.0f
 #define EPSILON 0.00001f
 
 

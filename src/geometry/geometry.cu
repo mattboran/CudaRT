@@ -1,4 +1,5 @@
 #include "geometry.cuh"
+#include <cfloat>
 #include <math.h>
 
 using namespace geom;
@@ -42,21 +43,21 @@ __device__ float Triangle::intersect(const Ray& r, float &_u, float &_v) const {
 
 	if(fabsf(det) < EPSILON)
 	{
-		return MAX_DISTANCE;
+		return FLT_MAX;
 	}
 	float inv_det = 1.f / det;
 	T = r.origin - _v1;
 	float u = dot(T, P) * inv_det;
 	if ( u < 0.f || u > 1.f)
 	{
-		return MAX_DISTANCE;
+		return FLT_MAX;
 	}
 
 	Q = cross(T, _e1);
 	float v = dot(r.dir, Q) * inv_det;
 	if ( v < 0.f || u + v > 1.f)
 	{
-		return MAX_DISTANCE;
+		return FLT_MAX;
 	}
 	float t = dot(_e2, Q) * inv_det;
 	if ( t > EPSILON)
@@ -65,7 +66,7 @@ __device__ float Triangle::intersect(const Ray& r, float &_u, float &_v) const {
 		_v = v;
 		return t;
 	}
-	return MAX_DISTANCE;
+	return FLT_MAX;
 }
 
 __device__ Vector3Df Triangle::getNormal(const RayHit& rh) const {
