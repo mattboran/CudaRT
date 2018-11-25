@@ -43,6 +43,7 @@ __global__ void renderKernel(TrianglesData* d_tris, Camera* d_camPtr, Vector3Df*
 __global__ void averageSamplesAndGammaCorrectKernel(Vector3Df* d_streamImgDataPtr, Vector3Df* d_imgPtr, SettingsData* d_settings);
 __device__ float intersectTriangles(geom::Triangle* d_triPtr, int numTriangles, geom::RayHit& hitData, const geom::Ray& ray, bool useTexMem);
 __device__ bool rayIntersectsBox(const geom::Ray& ray, CacheFriendlyBVHNode *bvhNode);
+__device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh, geom::Triangle* d_triPtr, unsigned* d_triIndexPtr, geom::RayHit& hitData, const geom::Ray& ray, bool useTexMemory);
 __device__ inline geom::Triangle getTriangleFromTexture(unsigned i);
 
 

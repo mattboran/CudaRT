@@ -59,7 +59,7 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	h_tris->bvhPtr = d_bvh;
 	h_tris->triIndexPtr = d_triIndexPtr;
 	TrianglesData* d_tris = NULL;
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_tris, sizeof(TrianglesData) + triangleBytes));
+	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_tris, sizeof(TrianglesData) + triangleBytes + bvhBytes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void*)d_tris, (void*)h_tris, sizeof(TrianglesData) + triangleBytes, cudaMemcpyHostToDevice));
 
 	// Bind triangles to texture memory -- texture memory doesn't quite work
@@ -193,7 +193,7 @@ __global__ void renderKernel(TrianglesData* d_tris,
 	Vector3Df mask(1.0f, 1.0f, 1.0f);
 
 	// First see if the camera ray hits anything. If not, return black.
-	float t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
+	float t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->triIndexPtr, hitData, ray, d_settings->useTexMem);
 	if (t < FLT_MAX) {
 		hitPt = ray.pointAlong(t);
 		hitTriPtr = hitData.hitTriPtr;
@@ -201,6 +201,9 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		// if we hit a light directly, add its contribution here so as not to double dip in the BSDF calculations below
 		if (hitTriPtr->isEmissive()) {
 			d_imgPtr[j * d_settings->width + i] += hitTriPtr->_colorEmit;
+			return;
+		} else {
+			d_imgPtr[j * d_settings->width + i] += hitTriPtr->_colorDiffuse;
 			return;
 		}
 	} else {
@@ -221,7 +224,8 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		Vector3Df lightRayDir = normalize(selectedLight.getRandomPointOn(&randState[idx]) - hitPt);
 
 		Ray lightRay(hitPt + normal * EPSILON, lightRayDir);
-		t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, lightHitData, lightRay, d_settings->useTexMem);
+//		t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, lightHitData, lightRay, d_settings->useTexMem);
+		t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->triIndexPtr, lightHitData, lightRay, d_settings->useTexMem);
 		if (t < FLT_MAX){
 			// See if we've hit the light we tested for
 			Triangle* lightRayHitPtr = lightHitData.hitTriPtr;
@@ -235,7 +239,8 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		}
 
 		// Now compute indirect lighting
-		t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
+		t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->triIndexPtr, hitData, ray, d_settings->useTexMem);
+//		t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
 		if (t < FLT_MAX) {
 
 			Vector3Df hitPt = ray.pointAlong(t);
@@ -291,17 +296,18 @@ __global__ void setupCurandKernel(curandState *randState, int streamOffset) {
 	curand_init(1234 + streamOffset, idx, 0, &randState[idx]);
 }
 
-__device__ float intersectTriangles(geom::Triangle* d_triPtr,
+__device__ float intersectTriangles(Triangle* d_triPtr,
 									int numTriangles,
 									RayHit& hitData,
 									const Ray& ray,
 									bool useTexMemory) {
 	float t = FLT_MAX, tprime = FLT_MAX;
 	float u, v;
+
 	for (unsigned i = 0; i < numTriangles; i++) {
 		Triangle tri;
 		if (useTexMemory) {
-			Triangle tri = getTriangleFromTexture(i);
+			tri = getTriangleFromTexture(i);
 			tprime = tri.intersect(ray, u, v);
 		} else {
 			tprime = d_triPtr[i].intersect(ray, u, v);
@@ -316,6 +322,31 @@ __device__ float intersectTriangles(geom::Triangle* d_triPtr,
 	return t;
 }
 
+__device__ float intersectBVHTriangles(Triangle* d_triPtr,
+									int numTriangles,
+									unsigned offset,
+									RayHit& hitData,
+									const Ray& ray,
+									bool useTexMemory) {
+	float t = FLT_MAX, tprime = FLT_MAX;
+	float u, v;
+	for (unsigned i = 0; i < numTriangles; i++) {
+		Triangle tri;
+		if (useTexMemory) {
+			tri = getTriangleFromTexture(i);
+			tprime = tri.intersect(ray, u, v);
+		} else {
+			tprime = d_triPtr[i + offset].intersect(ray, u, v);
+		}
+		if (tprime < t && tprime > 0.f) {
+			t = tprime;
+			hitData.hitTriPtr = &d_triPtr[i + offset];
+			hitData.u = u;
+			hitData.v = v;
+		}
+	}
+	return t;
+}
 __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 							  Triangle* d_triPtr,
 							  unsigned* d_triIndexPtr,
@@ -334,8 +365,8 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 		CacheFriendlyBVHNode* pCurrent = &d_bvh[boxIdx];
 		stackIdx--;
 
-		unsigned count = pCurrent->u.leaf._count & 0x80000000;
-		if (!count) {   // INNER NODE
+		unsigned count = pCurrent->u.leaf._count & 0x7fffffff;
+		if (!(pCurrent->u.leaf._count & 0x80000000)) {   // INNER NODE
 			// if ray intersects inner node, push indices of left and right child nodes on the stack
 			if (rayIntersectsBox(ray, pCurrent)) {
 				stack[stackIdx++] = pCurrent->u.inner._idxRight;
@@ -345,22 +376,24 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 					return FLT_MAX;
 				}
 			}
-		} else { // LEAF NODE
-			Triangle* boxTriPtr = &d_triPtr[d_triIndexPtr[pCurrent->u.leaf._startIndexInTriIndexList]];
-			return intersectTriangles(boxTriPtr, count, hitData, ray, useTexMemory);
+		}
+		else { // LEAF NODE
+			unsigned offset = d_triIndexPtr[pCurrent->u.leaf._startIndexInTriIndexList];
+			return intersectBVHTriangles(d_triPtr, count, offset, hitData, ray, useTexMemory);
 		}
 	}
 	return FLT_MAX;
 }
 
-__device__ bool rayIntersectsBox(const Ray& ray, const CacheFriendlyBVHNode &bvhNode) {
+
+__device__ bool rayIntersectsBox(const Ray& ray, CacheFriendlyBVHNode *bvhNode) {
 	float tnear = -FLT_MAX;
 	float tfar = FLT_MAX;
 	float2 bounds;
 
 	// For each axis plane, store bounds and process separately
-	bounds.x = bvhNode._bottom.x;
-	bounds.y = bvhNode._top.x;
+	bounds.x = bvhNode->_bottom.x;
+	bounds.y = bvhNode->_top.x;
 
 	// X
 	if (ray.dir.x == 0.f) {
@@ -378,8 +411,8 @@ __device__ bool rayIntersectsBox(const Ray& ray, const CacheFriendlyBVHNode &bvh
 		if (tfar < 0.f) return false;
 	}
 
-	bounds.x = bvhNode._bottom.y;
-	bounds.y = bvhNode._top.y;
+	bounds.x = bvhNode->_bottom.y;
+	bounds.y = bvhNode->_top.y;
 
 	// Y
 	if (ray.dir.y == 0.f) {
@@ -397,8 +430,8 @@ __device__ bool rayIntersectsBox(const Ray& ray, const CacheFriendlyBVHNode &bvh
 		if (tfar < 0.f) return false;
 	}
 
-	bounds.x = bvhNode._bottom.z;
-	bounds.y = bvhNode._top.z;
+	bounds.x = bvhNode->_bottom.z;
+	bounds.y = bvhNode->_top.z;
 
 	// Z
 	if (ray.dir.z == 0.f) {

@@ -428,9 +428,6 @@ void PopulateCacheFriendlyBVH(
 
 		for (std::list<const Triangle*>::iterator it = p->_triangles.begin(); it != p->_triangles.end(); it++)
 		{
-			cout << "In triIndexList["<<idxTriList<<"] for box " <<idxBoxes;
-			cout << " putting pointer to " << *it - pFirstTriangle << " which corresponds to ";
-			cout << "triangle " << pFirstTriangle[*it - pFirstTriangle]._triId << endl;
 			triIndexListPtr[idxTriList++] = *it - pFirstTriangle;
 		}
 	}

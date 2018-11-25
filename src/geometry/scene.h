@@ -49,7 +49,6 @@ private:
 	BVHNode* sceneBVH;
 	CacheFriendlyBVHNode* sceneCFBVH;
 	unsigned numBVHNodes;
-	unsigned numCacheFriendlyBVHNodes;
 	// Corresponds with the sceneCFBVH: an index into trianglesPtr
 	unsigned* triIndexBVHPtr;
 
