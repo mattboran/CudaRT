@@ -219,8 +219,9 @@ BVHNode *Recurse(BBoxEntries& work, REPORTPRM(float pct = 0.) int depth = 0)
 	if (bestAxis == -1) {
 
 		BVHLeaf *leaf = new BVHLeaf;
-		for (BBoxEntries::iterator it = work.begin(); it != work.end(); it++)
+		for (BBoxEntries::iterator it = work.begin(); it != work.end(); it++){
 			leaf->_triangles.push_back(it->_pTri); // put triangles of working list in leaf's triangle list
+		}
 		return leaf;
 	}
 
@@ -378,6 +379,10 @@ unsigned CountTriangles(BVHNode *root)
 	}
 	else {
 		BVHLeaf *p = dynamic_cast<BVHLeaf*>(root);
+		for(auto tri: p->_triangles) {
+			cout << "Leaf has triangle id #"<<tri->_triId << endl;
+		}
+		cout<< "Leaf had " << p->_triangles.size() << "triangles.";
 		return (unsigned)p->_triangles.size();
 	}
 }
@@ -428,7 +433,8 @@ void PopulateCacheFriendlyBVH(
 
 		for (std::list<const Triangle*>::iterator it = p->_triangles.begin(); it != p->_triangles.end(); it++)
 		{
-			triIndexListPtr[idxTriList++] = *it - pFirstTriangle;
+		    unsigned index = *it - pFirstTriangle;
+			triIndexListPtr[idxTriList++] = pFirstTriangle[index]._triId;
 		}
 	}
 }
@@ -443,6 +449,7 @@ void CreateCFBVH(Scene* scene)
 	unsigned* triIndexPtr = scene->getTriIndexBVHPtr();
 
 	unsigned numCFBVHNodes = CountBoxes(scene->getSceneBVHPtr());
+	unsigned countedTriangles = CountTriangles(scene->getSceneBVHPtr());
 	scene->setNumBVHNodes(numCFBVHNodes);
 	scene->allocateCFBVHNodeArray(numCFBVHNodes);
 	printf("Allocated CFBVHNodeArray: num nodes: %d\n",scene->getNumBVHNodes());

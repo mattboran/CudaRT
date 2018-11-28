@@ -48,6 +48,20 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 
 	// CacheFriendlyBVHNodes -> d_bvh
 	CacheFriendlyBVHNode* h_bvh = scene.getSceneCFBVHPtr();
+	for (unsigned i = 0; i < scene.getNumBVHNodes(); i++) {
+		if (h_bvh[i].u.leaf._count & 0x80000000) {
+			std::cout << "bvh # " << i << " is a leaf and has " << (h_bvh[i].u.leaf._count & 0x7fffffff) << " tri indices: ";
+			for(unsigned j = 0; j <  (h_bvh[i].u.leaf._count & 0x7fffffff); j++) {
+				 std::cout <<  h_bvh[i].u.leaf._startIndexInTriIndexList + j << ", ";
+			}
+		} else {
+			std::cout << "bvh # " << i << " is not a leaf and has bbox (" <<
+					h_bvh[i]._bottom.x << ", " << h_bvh[i]._bottom.y << ", " << h_bvh[i]._bottom.z << ") and (" <<
+					h_bvh[i]._top.x << ", " << h_bvh[i]._top.y << ", " << h_bvh[i]._top.z << ")" <<
+					"and has leaf indices L" << h_bvh[i].u.inner._idxLeft << " and R" << h_bvh[i].u.inner._idxRight;
+		}
+		std::cout << std::endl;
+	}
 	CacheFriendlyBVHNode* d_bvh = NULL;
 	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_bvh, bvhBytes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_bvh, (void* )h_bvh, bvhBytes, cudaMemcpyHostToDevice));
@@ -195,6 +209,8 @@ __global__ void renderKernel(TrianglesData* d_tris,
 	// First see if the camera ray hits anything. If not, return black.
 	float t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->triIndexPtr, hitData, ray, d_settings->useTexMem);
 	if (t < FLT_MAX) {
+		d_imgPtr[j * d_settings->width + i] += Vector3Df(0.0f, 1.0f, 0.0f);
+		return;
 		hitPt = ray.pointAlong(t);
 		hitTriPtr = hitData.hitTriPtr;
 		normal = hitTriPtr->getNormal(hitData);
@@ -202,12 +218,9 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		if (hitTriPtr->isEmissive()) {
 			d_imgPtr[j * d_settings->width + i] += hitTriPtr->_colorEmit;
 			return;
-		} else {
-			d_imgPtr[j * d_settings->width + i] += hitTriPtr->_colorDiffuse;
-			return;
 		}
 	} else {
-		d_imgPtr[j * d_settings->width + i] += Vector3Df(0.0f, 0.0f, 0.0f);
+		d_imgPtr[j * d_settings->width + i] += Vector3Df(0.0f,0.0f, 0.0f);
 		return;
 	}
 
@@ -347,6 +360,7 @@ __device__ float intersectBVHTriangles(Triangle* d_triPtr,
 	}
 	return t;
 }
+
 __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 							  Triangle* d_triPtr,
 							  unsigned* d_triIndexPtr,
@@ -362,6 +376,7 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 	while (stackIdx) {
 		// pop a BVH node from the stack
 		int boxIdx = stack[stackIdx - 1];
+//		printf("Intersecting box  %d\n",boxIdx);
 		CacheFriendlyBVHNode* pCurrent = &d_bvh[boxIdx];
 		stackIdx--;
 
@@ -373,12 +388,15 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 				stack[stackIdx++] = pCurrent->u.inner._idxLeft;
 				// return if stack size is exceeded
 				if (stackIdx>BVH_STACK_SIZE) {
+					printf("Stack size exceeded!\n");
 					return FLT_MAX;
 				}
 			}
 		}
 		else { // LEAF NODE
+
 			unsigned offset = d_triIndexPtr[pCurrent->u.leaf._startIndexInTriIndexList];
+//			return (float)offset;
 			return intersectBVHTriangles(d_triPtr, count, offset, hitData, ray, useTexMemory);
 		}
 	}
@@ -390,7 +408,7 @@ __device__ bool rayIntersectsBox(const Ray& ray, CacheFriendlyBVHNode *bvhNode) 
 	float tnear = -FLT_MAX;
 	float tfar = FLT_MAX;
 	float2 bounds;
-
+//	return true;
 	// For each axis plane, store bounds and process separately
 	bounds.x = bvhNode->_bottom.x;
 	bounds.y = bvhNode->_top.x;
@@ -435,8 +453,8 @@ __device__ bool rayIntersectsBox(const Ray& ray, CacheFriendlyBVHNode *bvhNode) 
 
 	// Z
 	if (ray.dir.z == 0.f) {
-		if (ray.origin.y < bounds.x) return false;
-		if (ray.origin.y > bounds.y) return false;
+		if (ray.origin.z < bounds.x) return false;
+		if (ray.origin.z > bounds.y) return false;
 	} else {
 		float t1 = (bounds.x - ray.origin.z)/ray.dir.z;
 		float t2 = (bounds.y - ray.origin.z)/ray.dir.z;
