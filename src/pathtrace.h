@@ -46,5 +46,4 @@ __device__ bool rayIntersectsBox(const geom::Ray& ray, CacheFriendlyBVHNode *bvh
 __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh, geom::Triangle* d_triPtr, unsigned* d_triIndexPtr, geom::RayHit& hitData, const geom::Ray& ray, bool useTexMemory);
 __device__ inline geom::Triangle getTriangleFromTexture(unsigned i);
 
-
 #endif

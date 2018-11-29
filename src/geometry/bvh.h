@@ -31,7 +31,7 @@ struct CacheFriendlyBVHNode {
 	// bounding box
 	Vector3Df _bottom;
 	Vector3Df _top;
-
+	unsigned idx;
 	// parameters for leafnodes and innernodes occupy same space (union) to save memory
 	// top bit discriminates between leafnode and innernode
 	// no pointers, but indices (int): faster
@@ -55,5 +55,12 @@ void CreateCFBVH(); // CacheFriendlyBVH
 
 // The single-point entrance to the BVH - call only this
 void CreateBoundingVolumeHeirarchy(Scene* scene);
+
+int CountBoxes(BVHNode *root);
+
+unsigned CountTriangles(BVHNode *root);
+
+void CountDepth(BVHNode *root, int depth, int& maxDepth);
+
 
 #endif

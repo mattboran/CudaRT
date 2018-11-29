@@ -7,9 +7,9 @@
 #include <curand.h>
 #include <curand_kernel.h>
 #include <limits>
+#include <iostream>
 
 #define EPSILON 0.00001f
-
 
 Vector3Df max4(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c, const Vector3Df& d);
 Vector3Df min4(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c, const Vector3Df& d);
@@ -30,7 +30,7 @@ namespace geom {
 		Vector3Df origin;
 		Vector3Df dir;
 
-		__device__ Ray(Vector3Df o, Vector3Df d) : origin(o), dir(normalize(d)) { }
+		__host__ __device__ Ray(Vector3Df o, Vector3Df d) : origin(o), dir(normalize(d)) { }
 		__device__ Vector3Df pointAlong(float t) { return Vector3Df(origin + dir*t); }
 	};
 
@@ -55,7 +55,7 @@ namespace geom {
 		__device__ __host__ Triangle(const Triangle &t);
 		__device__ Triangle(float3 v1, float3 e1, float3 e2, float3 n1, float3 n2, float3 n3, float3 diff, float3 spec, float3 emit, unsigned triId);
 		__device__ Triangle(float4 v1, float4 e1, float4 e2, float4 n1, float4 n2, float4 n3, float4 diff, float4 spec, float4 emit);
-		__device__ float intersect(const Ray &r, float &_u, float &_v) const;
+		__host__ __device__ float intersect(const Ray &r, float &_u, float &_v) const;
 		__device__ Vector3Df getNormal(const  RayHit& rh) const;
 		__device__ Vector3Df getRandomPointOn(curandState *randState) const;
 		__device__ bool isEmissive() const;

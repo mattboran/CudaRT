@@ -43,6 +43,18 @@ __device__ Ray Camera::computeCameraRay(int i, int j, curandState* randState) co
 	return Ray(eye, direction);
 }
 
+__host__ Ray Camera::computeTestCameraRay(int i, int j) {
+	float normalized_i = 1.0f - (((float)i) / (float)xpixels) - 0.5;
+	float normalized_j = 1.0f - (((float)j) / (float)ypixels) - 0.5f;
+
+	Vector3Df direction = dir;
+	direction += ((right * -1.0f) * fov * aspect * normalized_i);
+	direction += (up * fov * normalized_j);
+	direction = normalize(direction);
+
+	return Ray(eye, direction);
+}
+
 __host__ void Camera::rebase()
 {
 	up = normalize(up);

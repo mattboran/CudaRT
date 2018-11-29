@@ -193,8 +193,11 @@ __global__ void renderKernel(TrianglesData* d_tris,
 	Vector3Df mask(1.0f, 1.0f, 1.0f);
 
 	// First see if the camera ray hits anything. If not, return black.
+	// float t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
 	float t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->triIndexPtr, hitData, ray, d_settings->useTexMem);
 	if (t < FLT_MAX) {
+		d_imgPtr[j * d_settings->width + i] += Vector3Df(1.0f,1.0f,1.0f);
+		return;
 		hitPt = ray.pointAlong(t);
 		hitTriPtr = hitData.hitTriPtr;
 		normal = hitTriPtr->getNormal(hitData);
@@ -202,8 +205,9 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		if (hitTriPtr->isEmissive()) {
 			d_imgPtr[j * d_settings->width + i] += hitTriPtr->_colorEmit;
 			return;
-		} else {
-			d_imgPtr[j * d_settings->width + i] += hitTriPtr->_colorDiffuse;
+		}
+		else {
+			d_imgPtr[j * d_settings->width + i] += Vector3Df(1.0f, 1.0f, 1.0f);
 			return;
 		}
 	} else {
@@ -224,7 +228,7 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		Vector3Df lightRayDir = normalize(selectedLight.getRandomPointOn(&randState[idx]) - hitPt);
 
 		Ray lightRay(hitPt + normal * EPSILON, lightRayDir);
-//		t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, lightHitData, lightRay, d_settings->useTexMem);
+		// t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, lightHitData, lightRay, d_settings->useTexMem);
 		t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->triIndexPtr, lightHitData, lightRay, d_settings->useTexMem);
 		if (t < FLT_MAX){
 			// See if we've hit the light we tested for
@@ -240,7 +244,7 @@ __global__ void renderKernel(TrianglesData* d_tris,
 
 		// Now compute indirect lighting
 		t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->triIndexPtr, hitData, ray, d_settings->useTexMem);
-//		t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
+		// t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
 		if (t < FLT_MAX) {
 
 			Vector3Df hitPt = ray.pointAlong(t);
@@ -357,6 +361,7 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 	int stackIdx = 0;
 	stack[stackIdx++] = 0;
 	Vector3Df hitpoint;
+	unsigned depth = 0;
 
 	// while the stack is not empty
 	while (stackIdx) {
@@ -369,6 +374,7 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 		if (!(pCurrent->u.leaf._count & 0x80000000)) {   // INNER NODE
 			// if ray intersects inner node, push indices of left and right child nodes on the stack
 			if (rayIntersectsBox(ray, pCurrent)) {
+
 				stack[stackIdx++] = pCurrent->u.inner._idxRight;
 				stack[stackIdx++] = pCurrent->u.inner._idxLeft;
 				// return if stack size is exceeded
@@ -378,7 +384,12 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 			}
 		}
 		else { // LEAF NODE
+
 			unsigned offset = d_triIndexPtr[pCurrent->u.leaf._startIndexInTriIndexList];
+			hitData.hitTriPtr = &d_triPtr[offset];
+
+			return offset;
+			// return (float)offset;
 			return intersectBVHTriangles(d_triPtr, count, offset, hitData, ray, useTexMemory);
 		}
 	}
@@ -435,8 +446,8 @@ __device__ bool rayIntersectsBox(const Ray& ray, CacheFriendlyBVHNode *bvhNode) 
 
 	// Z
 	if (ray.dir.z == 0.f) {
-		if (ray.origin.y < bounds.x) return false;
-		if (ray.origin.y > bounds.y) return false;
+		if (ray.origin.z < bounds.x) return false;
+		if (ray.origin.z > bounds.y) return false;
 	} else {
 		float t1 = (bounds.x - ray.origin.z)/ray.dir.z;
 		float t2 = (bounds.y - ray.origin.z)/ray.dir.z;
