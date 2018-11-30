@@ -91,7 +91,7 @@ unsigned* Scene::getBVHIndexPtr() {
 }
 
 CacheFriendlyBVHNode* Scene::getSceneCFBVHPtr() {
-	return sceneCFBVH;
+	return &cfBVHNodeVector[0];
 }
 
 unsigned *Scene::getTriIndexBVHPtr() {

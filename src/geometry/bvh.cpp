@@ -484,26 +484,26 @@ void CreateCFBVH(Scene* scene)
 		bvhNodePtr++;
 	}
 
-	unsigned* triIndexPtr = scene->getTriIndexBVHPtr();
-
-	unsigned countedTriangles = CountTriangles(scene->getSceneBVHPtr());
-	scene->allocateCFBVHNodeArray(numCFBVHNodes);
-	printf("Num BVH nodes: %d\n",scene->getNumBVHNodes());
-	CacheFriendlyBVHNode* sceneCFBVHPtr = scene->getSceneCFBVHPtr();
-	PopulateCacheFriendlyBVH(&triPtr[0], sceneBVHPtr, sceneCFBVHPtr, triIndexPtr, idxBoxes, idxTriList);
-
-	if (idxBoxes != scene->getNumBVHNodes() - 1) {
-		puts("Something went wrong in CreateCFBVH\n"); fflush(stdout);
-		exit(1);
-	}
-
-	int maxDepth = 0;
-	CountDepth(sceneBVHPtr, 0, maxDepth);
-	if (maxDepth >= BVH_STACK_SIZE) {
-		printf("Max depth of BVH was %d\n", maxDepth);
-		puts("Recompile with BVH_STACK_SIZE set to more than that..."); fflush(stdout);
-		exit(1);
-	}
+//	unsigned* triIndexPtr = scene->getTriIndexBVHPtr();
+//
+//	unsigned countedTriangles = CountTriangles(scene->getSceneBVHPtr());
+//	scene->allocateCFBVHNodeArray(numCFBVHNodes);
+//	printf("Num BVH nodes: %d\n",scene->getNumBVHNodes());
+//	CacheFriendlyBVHNode* sceneCFBVHPtr = scene->getSceneCFBVHPtr();
+//	PopulateCacheFriendlyBVH(&triPtr[0], sceneBVHPtr, sceneCFBVHPtr, triIndexPtr, idxBoxes, idxTriList);
+//
+//	if (idxBoxes != scene->getNumBVHNodes() - 1) {
+//		puts("Something went wrong in CreateCFBVH\n"); fflush(stdout);
+//		exit(1);
+//	}
+//
+//	int maxDepth = 0;
+//	CountDepth(sceneBVHPtr, 0, maxDepth);
+//	if (maxDepth >= BVH_STACK_SIZE) {
+//		printf("Max depth of BVH was %d\n", maxDepth);
+//		puts("Recompile with BVH_STACK_SIZE set to more than that..."); fflush(stdout);
+//		exit(1);
+//	}
 }
 
 // The gateway - creates the "pure" BVH, and then copies the results in the cache-friendly one

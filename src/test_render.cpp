@@ -192,7 +192,7 @@ Vector3Df* testRenderWrapper(Scene& scene, int width, int height, int samples, i
 		for (int j = 0; j < width; j++){
 			int idx = width*i + j;
 			Ray ray = camera->computeTestCameraRay(j, i);
-			testIntersectBVH(&scene.cfBVHNodeVector[0], ray, &img[idx], scene.getTriPtr(), scene.getBVHIndexPtr());
+			testIntersectBVH(scene.getSceneCFBVHPtr(), ray, &img[idx], scene.getTriPtr(), scene.getBVHIndexPtr());
 		}
 	}
 	return img;
