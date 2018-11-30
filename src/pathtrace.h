@@ -16,7 +16,7 @@ struct LightsData {
 struct TrianglesData {
 	geom::Triangle* triPtr;
 	CacheFriendlyBVHNode* bvhPtr;
-	unsigned *triIndexPtr;
+	unsigned *bvhIndexPtr;
 	unsigned numTriangles;
 	unsigned numBVHNodes;
 };

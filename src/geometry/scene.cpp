@@ -86,6 +86,10 @@ BVHNode* Scene::getSceneBVHPtr() {
 	return sceneBVH;
 }
 
+unsigned* Scene::getBVHIndexPtr() {
+	return bvhIndexPtr;
+}
+
 CacheFriendlyBVHNode* Scene::getSceneCFBVHPtr() {
 	return sceneCFBVH;
 }
@@ -121,6 +125,10 @@ void Scene::setNumBVHNodes(unsigned i) {
 
 void Scene::allocateCFBVHNodeArray(unsigned nodes) {
 	sceneCFBVH = new CacheFriendlyBVHNode[nodes];
+}
+
+void Scene::allocateBVHNodeIndexArray(unsigned nodes) {
+	bvhIndexPtr = new unsigned[nodes];
 }
 
 Triangle* Scene::loadTriangles() {

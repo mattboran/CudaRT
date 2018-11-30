@@ -32,7 +32,9 @@ public:
 
 	BVHNode* getSceneBVHPtr();
 	CacheFriendlyBVHNode* getSceneCFBVHPtr();
+	std::vector<CacheFriendlyBVHNode> cfBVHNodeVector;
 	unsigned *getTriIndexBVHPtr();
+	unsigned *getBVHIndexPtr();
 	unsigned getNumBVHNodes();
 
 	objl::Mesh getMesh(int i);
@@ -44,6 +46,7 @@ public:
 	void setCacheFriendlyVBHPtr(CacheFriendlyBVHNode* bvhPtr);
 	void setNumBVHNodes(unsigned i);
 	void allocateCFBVHNodeArray(unsigned nodes);
+	void allocateBVHNodeIndexArray(unsigned nodes);
 private:
 	// BVH Variables
 	BVHNode* sceneBVH;
@@ -51,6 +54,8 @@ private:
 	unsigned numBVHNodes;
 	// Corresponds with the sceneCFBVH: an index into trianglesPtr
 	unsigned* triIndexBVHPtr;
+	// Indices into sceneCFBVHPtr
+	unsigned* bvhIndexPtr;
 
 	// Geometry - todo: phase these out if possible
 	geom::Triangle* trianglesPtr = NULL;

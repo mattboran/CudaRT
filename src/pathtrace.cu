@@ -21,6 +21,7 @@
 #include "cuda_error_check.h" // includes cuda.h and cuda_runtime_api.h
 
 using namespace geom;
+using namespace std;
 
 
 texture_t triangleTexture;
@@ -41,13 +42,14 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_triPtr, triangleBytes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_triPtr, (void* )h_triPtr, triangleBytes, cudaMemcpyHostToDevice));
 
-	unsigned* h_triIndexPtr = scene.getTriIndexBVHPtr();
-	unsigned* d_triIndexPtr = NULL;
-	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_triIndexPtr, sizeof(unsigned) * numTris));
-	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_triIndexPtr, (void* )h_triIndexPtr, sizeof(unsigned) * numTris, cudaMemcpyHostToDevice));
+	unsigned* h_bvhIndexPtr = scene.getBVHIndexPtr();
+	unsigned* d_bvhIndexPtr = NULL;
+	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_bvhIndexPtr, sizeof(unsigned) * numBVHNodes));
+	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_bvhIndexPtr, (void* )d_bvhIndexPtr, sizeof(unsigned) * numBVHNodes, cudaMemcpyHostToDevice));
 
 	// CacheFriendlyBVHNodes -> d_bvh
 	CacheFriendlyBVHNode* h_bvh = scene.getSceneCFBVHPtr();
+	std::copy(scene.cfBVHNodeVector.begin(), scene.cfBVHNodeVector.end(), h_bvh);
 	CacheFriendlyBVHNode* d_bvh = NULL;
 	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_bvh, bvhBytes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_bvh, (void* )h_bvh, bvhBytes, cudaMemcpyHostToDevice));
@@ -57,7 +59,7 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	h_tris->triPtr = d_triPtr;
 	h_tris->numBVHNodes = numBVHNodes;
 	h_tris->bvhPtr = d_bvh;
-	h_tris->triIndexPtr = d_triIndexPtr;
+	h_tris->bvhIndexPtr = d_bvhIndexPtr;
 	TrianglesData* d_tris = NULL;
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_tris, sizeof(TrianglesData) + triangleBytes + bvhBytes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void*)d_tris, (void*)h_tris, sizeof(TrianglesData) + triangleBytes, cudaMemcpyHostToDevice));
@@ -194,7 +196,7 @@ __global__ void renderKernel(TrianglesData* d_tris,
 
 	// First see if the camera ray hits anything. If not, return black.
 	// float t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
-	float t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->triIndexPtr, hitData, ray, d_settings->useTexMem);
+	float t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->bvhIndexPtr, hitData, ray, d_settings->useTexMem);
 	if (t < FLT_MAX) {
 		hitPt = ray.pointAlong(t);
 		hitTriPtr = hitData.hitTriPtr;
@@ -227,7 +229,7 @@ __global__ void renderKernel(TrianglesData* d_tris,
 
 		Ray lightRay(hitPt + normal * EPSILON, lightRayDir);
 		// t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, lightHitData, lightRay, d_settings->useTexMem);
-		t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->triIndexPtr, lightHitData, lightRay, d_settings->useTexMem);
+		t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->bvhIndexPtr, lightHitData, lightRay, d_settings->useTexMem);
 		if (t < FLT_MAX){
 			// See if we've hit the light we tested for
 			Triangle* lightRayHitPtr = lightHitData.hitTriPtr;
@@ -241,7 +243,7 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		}
 
 		// Now compute indirect lighting
-		t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->triIndexPtr, hitData, ray, d_settings->useTexMem);
+		t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->bvhIndexPtr, hitData, ray, d_settings->useTexMem);
 		// t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
 		if (t < FLT_MAX) {
 
@@ -351,7 +353,7 @@ __device__ float intersectBVHTriangles(Triangle* d_triPtr,
 }
 __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 							  Triangle* d_triPtr,
-							  unsigned* d_triIndexPtr,
+							  unsigned* d_bvhIndexPtr,
 							  RayHit& hitData,
 							  const Ray& ray,
 							  bool useTexMemory) {
@@ -359,12 +361,11 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 	int stackIdx = 0;
 	stack[stackIdx++] = 0;
 	Vector3Df hitpoint;
-	unsigned depth = 0;
 
 	// while the stack is not empty
 	while (stackIdx) {
 		// pop a BVH node from the stack
-		int boxIdx = stack[stackIdx - 1];
+		int boxIdx = d_bvhIndexPtr[stack[stackIdx - 1]];
 		CacheFriendlyBVHNode* pCurrent = &d_bvh[boxIdx];
 		stackIdx--;
 
@@ -382,7 +383,7 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 			}
 		}
 		else { // LEAF NODE
-			unsigned offset = d_triIndexPtr[pCurrent->u.leaf._startIndexInTriIndexList];
+			unsigned offset = pCurrent->u.leaf._startIndexInTriIndexList;
 			return intersectBVHTriangles(d_triPtr, count, offset, hitData, ray, useTexMemory);
 		}
 	}

@@ -22,7 +22,7 @@ struct BBox {
 
 static int boxId;
 vector<BBox> bboxes;
-vector<int> bvhIndices;
+unsigned bvhIndices[13];
 
 std::ostream& operator << (std::ostream& o, const Vector3Df &v) {
 	o << "x: " << v.x << "\ty: " << v.y <<  "\tz: " << v.z << std::endl;
@@ -51,7 +51,7 @@ std::ostream& operator << (std::ostream& o, const BBox &b) {
 int AddBoxes(BVHNode *root)
 {
 	BBox bbox;
-	bbox.boxId = boxId++;
+	bbox.boxId = root->boxId;
 	bbox._bottom = root->_bottom;
 	bbox._top = root->_top;
 	bbox._color = Vector3Df((float)(rand() % 255)/255.0f,
@@ -121,17 +121,10 @@ int hitsBox(const Ray& ray, BBox* bbox) {
 
 	return bbox->boxId;
 }
-void AddBVHIndices() {
-	int i = 0;
-	while (i < bboxes.size()) {
-		for (int j = 0; j < bboxes.size(); j++) {
-			if (bboxes[j].boxId == i) {
-				bvhIndices.push_back(j);
-				i++;
-				break;
-			}
-		}
 
+void AddBVHIndices() {
+	for (int j = 0; j < bboxes.size(); j++) {
+		bvhIndices[bboxes[j].boxId] = j;
 	}
 }
 float testIntersectBVH(BBox* bvh,
@@ -143,6 +136,7 @@ float testIntersectBVH(BBox* bvh,
 	// while the stack is not empty
 	while (stackIdx) {
 		// pop a BVH node from the stack
+//		int boxIdx = stack[--stackIdx];
 		int boxIdx = bvhIndices[stack[--stackIdx]];
 		BBox* pCurrent = &bvh[boxIdx];
 
@@ -173,7 +167,14 @@ Vector3Df* testRenderWrapper(Scene& scene, int width, int height, int samples, i
 	Vector3Df* img = new Vector3Df[width*height];
 	srand(0);
 	AddBoxes(scene.getSceneBVHPtr());
+	unsigned *indices = scene.getBVHIndexPtr();
 	AddBVHIndices();
+	for (auto bbox: scene.cfBVHNodeVector) {
+		cout << "bbox has index " << bbox.boxIdx << endl;
+	}
+	for (auto bbox: bboxes) {
+		cout << "Bbox2 has index " << indices[bbox.boxId] << endl;
+	}
 	float u = -1.0f, v = -1.0f;
 	Camera* camera = scene.getCameraPtr();
 	BBox* bboxPtr = &bboxes[bvhIndices[0]];
