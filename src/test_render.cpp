@@ -79,7 +79,7 @@ int AddBoxes(BVHNode *root)
 	}
 	return bbox.boxId;
 }
-int hitsBox(const Ray& ray, BBox* bbox) {
+int hitsBox(const Ray& ray, CacheFriendlyBVHNode* bbox) {
 	float t0 = -FLT_MAX, t1 = FLT_MAX;
 	//axes
 
@@ -127,7 +127,7 @@ void AddBVHIndices() {
 		bvhIndices[bboxes[j].boxId] = j;
 	}
 }
-float testIntersectBVH(BBox* bvh,
+float testIntersectBVH(CacheFriendlyBVHNode* bvh,
 				  const Ray& ray,
 				  Vector3Df *imgPtr) {
 	int stack[BVH_STACK_SIZE];
@@ -138,14 +138,16 @@ float testIntersectBVH(BBox* bvh,
 		// pop a BVH node from the stack
 //		int boxIdx = stack[--stackIdx];
 		int boxIdx = bvhIndices[stack[--stackIdx]];
-		BBox* pCurrent = &bvh[boxIdx];
+		CacheFriendlyBVHNode* pCurrent = &bvh[boxIdx];
 
-		if (!(pCurrent->isLeaf)) {   // INNER NODE
+		unsigned count = pCurrent->u.leaf._count & 0x7fffffff;
+				if (!(pCurrent->u.leaf._count & 0x80000000)) {   // INNER NODE
 			// if ray intersects inner node, push indices of left and right child nodes on the stack
 			if (hitsBox(ray, pCurrent) >= 0) {
-				stack[stackIdx++] = pCurrent->rightId;
-				stack[stackIdx++] = pCurrent->leftId;
+				stack[stackIdx++] = pCurrent->u.inner._idxRight;
+				stack[stackIdx++] = pCurrent->u.inner._idxLeft;
 				// return if stack size is exceeded
+				*imgPtr += Vector3Df(0.3, 0.0,0.0);
 				if (stackIdx>BVH_STACK_SIZE) {
 					return FLT_MAX;
 				}
@@ -153,11 +155,11 @@ float testIntersectBVH(BBox* bvh,
 		}
 		else { // LEAF NODE
 			float u, v;
-			for (Triangle tri: pCurrent->tris) {
-				if (tri.intersect(ray, u, v) < FLT_MAX) {
-					*imgPtr = tri._colorDiffuse;
-				}
-			}
+//			for (Triangle tri: pCurrent->tris) {
+//				if (tri.intersect(ray, u, v) < FLT_MAX) {
+//					*imgPtr = tri._colorDiffuse;
+//				}
+//			}
 		}
 	}
 	return FLT_MAX;
@@ -177,7 +179,7 @@ Vector3Df* testRenderWrapper(Scene& scene, int width, int height, int samples, i
 	}
 	float u = -1.0f, v = -1.0f;
 	Camera* camera = scene.getCameraPtr();
-	BBox* bboxPtr = &bboxes[bvhIndices[0]];
+	CacheFriendlyBVHNode *cfbvh = scene.getSceneCFBVHPtr();
 	Triangle* triangles = scene.getTriPtr();
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < width; j++){
