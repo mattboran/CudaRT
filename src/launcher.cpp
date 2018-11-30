@@ -148,8 +148,8 @@ int main(int argc, char* argv[]) {
 	Camera camera = Camera(camPos, camTarget, camUp, camRt, 90.0f, width, height);
 	scene.setCamera(camera);
 	Clock timer = Clock();
-	Vector3Df* imgData = testRenderWrapper(scene, width, height, samples, numStreams, useTextureMemory, argc, argv);
-//	Vector3Df* imgData = pathtraceWrapper(scene, width, height, samples, numStreams, useTextureMemory);
+//	Vector3Df* imgData = testRenderWrapper(scene, width, height, samples, numStreams, useTextureMemory, argc, argv);
+	Vector3Df* imgData = pathtraceWrapper(scene, width, height, samples, numStreams, useTextureMemory);
 	saveImageToPng(outFile, width, height, imgData);
 
 	cout << "Total time from start to output to " << outFile << ":\t\t" << (double)timer.readS() << " seconds " << endl;

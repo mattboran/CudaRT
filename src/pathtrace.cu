@@ -45,11 +45,11 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	unsigned* h_bvhIndexPtr = scene.getBVHIndexPtr();
 	unsigned* d_bvhIndexPtr = NULL;
 	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_bvhIndexPtr, sizeof(unsigned) * numBVHNodes));
-	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_bvhIndexPtr, (void* )d_bvhIndexPtr, sizeof(unsigned) * numBVHNodes, cudaMemcpyHostToDevice));
+	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_bvhIndexPtr, (void* )h_bvhIndexPtr, sizeof(unsigned) * numBVHNodes, cudaMemcpyHostToDevice));
 
 	// CacheFriendlyBVHNodes -> d_bvh
 	CacheFriendlyBVHNode* h_bvh = scene.getSceneCFBVHPtr();
-	std::copy(scene.cfBVHNodeVector.begin(), scene.cfBVHNodeVector.end(), h_bvh);
+//	std::copy(scene.cfBVHNodeVector.begin(), scene.cfBVHNodeVector.end(), h_bvh);
 	CacheFriendlyBVHNode* d_bvh = NULL;
 	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_bvh, bvhBytes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_bvh, (void* )h_bvh, bvhBytes, cudaMemcpyHostToDevice));
@@ -61,7 +61,7 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	h_tris->bvhPtr = d_bvh;
 	h_tris->bvhIndexPtr = d_bvhIndexPtr;
 	TrianglesData* d_tris = NULL;
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_tris, sizeof(TrianglesData) + triangleBytes + bvhBytes));
+	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_tris, sizeof(TrianglesData) + triangleBytes + bvhBytes + sizeof(unsigned) * numBVHNodes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void*)d_tris, (void*)h_tris, sizeof(TrianglesData) + triangleBytes, cudaMemcpyHostToDevice));
 
 	// Bind triangles to texture memory -- texture memory doesn't quite work
@@ -159,7 +159,7 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	// Clean up host memory
 	free(h_lights);
 	free(h_tris);
-	free(h_bvh);
+//	free(h_bvh);
 	// Clean up device memory
 	cudaFree((void*) d_tris);
 	cudaFree((void*) d_triPtr);
@@ -198,6 +198,8 @@ __global__ void renderKernel(TrianglesData* d_tris,
 	// float t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
 	float t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->bvhIndexPtr, hitData, ray, d_settings->useTexMem);
 	if (t < FLT_MAX) {
+		d_imgPtr[j * d_settings->width + i] += Vector3Df(1.0f, 1.0f, 1.0f);
+		return;
 		hitPt = ray.pointAlong(t);
 		hitTriPtr = hitData.hitTriPtr;
 		normal = hitTriPtr->getNormal(hitData);
@@ -360,22 +362,20 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 	int stack[BVH_STACK_SIZE];
 	int stackIdx = 0;
 	stack[stackIdx++] = 0;
-	Vector3Df hitpoint;
-
 	// while the stack is not empty
 	while (stackIdx) {
 		// pop a BVH node from the stack
-		int boxIdx = d_bvhIndexPtr[stack[stackIdx - 1]];
+//		int boxIdx = stack[--stackIdx];
+		int boxIdx = d_bvhIndexPtr[stack[--stackIdx]];
 		CacheFriendlyBVHNode* pCurrent = &d_bvh[boxIdx];
-		stackIdx--;
 
 		unsigned count = pCurrent->u.leaf._count & 0x7fffffff;
 		if (!(pCurrent->u.leaf._count & 0x80000000)) {   // INNER NODE
 			// if ray intersects inner node, push indices of left and right child nodes on the stack
 			if (rayIntersectsBox(ray, pCurrent)) {
-
 				stack[stackIdx++] = pCurrent->u.inner._idxRight;
 				stack[stackIdx++] = pCurrent->u.inner._idxLeft;
+//				*imgPtr += Vector3Df(0.3, 0.0,0.0);
 				// return if stack size is exceeded
 				if (stackIdx>BVH_STACK_SIZE) {
 					return FLT_MAX;
@@ -383,12 +383,53 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 			}
 		}
 		else { // LEAF NODE
-			unsigned offset = pCurrent->u.leaf._startIndexInTriIndexList;
-			return intersectBVHTriangles(d_triPtr, count, offset, hitData, ray, useTexMemory);
+			float u, v;
+			for(int i = 0; i < count; i++){
+				if (d_triPtr[i + pCurrent->u.leaf._startIndexInTriIndexList].intersect(ray, u, v) < FLT_MAX) {
+					return 1.0f;
+				}
+			}
+//			for (Triangle tri: pCurrent->tris) {
+//				if (tri.intersect(ray, u, v) < FLT_MAX) {
+//					*imgPtr = tri._colorDiffuse;
+//				}
+//			}
 		}
 	}
 	return FLT_MAX;
 }
+//	int stack[BVH_STACK_SIZE];
+//	int stackIdx = 0;
+//	stack[stackIdx++] = 0;
+//	Vector3Df hitpoint;
+//
+//	// while the stack is not empty
+//	while (stackIdx) {
+//		// pop a BVH node from the stack
+//		int boxIdx = d_bvhIndexPtr[stack[stackIdx - 1]];
+//		CacheFriendlyBVHNode* pCurrent = &d_bvh[boxIdx];
+//		stackIdx--;
+//
+//		unsigned count = pCurrent->u.leaf._count & 0x7fffffff;
+//		if (!(pCurrent->u.leaf._count & 0x80000000)) {   // INNER NODE
+//			// if ray intersects inner node, push indices of left and right child nodes on the stack
+//			if (rayIntersectsBox(ray, pCurrent)) {
+//
+//				stack[stackIdx++] = pCurrent->u.inner._idxRight;
+//				stack[stackIdx++] = pCurrent->u.inner._idxLeft;
+//				// return if stack size is exceeded
+//				if (stackIdx>BVH_STACK_SIZE) {
+//					return FLT_MAX;
+//				}
+//			}
+//		}
+//		else { // LEAF NODE
+//			unsigned offset = pCurrent->u.leaf._startIndexInTriIndexList;
+//			return intersectBVHTriangles(d_triPtr, count, offset, hitData, ray, useTexMemory);
+//		}
+//	}
+//	return FLT_MAX;
+//}
 
 
 __device__ bool rayIntersectsBox(const Ray& ray, CacheFriendlyBVHNode *bvhNode) {
