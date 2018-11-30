@@ -1,24 +1,12 @@
 #include "camera.cuh"
 #include "test_render.h"
+#include <algorithm>
 #include <cstdlib>
 #include <vector>
 #include <cfloat>
-#include <X11/Xlib.h>
-#include <GL/glut.h>
 
 using namespace std;
 using namespace geom;
-
-// Screen quad
-GLfloat vertices[] = {
-	// positions			// UV
-	-1.0f, 1.0f, 0.0f,		0.0f, 1.0f,
-	1.0f, 1.0f, 0.0f,		1.0f, 1.0f,
-	-1.0f, -1.0f, 0.0f,		0.0f, 0.0f,
-	-1.0f, -1.0f, 0.0f,		0.0f, 0.0f,
-	1.0f, 1.0f, 0.0f,		1.0f, 1.0f,
-	1.0f, -1.0f, 0.0f,		1.0f, 0.0f
-};
 
 typedef vector<Triangle> TriVec;
 
@@ -34,6 +22,7 @@ struct BBox {
 
 static int boxId;
 vector<BBox> bboxes;
+vector<int> bvhIndices;
 
 std::ostream& operator << (std::ostream& o, const Vector3Df &v) {
 	o << "x: " << v.x << "\ty: " << v.y <<  "\tz: " << v.z << std::endl;
@@ -47,16 +36,13 @@ std::ostream& operator << (std::ostream& o, const geom::Triangle *v) {
 
 std::ostream& operator << (std::ostream& o, const BBox &b) {
 	o << "BBox ID: " << b.boxId;
-	o << "Bottom:\t" << b._bottom;
-	o << "Top: \t" << b._top;
-	o << "Color: \t"<<b._color;
 	if (b.isLeaf) {
-		o << "Is a leaf and has tris:" << endl;
+		o << ". Is a leaf and has tris:" << endl;
 		for (auto tri: b.tris) {
 			o << "Triangle with ID: " << tri._triId << std::endl;
 		}
 	} else {
-		o << "Is an inner node with children:" << endl;
+		o << ". Is an inner node with children:" << endl;
 		o << "Left: " << b.leftId << " and Right: " << b.rightId << endl;
 	}
 	return o;
@@ -74,8 +60,8 @@ int AddBoxes(BVHNode *root)
 	if (!root->IsLeaf()) {
 		BVHInner *p = dynamic_cast<BVHInner*>(root);
 		bbox.isLeaf = false;
-		bbox.leftId = AddBoxes(p->_left);
-		bbox.rightId = AddBoxes(p->_right);
+		bbox.leftId = AddBoxes(p->_right);
+		bbox.rightId = AddBoxes(p->_left);
 		bboxes.push_back(bbox);
 	}
 	else
@@ -84,7 +70,6 @@ int AddBoxes(BVHNode *root)
 		bbox.isLeaf = true;
 		TriVec tris;
 		for (auto tri: p->_triangles) {
-			cout << "Adding tri " << tri->_triId << endl;
 			Triangle triangle = *tri;
 			tris.push_back(triangle);
 		}
@@ -92,191 +77,112 @@ int AddBoxes(BVHNode *root)
 		bboxes.push_back(bbox);
 		return bbox.boxId;
 	}
-	return -1;
+	return bbox.boxId;
 }
-
 int hitsBox(const Ray& ray, BBox* bbox) {
+	float t0 = -FLT_MAX, t1 = FLT_MAX;
+	//axes
 
-
-	Vector3Df minBound, maxBound;
-	minBound = bbox->_bottom;
-	maxBound = bbox->_top;
-	float Tnear = -FLT_MAX;
-	float Tfar = FLT_MAX;
-    if (ray.dir.x == 0.f) {						    \
-	if (ray.origin.x < minBound.x) return -1;					    \
-	if (ray.origin.x > maxBound.x) return -1;					    \
-	} else {											    \
-	float T1 = (minBound.x - ray.origin.x)/ray.dir.x;			    \
-	float T2 = (maxBound.x - ray.origin.x)/ray.dir.x;			    \
-	if (T1>T2) { float tmp=T1; T1=T2; T2=tmp; }						    \
-	if (T1 > Tnear) Tnear = T1;								    \
-	if (T2 < Tfar)  Tfar = T2;								    \
-	if (Tnear > Tfar)	return -1;									    \
-	if (Tfar < 0.f)	return -1;									    \
+	float invRayDir = 1.f/ray.dir.x;
+	float tNear = (bbox->_bottom.x - ray.origin.x) * invRayDir;
+	float tFar = (bbox->_top.x - ray.origin.x) * invRayDir;
+	if (tNear > tFar) {
+		float tmp = tNear;
+		tNear = tFar;
+		tFar = tmp;
 	}
+	t0 = tNear > t0 ? tNear : t0;
+	t1 = tFar < t1 ? tFar : t1;
+	if (t0 > t1) return -1;
 
-    if (ray.dir.y == 0.f) {						    \
-	if (ray.origin.y < minBound.y) return -1;					    \
-	if (ray.origin.y > maxBound.y) return -1;					    \
-	} else {											    \
-	float T1 = (minBound.y - ray.origin.y)/ray.dir.y;			    \
-	float T2 = (maxBound.y - ray.origin.y)/ray.dir.y;			    \
-	if (T1>T2) { float tmp=T1; T1=T2; T2=tmp; }						    \
-	if (T1 > Tnear) Tnear = T1;								    \
-	if (T2 < Tfar)  Tfar = T2;								    \
-	if (Tnear > Tfar)	return -1;									    \
-	if (Tfar < 0.f)	return -1;									    \
+	invRayDir = 1.f/ray.dir.y;
+	tNear = (bbox->_bottom.y - ray.origin.y) * invRayDir;
+	tFar = (bbox->_top.y - ray.origin.y) * invRayDir;
+	if (tNear > tFar) {
+		float tmp = tNear;
+		tNear = tFar;
+		tFar = tmp;
 	}
+	t0 = tNear > t0 ? tNear : t0;
+	t1 = tFar < t1 ? tFar : t1;
+	if (t0 > t1) return -1;
 
-    if (ray.dir.z == 0.f) {						    \
-	if (ray.origin.z < minBound.z) return -1;					    \
-	if (ray.origin.z > maxBound.z) return -1;					    \
-	} else {											    \
-	float T1 = (minBound.z - ray.origin.z)/ray.dir.z;			    \
-	float T2 = (maxBound.z - ray.origin.z)/ray.dir.z;			    \
-	if (T1>T2) { float tmp=T1; T1=T2; T2=tmp; }						    \
-	if (T1 > Tnear) Tnear = T1;								    \
-	if (T2 < Tfar)  Tfar = T2;								    \
-	if (Tnear > Tfar)	return -1;									    \
-	if (Tfar < 0.f)	return -1;									    \
+	invRayDir = 1.f/ray.dir.z;
+	tNear = (bbox->_bottom.z - ray.origin.z) * invRayDir;
+	tFar = (bbox->_top.z - ray.origin.z) * invRayDir;
+	if (tNear > tFar) {
+		float tmp = tNear;
+		tNear = tFar;
+		tFar = tmp;
 	}
+	t0 = tNear > t0 ? tNear : t0;
+	t1 = tFar < t1 ? tFar : t1;
+	if (t0 > t1) return -1;
 
 	return bbox->boxId;
 }
+void AddBVHIndices() {
+	int i = 0;
+	while (i < bboxes.size()) {
+		for (int j = 0; j < bboxes.size(); j++) {
+			if (bboxes[j].boxId == i) {
+				bvhIndices.push_back(j);
+				i++;
+				break;
+			}
+		}
 
-void render(Triangle* tris) {
-	Vector3Df* img = new Vector3Df[width*height];
-	srand(0);
-	AddBoxes(scene.getSceneBVHPtr());
-	Camera* camera = scene.getCameraPtr();
-	for (auto box: bboxes) {
-		cout << box << endl;
 	}
-	Triangle* triangles = scene.getTriPtr();
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++){
-			int idx = width*i + j;
-			Ray ray = camera->computeTestCameraRay(j, i);
-			for (auto bbox: bboxes) {
-				int box = hitsBox(ray, &bbox);
-				if ((bool)box) {
-					img[idx] += bbox._color * 0.05f;
+}
+float testIntersectBVH(BBox* bvh,
+				  const Ray& ray,
+				  Vector3Df *imgPtr) {
+	int stack[BVH_STACK_SIZE];
+	int stackIdx = 0;
+	stack[stackIdx++] = 0;
+	// while the stack is not empty
+	while (stackIdx) {
+		// pop a BVH node from the stack
+		int boxIdx = bvhIndices[stack[--stackIdx]];
+		BBox* pCurrent = &bvh[boxIdx];
+
+		if (!(pCurrent->isLeaf)) {   // INNER NODE
+			// if ray intersects inner node, push indices of left and right child nodes on the stack
+			if (hitsBox(ray, pCurrent) >= 0) {
+				stack[stackIdx++] = pCurrent->rightId;
+				stack[stackIdx++] = pCurrent->leftId;
+				// return if stack size is exceeded
+				if (stackIdx>BVH_STACK_SIZE) {
+					return FLT_MAX;
 				}
 			}
-			for (int k = 0; k < scene.getNumTriangles(); k++) {
-				float u, v;
-				if (triangles[k].intersect(ray, u, v) < FLT_MAX) {
-					img[idx] += triangles[k]._colorDiffuse * 0.5;
+		}
+		else { // LEAF NODE
+			float u, v;
+			for (Triangle tri: pCurrent->tris) {
+				if (tri.intersect(ray, u, v) < FLT_MAX) {
+					*imgPtr = tri._colorDiffuse;
 				}
 			}
 		}
 	}
+	return FLT_MAX;
 }
-
-GLuint tex = 0;
-void display(GLuint width, GLuint height)
-{
-    int i;
-    float x, y;
-
-    std::vector< unsigned char > buf;
-    buf.reserve( width * height * 3 );
-    for( size_t y = 0; y < height; ++y )
-    {
-        for( size_t x = 0; x < width; ++x )
-        {
-            // flip vertically (height-y) because the OpenGL texture origin is in the lower-left corner
-            // flip horizontally (width-x) because...the original code did so
-            size_t i = (height-y) * width + (width);
-            buf.push_back( (unsigned char)( std::min(double(1), image[i].x) * 255.0 ) );
-            buf.push_back( (unsigned char)( std::min(double(1), image[i].y) * 255.0 ) );
-            buf.push_back( (unsigned char)( std::min(double(1), image[i].z) * 255.0 ) );
-        }
-    }
-
-    /* clear all pixels */
-    glClearColor(0.0, 0.0, 0.0, 0.0);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    glMatrixMode( GL_PROJECTION );
-    glLoadIdentity();
-
-    glMatrixMode( GL_MODELVIEW );
-    glLoadIdentity();
-
-    glEnable( GL_TEXTURE_2D );
-    glBindTexture( GL_TEXTURE_2D, tex );
-    glTexSubImage2D
-        (
-        GL_TEXTURE_2D, 0,
-        0, 0,
-        width, height,
-        GL_RGB,
-        GL_UNSIGNED_BYTE,
-        &buf[0]
-        );
-
-    glBegin( GL_QUADS );
-    glTexCoord2i( 0, 0 );
-    glVertex2i( -1, -1 );
-    glTexCoord2i( 1, 0 );
-    glVertex2i(  1, -1 );
-    glTexCoord2i( 1, 1 );
-    glVertex2i(  1,  1 );
-    glTexCoord2i( 0, 1 );
-    glVertex2i( -1,  1 );
-    glEnd();
-
-    glutSwapBuffers();
-}
-
 Vector3Df* testRenderWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool &useTexMemory, int argc, char** argv) {
-	GLuint gWidth, gHeight;
-	gWidth = width; gHeight = height;
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
-	glutInitWindowSize(gWidth, gHeight);
-	glutInitWindowPosition(10,10);
-	glutCreateWindow(argv[0]);
-	glutDisplayFunc(display);
-
-	glGenTextures( 1, &tex );
-	glBindTexture( GL_TEXTURE_2D, tex );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-	glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
-	glTexImage2D( GL_TEXTURE_2D, 0, 3, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
-
-	glutMainLoop();
-
 
 	Vector3Df* img = new Vector3Df[width*height];
 	srand(0);
 	AddBoxes(scene.getSceneBVHPtr());
+	AddBVHIndices();
+	float u = -1.0f, v = -1.0f;
 	Camera* camera = scene.getCameraPtr();
-	for (auto box: bboxes) {
-		cout << box << endl;
-	}
+	BBox* bboxPtr = &bboxes[bvhIndices[0]];
 	Triangle* triangles = scene.getTriPtr();
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < width; j++){
 			int idx = width*i + j;
 			Ray ray = camera->computeTestCameraRay(j, i);
-			for (auto bbox: bboxes) {
-				int box = hitsBox(ray, &bbox);
-				if ((bool)box) {
-					img[idx] += bbox._color * 0.05f;
-				}
-			}
-			for (int k = 0; k < scene.getNumTriangles(); k++) {
-				float u, v;
-				if (triangles[k].intersect(ray, u, v) < FLT_MAX) {
-					img[idx] += triangles[k]._colorDiffuse * 0.5;
-				}
-			}
+			testIntersectBVH(&bboxes[0], ray, &img[idx]);
 		}
 	}
 	return img;

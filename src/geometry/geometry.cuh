@@ -11,6 +11,8 @@
 
 #define EPSILON 0.00001f
 
+Vector3Df min3(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c);
+Vector3Df max3(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c);
 Vector3Df max4(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c, const Vector3Df& d);
 Vector3Df min4(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c, const Vector3Df& d);
 

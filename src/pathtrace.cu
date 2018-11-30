@@ -196,8 +196,6 @@ __global__ void renderKernel(TrianglesData* d_tris,
 	// float t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
 	float t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->triIndexPtr, hitData, ray, d_settings->useTexMem);
 	if (t < FLT_MAX) {
-		d_imgPtr[j * d_settings->width + i] += Vector3Df(1.0f,1.0f,1.0f);
-		return;
 		hitPt = ray.pointAlong(t);
 		hitTriPtr = hitData.hitTriPtr;
 		normal = hitTriPtr->getNormal(hitData);
@@ -384,12 +382,7 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 			}
 		}
 		else { // LEAF NODE
-
 			unsigned offset = d_triIndexPtr[pCurrent->u.leaf._startIndexInTriIndexList];
-			hitData.hitTriPtr = &d_triPtr[offset];
-
-			return offset;
-			// return (float)offset;
 			return intersectBVHTriangles(d_triPtr, count, offset, hitData, ray, useTexMemory);
 		}
 	}
@@ -398,67 +391,57 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 
 
 __device__ bool rayIntersectsBox(const Ray& ray, CacheFriendlyBVHNode *bvhNode) {
-	float tnear = -FLT_MAX;
-	float tfar = FLT_MAX;
+	float t0 = 0.0f, t1 = FLT_MAX;
 	float2 bounds;
 
 	// For each axis plane, store bounds and process separately
-	bounds.x = bvhNode->_bottom.x;
-	bounds.y = bvhNode->_top.x;
 
 	// X
-	if (ray.dir.x == 0.f) {
-		if (ray.origin.x < bounds.x) return false;
-		if (ray.origin.x > bounds.y) return false;
-	} else {
-		float t1 = (bounds.x - ray.origin.x)/ray.dir.x;
-		float t2 = (bounds.y - ray.origin.x)/ray.dir.x;
-		if (t1 > t2) {
-			float tmp = t1; t1 = t2; t2 = tmp;
-		}
-		if (t1 > tnear) tnear = t1;
-		if (t2 < tfar) tfar = t2;
-		if (tnear > tfar) return false;
-		if (tfar < 0.f) return false;
+	bounds.x = bvhNode->_bottom.x;
+	bounds.y = bvhNode->_top.x;
+	float invRayDir = 1.f/ray.dir.x;
+	float tNear = (bounds.x - ray.origin.x) * invRayDir;
+	float tFar = (bounds.y - ray.origin.x) * invRayDir;
+	if (tNear > tFar) {
+		float tmp = tNear;
+		tNear = tFar;
+		tFar = tmp;
 	}
+	t0 = tNear > t0 ? tNear : t0;
+	t1 = tFar < t1 ? tFar : t1;
+	if (t0 > t1) return false;
 
+	// Y
 	bounds.x = bvhNode->_bottom.y;
 	bounds.y = bvhNode->_top.y;
 
-	// Y
-	if (ray.dir.y == 0.f) {
-		if (ray.origin.y < bounds.x) return false;
-		if (ray.origin.y > bounds.y) return false;
-	} else {
-		float t1 = (bounds.x - ray.origin.y)/ray.dir.y;
-		float t2 = (bounds.y - ray.origin.y)/ray.dir.y;
-		if (t1 > t2) {
-			float tmp = t1; t1 = t2; t2 = tmp;
-		}
-		if (t1 > tnear) tnear = t1;
-		if (t2 < tfar) tfar = t2;
-		if (tnear > tfar) return false;
-		if (tfar < 0.f) return false;
+	invRayDir = 1.f/ray.dir.y;
+	tNear = (bounds.x - ray.origin.y) * invRayDir;
+	tFar = (bounds.y - ray.origin.y) * invRayDir;
+	if (tNear > tFar) {
+		float tmp = tNear;
+		tNear = tFar;
+		tFar = tmp;
 	}
+	t0 = tNear > t0 ? tNear : t0;
+	t1 = tFar < t1 ? tFar : t1;
+	if (t0 > t1) return 0;
 
+	// Z
 	bounds.x = bvhNode->_bottom.z;
 	bounds.y = bvhNode->_top.z;
 
-	// Z
-	if (ray.dir.z == 0.f) {
-		if (ray.origin.z < bounds.x) return false;
-		if (ray.origin.z > bounds.y) return false;
-	} else {
-		float t1 = (bounds.x - ray.origin.z)/ray.dir.z;
-		float t2 = (bounds.y - ray.origin.z)/ray.dir.z;
-		if (t1 > t2) {
-			float tmp = t1; t1 = t2; t2 = tmp;
-		}
-		if (t1 > tnear) tnear = t1;
-		if (t2 < tfar) tfar = t2;
-		if (tnear > tfar) return false;
-		if (tfar < 0.f) return false;
+	invRayDir = 1.f/ray.dir.z;
+	tNear = (bounds.x - ray.origin.z) * invRayDir;
+	tFar = (bounds.y - ray.origin.z) * invRayDir;
+	if (tNear > tFar) {
+		float tmp = tNear;
+		tNear = tFar;
+		tFar = tmp;
 	}
+	t0 = tNear > t0 ? tNear : t0;
+	t1 = tFar < t1 ? tFar : t1;
+	if (t0 > t1) return 0;
 
 	return true;
 }

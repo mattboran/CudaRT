@@ -165,12 +165,8 @@ Triangle* Scene::loadTriangles() {
 			if (currentTriPtr->_colorEmit.lengthsq() > 0.0f) {
 				lightsList.push_back(*currentTriPtr);
 			}
-
-			// currentTriPtr->_center = Vector3Df((_v1.x + _v2.x + _v3.x) / 3.0f,
-			// 		(_v1.y + _v2.y + _v3.y) / 3.0f,
-			// 		(_v1.z + _v2.z + _v3.z) / 3.0f);
-			currentTriPtr->_bottom = min4(_v1, _v2, _v3, vectorMax);
-			currentTriPtr->_top = max4(_v1, _v2, _v3, vectorMin);
+			currentTriPtr->_bottom = min3(_v1, _v2, _v3);
+			currentTriPtr->_top = max3(_v1, _v2, _v3);
 			currentTriPtr->_center = (currentTriPtr->_bottom + currentTriPtr->_top) * 0.5f;
 
 			currentTriPtr++;

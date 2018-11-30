@@ -6,6 +6,20 @@ using namespace geom;
 using std::max;
 using std::min;
 
+extern Vector3Df min3(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c) {
+	float x = min(a.x, min(b.x, c.x));
+	float y = min(a.y, min(b.y, c.y));
+	float z = min(a.z, min(b.z, c.z));
+	return Vector3Df(x,y,z);
+}
+
+extern Vector3Df max3(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c) {
+	float x = max(a.x, max(b.x, c.x));
+	float y = max(a.y, max(b.y, c.y));
+	float z = max(a.z, max(b.z, c.z));
+	return Vector3Df(x,y,z);
+}
+
 extern Vector3Df max4(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c, const Vector3Df& d) {
 	float x = max(a.x, max(b.x, max(c.x, d.x)));
 	float y = max(a.y, max(b.y, max(c.y, d.y)));
