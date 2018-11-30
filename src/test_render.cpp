@@ -22,7 +22,6 @@ struct BBox {
 
 static int boxId;
 vector<BBox> bboxes;
-unsigned bvhIndices[13];
 
 std::ostream& operator << (std::ostream& o, const Vector3Df &v) {
 	o << "x: " << v.x << "\ty: " << v.y <<  "\tz: " << v.z << std::endl;
@@ -122,11 +121,6 @@ int hitsBox(const Ray& ray, CacheFriendlyBVHNode* bbox) {
 	return bbox->boxIdx;
 }
 
-void AddBVHIndices() {
-	for (int j = 0; j < bboxes.size(); j++) {
-		bvhIndices[bboxes[j].boxId] = j;
-	}
-}
 float testIntersectBVH(CacheFriendlyBVHNode* bvh,
 				  const Ray& ray,
 				  Vector3Df *imgPtr,
@@ -175,15 +169,9 @@ Vector3Df* testRenderWrapper(Scene& scene, int width, int height, int samples, i
 
 	Vector3Df* img = new Vector3Df[width*height];
 	srand(0);
-	AddBoxes(scene.getSceneBVHPtr());
+//	AddBoxes(scene.getSceneBVHPtr());
 	unsigned *indices = scene.getBVHIndexPtr();
-	AddBVHIndices();
-	for (auto bbox: scene.cfBVHNodeVector) {
-		cout << "bbox has index " << bbox.boxIdx << endl;
-	}
-	for (auto bbox: bboxes) {
-		cout << "Bbox2 has index " << indices[bbox.boxId] << endl;
-	}
+//	AddBVHIndices();
 	float u = -1.0f, v = -1.0f;
 	Camera* camera = scene.getCameraPtr();
 	CacheFriendlyBVHNode *cfbvh = scene.getSceneCFBVHPtr();
