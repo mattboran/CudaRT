@@ -129,6 +129,9 @@ float testIntersectBVH(CacheFriendlyBVHNode* bvh,
 	int stack[BVH_STACK_SIZE];
 	int stackIdx = 0;
 	stack[stackIdx++] = 0;
+	float u, v;
+	float t = FLT_MAX;
+	float tprime = FLT_MAX;
 	// while the stack is not empty
 	while (stackIdx) {
 		// pop a BVH node from the stack
@@ -137,6 +140,7 @@ float testIntersectBVH(CacheFriendlyBVHNode* bvh,
 		CacheFriendlyBVHNode* pCurrent = &bvh[boxIdx];
 
 		unsigned count = pCurrent->u.leaf._count & 0x7fffffff;
+
 		if (!(pCurrent->u.leaf._count & 0x80000000)) {   // INNER NODE
 			// if ray intersects inner node, push indices of left and right child nodes on the stack
 			if (hitsBox(ray, pCurrent) >= 0) {
@@ -150,12 +154,16 @@ float testIntersectBVH(CacheFriendlyBVHNode* bvh,
 			}
 		}
 		else { // LEAF NODE
-			float u, v;
+
 			for(int i = 0; i < count; i++){
-				if (tris[i + pCurrent->u.leaf._startIndexInTriIndexList].intersect(ray, u, v) < FLT_MAX) {
-					*imgPtr = tris[i + pCurrent->u.leaf._startIndexInTriIndexList]._colorDiffuse;
+				tprime = tris[i + pCurrent->u.leaf._startIndexInTriIndexList].intersect(ray, u, v);
+				if (tprime < t && tprime > 0.0f) {
+					t = tprime;
+					*imgPtr += tris[i + pCurrent->u.leaf._startIndexInTriIndexList]._colorDiffuse;
+//					return t;
 				}
 			}
+//			return t;
 //			for (Triangle tri: pCurrent->tris) {
 //				if (tri.intersect(ray, u, v) < FLT_MAX) {
 //					*imgPtr = tri._colorDiffuse;
@@ -163,7 +171,7 @@ float testIntersectBVH(CacheFriendlyBVHNode* bvh,
 //			}
 		}
 	}
-	return FLT_MAX;
+	return t;
 }
 Vector3Df* testRenderWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool &useTexMemory, int argc, char** argv) {
 

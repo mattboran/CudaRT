@@ -198,8 +198,8 @@ __global__ void renderKernel(TrianglesData* d_tris,
 	// float t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
 	float t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->bvhIndexPtr, hitData, ray, d_settings->useTexMem);
 	if (t < FLT_MAX) {
-		d_imgPtr[j * d_settings->width + i] += Vector3Df(1.0f, 1.0f, 1.0f);
-		return;
+//		d_imgPtr[j * d_settings->width + i] += Vector3Df(1.0f, 1.0f, 1.0f);
+//		return;
 		hitPt = ray.pointAlong(t);
 		hitTriPtr = hitData.hitTriPtr;
 		normal = hitTriPtr->getNormal(hitData);
@@ -208,10 +208,10 @@ __global__ void renderKernel(TrianglesData* d_tris,
 			d_imgPtr[j * d_settings->width + i] += hitTriPtr->_colorEmit;
 			return;
 		}
-		else {
-			d_imgPtr[j * d_settings->width + i] += Vector3Df(1.0f, 1.0f, 1.0f);
-			return;
-		}
+//		else {
+//			d_imgPtr[j * d_settings->width + i] += Vector3Df(1.0f, 1.0f, 1.0f);
+//			return;
+//		}
 	} else {
 		d_imgPtr[j * d_settings->width + i] += Vector3Df(0.0f, 0.0f, 0.0f);
 		return;
@@ -353,6 +353,8 @@ __device__ float intersectBVHTriangles(Triangle* d_triPtr,
 	}
 	return t;
 }
+
+// TODO: Change this to return a bool and keep t in hitData
 __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 							  Triangle* d_triPtr,
 							  unsigned* d_bvhIndexPtr,
@@ -362,6 +364,10 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 	int stack[BVH_STACK_SIZE];
 	int stackIdx = 0;
 	stack[stackIdx++] = 0;
+
+	float u, v;
+	float t = FLT_MAX;
+	float tprime = FLT_MAX;
 	// while the stack is not empty
 	while (stackIdx) {
 		// pop a BVH node from the stack
@@ -383,12 +389,18 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 			}
 		}
 		else { // LEAF NODE
-			float u, v;
+			unsigned offset = pCurrent->u.leaf._startIndexInTriIndexList;
+//			t = intersectBVHTriangles(d_triPtr, count, offset, hitData, ray, useTexMemory);
 			for(int i = 0; i < count; i++){
-				if (d_triPtr[i + pCurrent->u.leaf._startIndexInTriIndexList].intersect(ray, u, v) < FLT_MAX) {
-					return 1.0f;
+				tprime = d_triPtr[i + offset].intersect(ray, u, v);
+				if (tprime < t && tprime > 0.0f) {
+					t = tprime;
+					hitData.u = u;
+					hitData.v = v;
+					hitData.hitTriPtr = &d_triPtr[i + offset];
 				}
 			}
+//			return tprime;
 //			for (Triangle tri: pCurrent->tris) {
 //				if (tri.intersect(ray, u, v) < FLT_MAX) {
 //					*imgPtr = tri._colorDiffuse;
@@ -396,7 +408,7 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 //			}
 		}
 	}
-	return FLT_MAX;
+	return t;
 }
 //	int stack[BVH_STACK_SIZE];
 //	int stackIdx = 0;
