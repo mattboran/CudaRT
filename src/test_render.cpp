@@ -119,7 +119,7 @@ int hitsBox(const Ray& ray, CacheFriendlyBVHNode* bbox) {
 	t1 = tFar < t1 ? tFar : t1;
 	if (t0 > t1) return -1;
 
-	return bbox->boxId;
+	return bbox->boxIdx;
 }
 
 void AddBVHIndices() {
@@ -129,7 +129,9 @@ void AddBVHIndices() {
 }
 float testIntersectBVH(CacheFriendlyBVHNode* bvh,
 				  const Ray& ray,
-				  Vector3Df *imgPtr) {
+				  Vector3Df *imgPtr,
+				  Triangle* tris,
+				  unsigned* bvhIndexPtr) {
 	int stack[BVH_STACK_SIZE];
 	int stackIdx = 0;
 	stack[stackIdx++] = 0;
@@ -137,17 +139,17 @@ float testIntersectBVH(CacheFriendlyBVHNode* bvh,
 	while (stackIdx) {
 		// pop a BVH node from the stack
 //		int boxIdx = stack[--stackIdx];
-		int boxIdx = bvhIndices[stack[--stackIdx]];
+		int boxIdx = bvhIndexPtr[stack[--stackIdx]];
 		CacheFriendlyBVHNode* pCurrent = &bvh[boxIdx];
 
 		unsigned count = pCurrent->u.leaf._count & 0x7fffffff;
-				if (!(pCurrent->u.leaf._count & 0x80000000)) {   // INNER NODE
+		if (!(pCurrent->u.leaf._count & 0x80000000)) {   // INNER NODE
 			// if ray intersects inner node, push indices of left and right child nodes on the stack
 			if (hitsBox(ray, pCurrent) >= 0) {
 				stack[stackIdx++] = pCurrent->u.inner._idxRight;
 				stack[stackIdx++] = pCurrent->u.inner._idxLeft;
 				// return if stack size is exceeded
-				*imgPtr += Vector3Df(0.3, 0.0,0.0);
+//				*imgPtr += Vector3Df(0.3, 0.0,0.0);
 				if (stackIdx>BVH_STACK_SIZE) {
 					return FLT_MAX;
 				}
@@ -155,6 +157,11 @@ float testIntersectBVH(CacheFriendlyBVHNode* bvh,
 		}
 		else { // LEAF NODE
 			float u, v;
+			for(int i = 0; i < count; i++){
+				if (tris[i + pCurrent->u.leaf._startIndexInTriIndexList].intersect(ray, u, v) < FLT_MAX) {
+					*imgPtr = tris[i + pCurrent->u.leaf._startIndexInTriIndexList]._colorDiffuse;
+				}
+			}
 //			for (Triangle tri: pCurrent->tris) {
 //				if (tri.intersect(ray, u, v) < FLT_MAX) {
 //					*imgPtr = tri._colorDiffuse;
@@ -185,7 +192,7 @@ Vector3Df* testRenderWrapper(Scene& scene, int width, int height, int samples, i
 		for (int j = 0; j < width; j++){
 			int idx = width*i + j;
 			Ray ray = camera->computeTestCameraRay(j, i);
-			testIntersectBVH(&bboxes[0], ray, &img[idx]);
+			testIntersectBVH(&scene.cfBVHNodeVector[0], ray, &img[idx], scene.getTriPtr(), scene.getBVHIndexPtr());
 		}
 	}
 	return img;
