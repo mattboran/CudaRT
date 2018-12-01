@@ -23,12 +23,7 @@ Scene::Scene(std::string filename) {
 	vertexPtr = &meshLoader.LoadedVertices[0];
 
 	// Create BVH and CFBVH
-	triIndexBVHPtr = new unsigned[getNumTriangles()];
 	CreateBoundingVolumeHeirarchy(this);
-}
-
-Scene::Scene(vector<std::string>& filenames) {
-	std::cerr << "Multiple .objs not implemented yet!" << std::endl;
 }
 
 Scene::~Scene() {
@@ -86,12 +81,12 @@ BVHNode* Scene::getSceneBVHPtr() {
 	return sceneBVH;
 }
 
-CacheFriendlyBVHNode* Scene::getSceneCFBVHPtr() {
-	return sceneCFBVH;
+unsigned* Scene::getBVHIndexPtr() {
+	return bvhIndexPtr;
 }
 
-unsigned *Scene::getTriIndexBVHPtr() {
-	return triIndexBVHPtr;
+CacheFriendlyBVHNode* Scene::getSceneCFBVHPtr() {
+	return &cfBVHNodeVector[0];
 }
 
 unsigned Scene::getNumBVHNodes() {
@@ -111,16 +106,12 @@ void Scene::setBVHPtr(BVHNode *bvhPtr) {
 	sceneBVH = bvhPtr;
 }
 
-void Scene::setCacheFriendlyVBHPtr(CacheFriendlyBVHNode* bvhPtr) {
-	sceneCFBVH = bvhPtr;
-}
-
 void Scene::setNumBVHNodes(unsigned i) {
 	numBVHNodes = i;
 }
 
-void Scene::allocateCFBVHNodeArray(unsigned nodes) {
-	sceneCFBVH = new CacheFriendlyBVHNode[nodes];
+void Scene::allocateBVHNodeIndexArray(unsigned nodes) {
+	bvhIndexPtr = new unsigned[nodes];
 }
 
 Triangle* Scene::loadTriangles() {
@@ -128,8 +119,8 @@ Triangle* Scene::loadTriangles() {
 	Triangle* currentTriPtr = triPtr;
 
 	// Min and max for creating bounding boxes.
-	const Vector3Df vectorMax = Vector3Df(FLT_MIN, FLT_MIN, FLT_MIN);
-	const Vector3Df vectorMin = Vector3Df(FLT_MAX, FLT_MAX, FLT_MAX);
+	const Vector3Df vectorMin = Vector3Df(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+	const Vector3Df vectorMax = Vector3Df(FLT_MAX, FLT_MAX, FLT_MAX);
 	vector<objl::Mesh> meshes = meshLoader.LoadedMeshes;
 	unsigned triId = 0;
 	for (auto const& mesh: meshes) {
@@ -165,12 +156,9 @@ Triangle* Scene::loadTriangles() {
 			if (currentTriPtr->_colorEmit.lengthsq() > 0.0f) {
 				lightsList.push_back(*currentTriPtr);
 			}
-
-			currentTriPtr->_center = Vector3Df((_v1.x + _v2.x + _v3.x) / 3.0f,
-					(_v1.y + _v2.y + _v3.y) / 3.0f,
-					(_v1.z + _v2.z + _v3.z) / 3.0f);
-			currentTriPtr->_bottom = min4(_v1, _v2, _v3, vectorMax);
-			currentTriPtr->_top = max4(_v1, _v2, _v3, vectorMin);
+			currentTriPtr->_bottom = min3(_v1, _v2, _v3);
+			currentTriPtr->_top = max3(_v1, _v2, _v3);
+			currentTriPtr->_center = (currentTriPtr->_bottom + currentTriPtr->_top) * 0.5f;
 
 			currentTriPtr++;
 		}

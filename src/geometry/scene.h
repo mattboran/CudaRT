@@ -17,7 +17,6 @@ class Scene {
 public:
 	~Scene();
 	Scene(std::string filename);
-	Scene(std::vector<std::string>& filenames);
 
 	// Get methods
 	int getNumMeshes();
@@ -32,7 +31,8 @@ public:
 
 	BVHNode* getSceneBVHPtr();
 	CacheFriendlyBVHNode* getSceneCFBVHPtr();
-	unsigned *getTriIndexBVHPtr();
+	std::vector<CacheFriendlyBVHNode> cfBVHNodeVector;
+	unsigned *getBVHIndexPtr();
 	unsigned getNumBVHNodes();
 
 	objl::Mesh getMesh(int i);
@@ -44,13 +44,14 @@ public:
 	void setCacheFriendlyVBHPtr(CacheFriendlyBVHNode* bvhPtr);
 	void setNumBVHNodes(unsigned i);
 	void allocateCFBVHNodeArray(unsigned nodes);
+	void allocateBVHNodeIndexArray(unsigned nodes);
 private:
 	// BVH Variables
-	BVHNode* sceneBVH;
-	CacheFriendlyBVHNode* sceneCFBVH;
 	unsigned numBVHNodes;
+	BVHNode* sceneBVH;
 	// Corresponds with the sceneCFBVH: an index into trianglesPtr
-	unsigned* triIndexBVHPtr;
+	// Indices into sceneCFBVHPtr
+	unsigned* bvhIndexPtr;
 
 	// Geometry - todo: phase these out if possible
 	geom::Triangle* trianglesPtr = NULL;

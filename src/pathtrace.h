@@ -16,7 +16,7 @@ struct LightsData {
 struct TrianglesData {
 	geom::Triangle* triPtr;
 	CacheFriendlyBVHNode* bvhPtr;
-	unsigned *triIndexPtr;
+	unsigned *bvhIndexPtr;
 	unsigned numTriangles;
 	unsigned numBVHNodes;
 };
@@ -34,7 +34,7 @@ struct Clock {
 	unsigned firstValue;
 	Clock() { reset(); }
 	void reset() { firstValue = clock(); }
-	unsigned readS() { return (clock() - firstValue) / (CLOCKS_PER_SEC); }
+	double readS() { return (clock() - firstValue) / (double)(CLOCKS_PER_SEC); }
 };
 
 Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool &useTexMemory);
@@ -45,6 +45,5 @@ __device__ float intersectTriangles(geom::Triangle* d_triPtr, int numTriangles, 
 __device__ bool rayIntersectsBox(const geom::Ray& ray, CacheFriendlyBVHNode *bvhNode);
 __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh, geom::Triangle* d_triPtr, unsigned* d_triIndexPtr, geom::RayHit& hitData, const geom::Ray& ray, bool useTexMemory);
 __device__ inline geom::Triangle getTriangleFromTexture(unsigned i);
-
 
 #endif

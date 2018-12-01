@@ -26,6 +26,7 @@ using namespace geom;
 #define REPORTPRM(x)
 #endif
 
+static unsigned boxId = 0;
 unsigned g_reportCounter = 0;
 
 struct BBoxTmp {
@@ -62,8 +63,9 @@ BVHNode *Recurse(BBoxEntries& work, REPORTPRM(float pct = 0.) int depth = 0)
 
 	if (work.size() < 4) {
 		BVHLeaf *leaf = new BVHLeaf;
-		for (BBoxEntries::iterator it = work.begin(); it != work.end(); it++)
+		for (BBoxEntries::iterator it = work.begin(); it != work.end(); it++){
 			leaf->_triangles.push_back(it->_pTri);
+		}
 		return leaf;
 	}
 
@@ -360,11 +362,13 @@ void CreateBVH(Scene *scene)
 // the following functions are required to create the cache-friendly BVH
 
 // recursively count bboxes
-int CountBoxes(BVHNode *root)
+int CountBoxes(BVHNode *root, bool label)
 {
+	if (label)
+		root->boxId = boxId++;
 	if (!root->IsLeaf()) {
 		BVHInner *p = dynamic_cast<BVHInner*>(root);
-		return 1 + CountBoxes(p->_left) + CountBoxes(p->_right);
+		return 1 + CountBoxes(p->_left, label) + CountBoxes(p->_right, label);
 	}
 	else
 		return 1;
@@ -401,72 +405,48 @@ void CountDepth(BVHNode *root, int depth, int& maxDepth)
 
 // Writes in the g_pCFBVH and g_triIndexListNo arrays,
 // creating a cache-friendly version of the BVH
-void PopulateCacheFriendlyBVH(
-	const Triangle *pFirstTriangle,
-	BVHNode *root,
-	CacheFriendlyBVHNode* CFBVHPtr,
-	unsigned* triIndexListPtr,
-	unsigned &idxBoxes,
-	unsigned &idxTriList)
+
+int AddCacheFriendlyBVHBoxes(BVHNode *root, vector<CacheFriendlyBVHNode>& cfNodeVec, vector<unsigned> &bvhIndices)
 {
-	unsigned currIdxBoxes = idxBoxes;
-	CFBVHPtr[currIdxBoxes]._bottom = root->_bottom;
-	CFBVHPtr[currIdxBoxes]._top = root->_top;
-
-	//DEPTH FIRST APPROACH
-	if (!root->IsLeaf()) { // inner node
+	CacheFriendlyBVHNode bbox;
+	bbox._bottom = root->_bottom;
+	bbox._top = root->_top;
+	if (!root->IsLeaf()) {
 		BVHInner *p = dynamic_cast<BVHInner*>(root);
-		// recursively populate left and right
-		int idxLeft = ++idxBoxes;
-		PopulateCacheFriendlyBVH(pFirstTriangle, p->_left, CFBVHPtr, triIndexListPtr, idxBoxes, idxTriList);
-		int idxRight = ++idxBoxes;
-		PopulateCacheFriendlyBVH(pFirstTriangle, p->_right, CFBVHPtr, triIndexListPtr, idxBoxes, idxTriList);
-		CFBVHPtr[currIdxBoxes].u.inner._idxLeft = idxLeft;
-		CFBVHPtr[currIdxBoxes].u.inner._idxRight = idxRight;
+		bbox.u.inner._idxLeft = AddCacheFriendlyBVHBoxes(p->_left, cfNodeVec, bvhIndices);
+		bbox.u.inner._idxRight = AddCacheFriendlyBVHBoxes(p->_right, cfNodeVec, bvhIndices);
+		bvhIndices.push_back(p->boxId);
+		cfNodeVec.push_back(bbox);
 	}
-
-	else { // leaf
+	else
+	{
 		BVHLeaf *p = dynamic_cast<BVHLeaf*>(root);
 		unsigned count = (unsigned)p->_triangles.size();
-		CFBVHPtr[currIdxBoxes].u.leaf._count = 0x80000000 | count;  // highest bit set indicates a leaf node (inner node if highest bit is 0)
-		CFBVHPtr[currIdxBoxes].u.leaf._startIndexInTriIndexList = idxTriList;
 
-		for (std::list<const Triangle*>::iterator it = p->_triangles.begin(); it != p->_triangles.end(); it++)
-		{
-		    unsigned index = *it - pFirstTriangle;
-			triIndexListPtr[idxTriList++] = pFirstTriangle[index]._triId;
-		}
+		bbox.u.leaf._count = 0x80000000 | count;  // highest bit set indicates a leaf node (inner node if highest bit is 0)
+		bbox.u.leaf._startIndexInTriIndexList = p->_triangles.front()->_triId;
+		bvhIndices.push_back(p->boxId);
+		cfNodeVec.push_back(bbox);
+		return p->boxId;
 	}
+	return root->boxId;
 }
 
 void CreateCFBVH(Scene* scene)
 {
-	unsigned idxTriList = 0;
-	unsigned idxBoxes = 0;
 
-	geom::Triangle* triPtr = scene->getTriPtr();
 	BVHNode* sceneBVHPtr = scene->getSceneBVHPtr();
-	unsigned* triIndexPtr = scene->getTriIndexBVHPtr();
 
-	unsigned numCFBVHNodes = CountBoxes(scene->getSceneBVHPtr());
-	unsigned countedTriangles = CountTriangles(scene->getSceneBVHPtr());
+	unsigned numCFBVHNodes = CountBoxes(scene->getSceneBVHPtr(), true);
+	scene->allocateBVHNodeIndexArray(numCFBVHNodes);
+	unsigned* bvhIndexPtr = scene->getBVHIndexPtr();
+	vector<unsigned> bvhIndices;
+	AddCacheFriendlyBVHBoxes(sceneBVHPtr, scene->cfBVHNodeVector, bvhIndices);
 	scene->setNumBVHNodes(numCFBVHNodes);
-	scene->allocateCFBVHNodeArray(numCFBVHNodes);
-	printf("Allocated CFBVHNodeArray: num nodes: %d\n",scene->getNumBVHNodes());
-	CacheFriendlyBVHNode* sceneCFBVHPtr = scene->getSceneCFBVHPtr();
-	PopulateCacheFriendlyBVH(&triPtr[0], sceneBVHPtr, sceneCFBVHPtr, triIndexPtr, idxBoxes, idxTriList);
 
-	if ((idxBoxes != scene->getNumBVHNodes() - 1) || (idxTriList != scene->getNumTriangles())) {
-		puts("Something went wrong in CreateCFBVH\n"); fflush(stdout);
-		exit(1);
-	}
-
-	int maxDepth = 0;
-	CountDepth(sceneBVHPtr, 0, maxDepth);
-	if (maxDepth >= BVH_STACK_SIZE) {
-		printf("Max depth of BVH was %d\n", maxDepth);
-		puts("Recompile with BVH_STACK_SIZE set to more than that..."); fflush(stdout);
-		exit(1);
+	CacheFriendlyBVHNode* bvhNodePtr = scene->getSceneCFBVHPtr();
+	for (int i = 0; i < numCFBVHNodes; i++) {
+		bvhIndexPtr[bvhIndices[i]] = i;
 	}
 }
 
