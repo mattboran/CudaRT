@@ -1,4 +1,12 @@
-newmtl initialShadingGroup
+newmtl dragon:wire_087224198
+illum 4
+Kd 0.34 0.88 0.78
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.35 0.35 0.35
+Ns 32.00
+newmtl initialShadingGroup1
 illum 4
 Kd 0.50 0.50 0.50
 Ka 0.00 0.00 0.00
@@ -14,5 +22,11 @@ newmtl lambert3SG
 illum 4
 Kd 0.00 1.00 0.00
 Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+Ni 1.00
+newmtl lambert4SG
+illum 4
+Kd 1.00 1.00 1.00
+Ka 1.00 1.00 1.00
 Tf 1.00 1.00 1.00
 Ni 1.00

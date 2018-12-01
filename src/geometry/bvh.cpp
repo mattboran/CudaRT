@@ -407,7 +407,6 @@ int AddCacheFriendlyBVHBoxes(BVHNode *root, vector<CacheFriendlyBVHNode>& cfNode
 	CacheFriendlyBVHNode bbox;
 	bbox._bottom = root->_bottom;
 	bbox._top = root->_top;
-	bbox.boxIdx = root->boxId;
 	if (!root->IsLeaf()) {
 		BVHInner *p = dynamic_cast<BVHInner*>(root);
 		bbox.u.inner._idxLeft = AddCacheFriendlyBVHBoxes(p->_left, cfNodeVec, bvhIndices);
@@ -423,9 +422,9 @@ int AddCacheFriendlyBVHBoxes(BVHNode *root, vector<CacheFriendlyBVHNode>& cfNode
 		bbox.u.leaf._startIndexInTriIndexList = p->_triangles.front()->_triId;
 		bvhIndices.push_back(p->boxId);
 		cfNodeVec.push_back(bbox);
-		return bbox.boxIdx;
+		return p->boxId;
 	}
-	return bbox.boxIdx;
+	return root->boxId;
 }
 
 void CreateCFBVH(Scene* scene)
@@ -440,8 +439,7 @@ void CreateCFBVH(Scene* scene)
 	scene->setNumBVHNodes(numCFBVHNodes);
 
 	CacheFriendlyBVHNode* bvhNodePtr = scene->getSceneCFBVHPtr();
-	for (int i = 0; i < scene->cfBVHNodeVector.size(); i++) {
-		cout << "bvh[" << i << "] has boxIdx: " << bvhNodePtr->boxIdx << endl;
+	for (int i = 0; i < numCFBVHNodes; i++) {
 		bvhIndexPtr[bvhIndices[i]] = i;
 	}
 }

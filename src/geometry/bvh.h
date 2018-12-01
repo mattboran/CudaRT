@@ -32,7 +32,6 @@ struct CacheFriendlyBVHNode {
 	// bounding box
 	Vector3Df _bottom;
 	Vector3Df _top;
-	unsigned boxIdx;
 	// parameters for leafnodes and innernodes occupy same space (union) to save memory
 	// top bit discriminates between leafnode and innernode
 	// no pointers, but indices (int): faster
