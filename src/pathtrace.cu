@@ -31,6 +31,12 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	unsigned numTris = scene.getNumTriangles();
 	unsigned numBVHNodes = scene.getNumBVHNodes();
 
+	int numGpus;
+	cudaGetDeviceCount(&numGpus);
+	cout << "Got " << numGpus << " cuda-capable devices. Creating that many streams." << endl;
+	numStreams = numGpus;
+
+
 	size_t triangleBytes = sizeof(Triangle) * numTris;
 	size_t imageBytes = sizeof(Vector3Df) * width * height;
 	size_t bvhBytes = sizeof(CacheFriendlyBVHNode) * numBVHNodes;
@@ -141,6 +147,7 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 
 	for (int s = 0; s < samples; s++) {
 		int streamId = s % numStreams;
+		cudaSetDevice(streamId);
 		Vector3Df* streamImgData = &d_streamImgDataPtr[streamId * imagePixels];
 		curandState* d_curandStatePtr = &d_curandState[curandStateSize * streamId];
 		renderKernel<<<grid, block, 0, streams[streamId]>>>(d_tris, d_camPtr, streamImgData, d_lights, d_settings, d_curandStatePtr, streamId);
