@@ -45,18 +45,18 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	// Triangles -> d_tris
 	Triangle* h_triPtr = scene.getTriPtr();
 	Triangle* d_triPtr = NULL;
-	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_triPtr, triangleBytes));
+	CUDA_CHECK_RETURN(cudaMallocManaged((void** )&d_triPtr, triangleBytes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_triPtr, (void* )h_triPtr, triangleBytes, cudaMemcpyHostToDevice));
 
 	unsigned* h_bvhIndexPtr = scene.getBVHIndexPtr();
 	unsigned* d_bvhIndexPtr = NULL;
-	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_bvhIndexPtr, sizeof(unsigned) * numBVHNodes));
+	CUDA_CHECK_RETURN(cudaMallocManaged((void** )&d_bvhIndexPtr, sizeof(unsigned) * numBVHNodes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_bvhIndexPtr, (void* )h_bvhIndexPtr, sizeof(unsigned) * numBVHNodes, cudaMemcpyHostToDevice));
 
 	// CacheFriendlyBVHNodes -> d_bvh
 	CacheFriendlyBVHNode* h_bvh = scene.getSceneCFBVHPtr();
 	CacheFriendlyBVHNode* d_bvh = NULL;
-	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_bvh, bvhBytes));
+	CUDA_CHECK_RETURN(cudaMallocManaged((void** )&d_bvh, bvhBytes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_bvh, (void* )h_bvh, bvhBytes, cudaMemcpyHostToDevice));
 
 	TrianglesData* h_tris = (TrianglesData*)malloc(sizeof(TrianglesData) + triangleBytes);
@@ -66,7 +66,7 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	h_tris->bvhPtr = d_bvh;
 	h_tris->bvhIndexPtr = d_bvhIndexPtr;
 	TrianglesData* d_tris = NULL;
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_tris, sizeof(TrianglesData) + triangleBytes + bvhBytes + sizeof(unsigned) * numBVHNodes));
+	CUDA_CHECK_RETURN(cudaMallocManaged((void**)&d_tris, sizeof(TrianglesData) + triangleBytes + bvhBytes + sizeof(unsigned) * numBVHNodes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void*)d_tris, (void*)h_tris, sizeof(TrianglesData) + triangleBytes, cudaMemcpyHostToDevice));
 
 	// Bind triangles to texture memory -- texture memory doesn't quite work
@@ -87,7 +87,7 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	Triangle* lightsPtr = scene.getLightsPtr();
 	Triangle* d_lightTrianglePtr = NULL;
 	size_t lightTrianglesBytes = sizeof(Triangle) * scene.getNumLights();
-	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_lightTrianglePtr, lightTrianglesBytes));
+	CUDA_CHECK_RETURN(cudaMallocManaged((void** )&d_lightTrianglePtr, lightTrianglesBytes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_lightTrianglePtr, (void *)lightsPtr, lightTrianglesBytes, cudaMemcpyHostToDevice));
 
 	LightsData* h_lights = (LightsData*)malloc(sizeof(LightsData) + lightTrianglesBytes);
@@ -95,13 +95,13 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	h_lights->numLights = scene.getNumLights();
 	h_lights->totalSurfaceArea = scene.getLightsSurfaceArea();
 	LightsData* d_lights = NULL;
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_lights, sizeof(LightsData) + lightTrianglesBytes));
+	CUDA_CHECK_RETURN(cudaMallocManaged((void**)&d_lights, sizeof(LightsData) + lightTrianglesBytes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_lights, h_lights, sizeof(LightsData) + lightTrianglesBytes, cudaMemcpyHostToDevice));
 
 	// Camera
 	Camera* camPtr = scene.getCameraPtr();
 	Camera* d_camPtr = NULL;
-	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_camPtr, sizeof(Camera)));
+	CUDA_CHECK_RETURN(cudaMallocManaged((void** )&d_camPtr, sizeof(Camera)));
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_camPtr, (void* )camPtr, sizeof(Camera), cudaMemcpyHostToDevice));
 
 	// Setup settings -> d_settings
@@ -113,7 +113,7 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	h_settings.numStreams = numStreams;
 	h_settings.useBvh = useBvh;
 	SettingsData* d_settings;
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_settings, sizeof(SettingsData)));
+	CUDA_CHECK_RETURN(cudaMallocManaged((void**)&d_settings, sizeof(SettingsData)));
 	CUDA_CHECK_RETURN(cudaMemcpy((void*)d_settings, &h_settings, sizeof(SettingsData), cudaMemcpyHostToDevice));
 
 	// Launch kernels
@@ -128,7 +128,7 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	Vector3Df* imgDataPtr = new Vector3Df[pixels]();
 	Vector3Df* d_imgDataPtr = NULL;
 	Vector3Df* d_streamImgDataPtr;
-	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_imgDataPtr, imageBytes));
+	CUDA_CHECK_RETURN(cudaMallocManaged((void** )&d_imgDataPtr, imageBytes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_imgDataPtr, (void* )imgDataPtr, imageBytes, cudaMemcpyHostToDevice));
 
 	// Setup cuRand kernel and data in streams
@@ -136,8 +136,8 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	int imagePixels = width * height;
 	int curandStateSize = threadsPerBlock * gridBlocks;
 	size_t curandStateBytes = sizeof(curandState) * curandStateSize;
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_streamImgDataPtr, imageBytes * numStreams));
-	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_curandState, curandStateBytes * numStreams));
+	CUDA_CHECK_RETURN(cudaMallocManaged((void**)&d_streamImgDataPtr, imageBytes * numStreams));
+	CUDA_CHECK_RETURN(cudaMallocManaged((void** )&d_curandState, curandStateBytes * numStreams));
 	for (int s = 0; s < numStreams; s++) {
 		cudaStreamCreate(&streams[s]);
 		curandState* d_curandStatePtr = &d_curandState[s * curandStateSize];
