@@ -24,6 +24,7 @@ int main(int argc, char* argv[]) {
 	string objPath = "../meshes/cornell.obj";
 	bool multipleObjs = false;
 	bool useTextureMemory = false;
+	bool useBvh = false;
 	int numStreams = 1;
 
 	//
@@ -39,6 +40,7 @@ int main(int argc, char* argv[]) {
 				"-f \t<path to .obj to render>\tdefault:./meshes/cornell.obj\n" \
 				"-F \t<path to .obj directory>\tdefault:./meshes\n" \
 				"-t \t<use texture memory for triangles, default = false>" \
+				"-b \t<use bounding volume heirarchy for intersection, default = false" \
 				"-c \t<number of concurrent streams, default = 1>" \
 				;
 		return(1);
@@ -111,6 +113,12 @@ int main(int argc, char* argv[]) {
 
 	if ((find(args.begin(), args.end(), "-t") < args.end())) {
 		useTextureMemory = true;
+		useBvh = false;
+	}
+
+	if ((find(args.begin(), args.end(), "-b") < args.end())) {
+		useTextureMemory = false;
+		useBvh = true;
 	}
 
 	cout << "Samples: " << samples << endl \
@@ -120,7 +128,8 @@ int main(int argc, char* argv[]) {
 			<< "Output: " << outFile << endl;
 	if (useTextureMemory)
 		cout << "Using texture memory " << endl;
-
+	if (useBvh)
+		cout << "Using Bounding Volume Heirarchy" << endl;
 	//
 	// Initialize Scene : Load .obj
 	//
@@ -139,15 +148,15 @@ int main(int argc, char* argv[]) {
 	// TODO: Load this from .obj using cam meshes
 	// alternatively, use a camera.json file
 	//
-	Vector3Df camPos(14.0f, 5.0f, 0.0f);
-	Vector3Df camTarget(0.0f, 5.0f, 0.0f);
-	Vector3Df camUp(0.0f, 7.0f, 0.0f);
+	Vector3Df camPos(140.0f, 50.0f, 0.0f);
+	Vector3Df camTarget(0.0f, 50.0f, 0.0f);
+	Vector3Df camUp(0.0f, 70.0f, 0.0f);
 	Vector3Df camRt(-1.0f, 0.0f, 0.0f);
 
 	Camera camera = Camera(camPos, camTarget, camUp, camRt, 90.0f, width, height);
 	scene.setCamera(camera);
 	Clock timer = Clock();
-	Vector3Df* imgData = pathtraceWrapper(scene, width, height, samples, numStreams, useTextureMemory);
+	Vector3Df* imgData = pathtraceWrapper(scene, width, height, samples, numStreams, useTextureMemory, useBvh);
 	saveImageToPng(outFile, width, height, imgData);
 
 	cout << "Total time from start to output to " << outFile << ":\t\t" << (double)timer.readS() << " seconds " << endl;

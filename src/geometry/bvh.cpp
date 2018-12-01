@@ -323,9 +323,9 @@ void CreateBVH(Scene *scene)
 		// TODO: Remove this, once we get to the intersection code
 		b._pTri = &triangle;
 
-		Vector3Df v1 = Vector3Df(vertices[indices[j*3]].Position);
-		Vector3Df v2 = Vector3Df(vertices[indices[j*3 + 1]].Position);
-		Vector3Df v3 = Vector3Df(vertices[indices[j*3 + 2]].Position);
+		Vector3Df v1 = triangle._v1;
+		Vector3Df v2 = triangle._v2;
+		Vector3Df v3 = triangle._v3;
 
 		b._bottom = min3(b._bottom, v1);
 		b._bottom = min3(b._bottom, v2);
@@ -384,13 +384,23 @@ unsigned CountTriangles(BVHNode *root)
 	else {
 		BVHLeaf *p = dynamic_cast<BVHLeaf*>(root);
 		for(auto tri: p->_triangles) {
-			cout << "Leaf has triangle id #"<<tri->_triId << endl;
+//			cout << "Leaf has triangle id #"<<tri->_triId << endl;
 		}
-		cout<< "Leaf had " << p->_triangles.size() << "triangles.";
 		return (unsigned)p->_triangles.size();
 	}
 }
 
+unsigned CountCFTriangles(CacheFriendlyBVHNode *bvh, unsigned numNodes) {
+	unsigned sum = 0;
+	CacheFriendlyBVHNode* bvhPtr = bvh;
+	for (unsigned i = 0; i < numNodes; i++) {
+		if (bvhPtr->u.leaf._count & 0x80000000) {
+			sum += bvhPtr->u.leaf._count & 0x7fffffff;
+		}
+		bvhPtr++;
+	}
+	return sum;
+}
 // recursively count depth
 void CountDepth(BVHNode *root, int depth, int& maxDepth)
 {
@@ -436,7 +446,6 @@ void CreateCFBVH(Scene* scene)
 {
 
 	BVHNode* sceneBVHPtr = scene->getSceneBVHPtr();
-
 	unsigned numCFBVHNodes = CountBoxes(scene->getSceneBVHPtr(), true);
 	scene->allocateBVHNodeIndexArray(numCFBVHNodes);
 	unsigned* bvhIndexPtr = scene->getBVHIndexPtr();
@@ -448,6 +457,7 @@ void CreateCFBVH(Scene* scene)
 	for (int i = 0; i < numCFBVHNodes; i++) {
 		bvhIndexPtr[bvhIndices[i]] = i;
 	}
+	cout << "# of triangles in bvh " << CountCFTriangles(bvhNodePtr, numCFBVHNodes);
 }
 
 // The gateway - creates the "pure" BVH, and then copies the results in the cache-friendly one

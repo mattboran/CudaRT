@@ -2,7 +2,7 @@
 #define CUDA_ERROR_CHECK_H
 
 #include <iostream>
-//#include <cuda.h>
+#include <cuda.h>
 #include <cuda_runtime_api.h>
 
 static void CheckCudaErrorAux (const char *, unsigned, const char *, cudaError_t);

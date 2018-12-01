@@ -139,6 +139,8 @@ Triangle* Scene::loadTriangles() {
 			Vector3Df _v2(v2.Position);
 			Vector3Df _v3(v3.Position);
 			currentTriPtr->_v1 = _v1;
+			currentTriPtr->_v2 = _v2;
+			currentTriPtr->_v3 = _v3;
 			currentTriPtr->_n1 = Vector3Df(v1.Normal);
 			currentTriPtr->_n2 = Vector3Df(v2.Normal);
 			currentTriPtr->_n3 = Vector3Df(v3.Normal);

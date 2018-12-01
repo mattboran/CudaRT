@@ -28,6 +28,7 @@ struct SettingsData {
 	int samples;
 	bool useTexMem;
 	int numStreams;
+	bool useBvh;
 } __attribute__ ((aligned (32)));
 
 struct Clock {
@@ -37,7 +38,7 @@ struct Clock {
 	double readS() { return (clock() - firstValue) / (double)(CLOCKS_PER_SEC); }
 };
 
-Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool &useTexMemory);
+Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool &useTexMemory, bool useBvh);
 __global__ void setupCurandKernel(curandState *randState, int streamOffset);
 __global__ void renderKernel(TrianglesData* d_tris, Camera* d_camPtr, Vector3Df* d_imgPtr, LightsData* d_lights, SettingsData* d_settings, curandState *randState, int streamId);
 __global__ void averageSamplesAndGammaCorrectKernel(Vector3Df* d_streamImgDataPtr, Vector3Df* d_imgPtr, SettingsData* d_settings);

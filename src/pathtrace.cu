@@ -26,7 +26,7 @@ using namespace std;
 
 texture_t triangleTexture;
 
-Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool &useTexMemory) {
+Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool &useTexMemory, bool useBvh) {
 	int pixels = width * height;
 	unsigned numTris = scene.getNumTriangles();
 	unsigned numBVHNodes = scene.getNumBVHNodes();
@@ -105,6 +105,7 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	h_settings.samples = samples;
 	h_settings.useTexMem = useTexMemory;
 	h_settings.numStreams = numStreams;
+	h_settings.useBvh = useBvh;
 	SettingsData* d_settings;
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_settings, sizeof(SettingsData)));
 	CUDA_CHECK_RETURN(cudaMemcpy((void*)d_settings, &h_settings, sizeof(SettingsData), cudaMemcpyHostToDevice));
@@ -185,6 +186,7 @@ __global__ void renderKernel(TrianglesData* d_tris,
 	unsigned int i, j;
 	i = blockIdx.x * blockDim.x + threadIdx.x;
 	j = blockIdx.y * blockDim.y + threadIdx.y;
+	bool useBvh = d_settings->useBvh;
 
 	Ray ray = d_camPtr->computeCameraRay(i, j, &randState[idx]);
 	RayHit hitData, lightHitData;
@@ -193,8 +195,13 @@ __global__ void renderKernel(TrianglesData* d_tris,
 	Vector3Df mask(1.0f, 1.0f, 1.0f);
 
 	// First see if the camera ray hits anything. If not, return black.
-	// float t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
-	float t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->bvhIndexPtr, hitData, ray, d_settings->useTexMem);
+	float t = FLT_MAX;
+	if (useBvh) {
+		t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->bvhIndexPtr, hitData, ray, d_settings->useTexMem);
+	}
+	else {
+		t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
+	}
 	if (t < FLT_MAX) {
 		hitPt = ray.pointAlong(t);
 		hitTriPtr = hitData.hitTriPtr;
@@ -222,8 +229,11 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		Vector3Df lightRayDir = normalize(selectedLight.getRandomPointOn(&randState[idx]) - hitPt);
 
 		Ray lightRay(hitPt + normal * EPSILON, lightRayDir);
-		// t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, lightHitData, lightRay, d_settings->useTexMem);
-		t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->bvhIndexPtr, lightHitData, lightRay, d_settings->useTexMem);
+		if (useBvh){
+			t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->bvhIndexPtr, lightHitData, lightRay, d_settings->useTexMem);
+		} else {
+			t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, lightHitData, lightRay, d_settings->useTexMem);
+		}
 		if (t < FLT_MAX){
 			// See if we've hit the light we tested for
 			Triangle* lightRayHitPtr = lightHitData.hitTriPtr;
@@ -237,8 +247,11 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		}
 
 		// Now compute indirect lighting
-		t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->bvhIndexPtr, hitData, ray, d_settings->useTexMem);
-		// t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
+		if (useBvh) {
+			t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->bvhIndexPtr, hitData, ray, d_settings->useTexMem);
+		} else {
+			t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
+		}
 		if (t < FLT_MAX) {
 
 			Vector3Df hitPt = ray.pointAlong(t);
@@ -315,7 +328,7 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 		int boxIdx = d_bvhIndexPtr[stack[--stackIdx]];
 		CacheFriendlyBVHNode* pCurrent = &d_bvh[boxIdx];
 
-		unsigned count = pCurrent->u.leaf._count & 0x7fffffff;
+		unsigned count = pCurrent->u.leaf._count & 0x7fffffff ;
 		if (!(pCurrent->u.leaf._count & 0x80000000)) {   // INNER NODE
 			// if ray intersects inner node, push indices of left and right child nodes on the stack
 			if (rayIntersectsBox(ray, pCurrent)) {
@@ -331,6 +344,9 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 		else { // LEAF NODE
 			unsigned offset = pCurrent->u.leaf._startIndexInTriIndexList;
 			for(int i = 0; i < count; i++){
+//				if (i + offset >= 36) {
+//					break;
+//				}
 				tprime = d_triPtr[i + offset].intersect(ray, u, v);
 				if (tprime < t && tprime > 0.0f) {
 					t = tprime;
@@ -399,6 +415,31 @@ __device__ bool rayIntersectsBox(const Ray& ray, CacheFriendlyBVHNode *bvhNode) 
 	if (t0 > t1) return 0;
 
 	return true;
+}
+
+__device__ float intersectTriangles(geom::Triangle* d_triPtr,
+									int numTriangles,
+									RayHit& hitData,
+									const Ray& ray,
+									bool useTexMemory) {
+	float t = FLT_MAX, tprime = FLT_MAX;
+	float u, v;
+	for (unsigned i = 0; i < numTriangles; i++) {
+		Triangle tri;
+		if (useTexMemory) {
+			Triangle tri = getTriangleFromTexture(i);
+			tprime = tri.intersect(ray, u, v);
+		} else {
+			tprime = d_triPtr[i].intersect(ray, u, v);
+		}
+		if (tprime < t && tprime > 0.f) {
+			t = tprime;
+			hitData.hitTriPtr = &d_triPtr[i];
+			hitData.u = u;
+			hitData.v = v;
+		}
+	}
+	return t;
 }
 
 __device__ inline Triangle getTriangleFromTexture(unsigned i) {
