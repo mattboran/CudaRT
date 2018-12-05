@@ -39,9 +39,8 @@ int main(int argc, char* argv[]) {
 				"-h \t<height>\tdefault:320px\n" \
 				"-f \t<path to .obj to render>\tdefault:./meshes/cornell.obj\n" \
 				"-F \t<path to .obj directory>\tdefault:./meshes\n" \
-				"-t \t<use texture memory for triangles, default = false>" \
 				"-b \t<use bounding volume heirarchy for intersection, default = false" \
-				"-c \t<number of concurrent streams, default = 1>" \
+				"-M \t<use multi-gpu, default = false" \
 				;
 		return(1);
 	}
@@ -91,12 +90,8 @@ int main(int argc, char* argv[]) {
 	}
 
 	// Streams
-	if ((find(args.begin(), args.end(), "-c") < args.end() - 1)) {
-		try {
-			numStreams = stoi(*(find(args.begin(), args.end(), "-c") + 1));
-		} catch (invalid_argument& e) {
-			cerr << "Invalid argument to -h!" << endl;
-		}
+	if ((find(args.begin(), args.end(), "-M") < args.end())) {
+		numStreams = 8;
 	}
 
 	// .obj path

@@ -33,9 +33,8 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 
 	int numGpus;
 	cudaGetDeviceCount(&numGpus);
-	cout << "Got " << numGpus << " cuda-capable devices. Creating that many streams." << endl;
-	numStreams = numGpus;
-
+	numStreams = numStreams >= numGpus ? numGpus : numStreams;
+	cout << "Got " << numGpus << " cuda-capable devices. Creating "<< numStreams << " streams." << endl;
 
 	size_t triangleBytes = sizeof(Triangle) * numTris;
 	size_t imageBytes = sizeof(Vector3Df) * width * height;
@@ -139,20 +138,31 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	CUDA_CHECK_RETURN(cudaMallocManaged((void**)&d_streamImgDataPtr, imageBytes * numStreams));
 	CUDA_CHECK_RETURN(cudaMallocManaged((void** )&d_curandState, curandStateBytes * numStreams));
 	for (int s = 0; s < numStreams; s++) {
-		cudaStreamCreate(&streams[s]);
+		CUDA_CHECK_RETURN(cudaSetDevice(s));
+		CUDA_CHECK_RETURN(cudaStreamCreate(&streams[s]));
 		curandState* d_curandStatePtr = &d_curandState[s * curandStateSize];
 		setupCurandKernel<<<grid, block, 0, streams[s]>>>(d_curandStatePtr, s);
 		CUDA_CHECK_RETURN(cudaMemcpy((void* )&d_streamImgDataPtr[s * imagePixels], (void* )imgDataPtr, imageBytes, cudaMemcpyHostToDevice));
 	}
 
-	for (int s = 0; s < samples; s++) {
-		int streamId = s % numStreams;
-		cudaSetDevice(streamId);
+	CUDA_CHECK_RETURN(cudaDeviceSynchronize());
+
+	unsigned streamId = 0;
+	int incrementEvery = samples/numStreams;
+	CUDA_CHECK_RETURN(cudaSetDevice(0));
+	for (int s = 1; s <= samples; s++) {
+		if (s % incrementEvery == 0) {
+			CUDA_CHECK_RETURN(cudaSetDevice(streamId++));
+		}
+		streamId = streamId % numStreams;
 		Vector3Df* streamImgData = &d_streamImgDataPtr[streamId * imagePixels];
 		curandState* d_curandStatePtr = &d_curandState[curandStateSize * streamId];
 		renderKernel<<<grid, block, 0, streams[streamId]>>>(d_tris, d_camPtr, streamImgData, d_lights, d_settings, d_curandStatePtr, streamId);
 	}
 
+	CUDA_CHECK_RETURN(cudaDeviceSynchronize());
+
+	CUDA_CHECK_RETURN(cudaSetDevice(0));
 	// Combine the different streams into a single image
 	averageSamplesAndGammaCorrectKernel<<<grid, block>>>(d_streamImgDataPtr, d_imgDataPtr, d_settings);
 
@@ -160,7 +170,7 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 
 	// Clean up the streams
 	for (int s = 0; s < numStreams; s++) {
-		cudaStreamDestroy(streams[s]);
+		CUDA_CHECK_RETURN(cudaStreamDestroy(streams[s]));
 	}
 
 	// Clean up host memory
