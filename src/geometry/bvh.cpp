@@ -465,7 +465,7 @@ void CreateBoundingVolumeHeirarchy(Scene* scene)
 {
 	Clock me;
 	CreateBVH(scene);
-	printf("Building the BVH%s took %.2f seconds\n",
+	printf("Building the BVH%s took %.6f seconds\n",
 		"",
 		me.readS());
 	// Now that the BVH has been created, copy its data into a more cache-friendly format
