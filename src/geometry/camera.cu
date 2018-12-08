@@ -1,5 +1,6 @@
 #include "camera.cuh"
 #include <cuda.h>
+#include <stdlib.h>
 #include <cuda_runtime_api.h>
 
 
@@ -43,9 +44,26 @@ __device__ Ray Camera::computeCameraRay(int i, int j, curandState* randState) co
 	return Ray(eye, direction);
 }
 
-__host__ Ray Camera::computeTestCameraRay(int i, int j) {
-	float normalized_i = 1.0f - (((float)i) / (float)xpixels) - 0.5;
-	float normalized_j = 1.0f - (((float)j) / (float)ypixels) - 0.5f;
+__host__ Ray Camera::computeSequentialCameraRay(int i, int j) {
+	float r1 = 2 * (rand() / (RAND_MAX + 1.f));
+	float dx;
+	if (r1 < 1.f){
+		dx = sqrtf(r1) - 1.f;
+	}
+	else{
+		dx = 1.f - sqrtf(2.f - r1);
+	}
+	float r2 = 2 * (rand() / (RAND_MAX + 1.f));
+	float dy;
+	if (r2 < 1){
+		dy = sqrtf(r2) - 1.f;
+	}
+	else{
+		dy = 1.f - sqrtf(2.f - r2);
+	}
+
+	float normalized_i = 1.0f - (((float)i + dx) / (float)xpixels) - 0.5;
+	float normalized_j = 1.0f - (((float)j + dy) / (float)ypixels) - 0.5f;
 
 	Vector3Df direction = dir;
 	direction += ((right * -1.0f) * fov * aspect * normalized_i);

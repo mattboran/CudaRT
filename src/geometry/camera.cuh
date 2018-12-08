@@ -15,7 +15,7 @@ public:
 	__host__ void rebase();
 
 	__device__ geom::Ray computeCameraRay(int i, int j, curandState* randState) const;
-	__host__ geom::Ray computeTestCameraRay(int i, int j);
+	__host__ geom::Ray computeSequentialCameraRay(int i, int j);
 private:
 	Vector3Df eye;
 	Vector3Df dir;

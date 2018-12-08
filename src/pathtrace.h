@@ -34,7 +34,7 @@ struct Clock {
 	unsigned firstValue;
 	Clock() { reset(); }
 	void reset() { firstValue = clock(); }
-	unsigned readS() { return (clock() - firstValue) / (CLOCKS_PER_SEC); }
+	double readS() { return (clock() - firstValue) / (CLOCKS_PER_SEC); }
 };
 
 Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool &useTexMemory);

@@ -3,7 +3,7 @@
 
 #include "pathtrace.h"
 #include "scene.h"
-#include "test_render.h"
+#include "sequential.h"
 
 #include <algorithm>
 #include <iostream>
@@ -25,6 +25,7 @@ int main(int argc, char* argv[]) {
 	string objPath = "../meshes/cornell.obj";
 	bool multipleObjs = false;
 	bool useTextureMemory = false;
+	bool useSequential = false;
 	int numStreams = 1;
 
 	//
@@ -34,13 +35,11 @@ int main(int argc, char* argv[]) {
 	if (argc < 3) {
 		cerr << "Usage: CudaRT <options>\n" \
 				"-o \t<output file>\n" \
-				"-s \t<number of samples>\tdefault:1000\n" \
+				"-s \t<number of samples>\tdefault:10\n" \
 				"-w \t<width>\tdefault:480px\n" \
 				"-h \t<height>\tdefault:320px\n" \
 				"-f \t<path to .obj to render>\tdefault:./meshes/cornell.obj\n" \
-				"-F \t<path to .obj directory>\tdefault:./meshes\n" \
-				"-t \t<use texture memory for triangles, default = false>" \
-				"-c \t<number of concurrent streams, default = 1>" \
+				"--cpu \t<flag to run sequential code on CPU only>\tdefault: false>\n" \
 				;
 		return(1);
 	}
@@ -89,8 +88,8 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	// Streams
-	if ((find(args.begin(), args.end(), "-c") < args.end() - 1)) {
+	// Sequential flag
+	if ((find(args.begin(), args.end(), "--cpu") < args.end())) {
 		try {
 			numStreams = stoi(*(find(args.begin(), args.end(), "-c") + 1));
 		} catch (invalid_argument& e) {
@@ -99,19 +98,9 @@ int main(int argc, char* argv[]) {
 	}
 
 	// .obj path
-	if ((find(args.begin(), args.end(), "-F") < args.end() - 1)) {
-		objPath = *(find(args.begin(), args.end(), "-F") + 1);
-		multipleObjs = true;
-		cerr << "Can't load multiple OBJs as of yet!" << endl;
-	}
-
 	if ((find(args.begin(), args.end(), "-f") < args.end() - 1)) {
 		objPath = *(find(args.begin(), args.end(), "-f") + 1);
 		multipleObjs = false;
-	}
-
-	if ((find(args.begin(), args.end(), "-t") < args.end())) {
-		useTextureMemory = true;
 	}
 
 	cout << "Samples: " << samples << endl \
@@ -119,8 +108,6 @@ int main(int argc, char* argv[]) {
 			<< "Height: " << height << endl \
 			<< "Obj path: " << objPath << endl \
 			<< "Output: " << outFile << endl;
-	if (useTextureMemory)
-		cout << "Using texture memory " << endl;
 
 	//
 	// Initialize Scene : Load .obj
@@ -148,11 +135,15 @@ int main(int argc, char* argv[]) {
 	Camera camera = Camera(camPos, camTarget, camUp, camRt, 90.0f, width, height);
 	scene.setCamera(camera);
 	Clock timer = Clock();
-	Vector3Df* imgData = testRenderWrapper(scene, width, height, samples, numStreams, useTextureMemory, argc, argv);
-//	Vector3Df* imgData = pathtraceWrapper(scene, width, height, samples, numStreams, useTextureMemory);
+	if (useSequential) {
+		Vector3Df* imgData = sequentialRenderWrapper(scene, width, height, samples, numStreams, useTextureMemory, argc, argv);
+	}
+	else {
+		Vector3Df* imgData = pathtraceWrapper(scene, width, height, samples, numStreams, useTextureMemory);
+	}
 	saveImageToPng(outFile, width, height, imgData);
 
-	cout << "Total time from start to output to " << outFile << ":\t\t" << (double)timer.readS() << " seconds " << endl;
+	cout << "Total time from start to output to " << outFile << ":\t\t" << timer.readS() << " seconds " << endl;
 
 	delete[] imgData;
 	return(0);
