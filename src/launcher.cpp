@@ -38,9 +38,7 @@ int main(int argc, char* argv[]) {
 				"-w \t<width>\tdefault:480px\n" \
 				"-h \t<height>\tdefault:320px\n" \
 				"-f \t<path to .obj to render>\tdefault:./meshes/cornell.obj\n" \
-				"-F \t<path to .obj directory>\tdefault:./meshes\n" \
 				"-b \t<use bounding volume heirarchy for intersection, default = false" \
-				"-M \t<use multi-gpu, default = false" \
 				;
 		return(1);
 	}
@@ -89,18 +87,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	// Streams
-	if ((find(args.begin(), args.end(), "-M") < args.end())) {
-		numStreams = 8;
-	}
-
 	// .obj path
-	if ((find(args.begin(), args.end(), "-F") < args.end() - 1)) {
-		objPath = *(find(args.begin(), args.end(), "-F") + 1);
-		multipleObjs = true;
-		cerr << "Can't load multiple OBJs as of yet!" << endl;
-	}
-
 	if ((find(args.begin(), args.end(), "-f") < args.end() - 1)) {
 		objPath = *(find(args.begin(), args.end(), "-f") + 1);
 		multipleObjs = false;
