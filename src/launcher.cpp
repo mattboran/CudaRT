@@ -90,11 +90,7 @@ int main(int argc, char* argv[]) {
 
 	// Sequential flag
 	if ((find(args.begin(), args.end(), "--cpu") < args.end())) {
-		try {
-			numStreams = stoi(*(find(args.begin(), args.end(), "-c") + 1));
-		} catch (invalid_argument& e) {
-			cerr << "Invalid argument to -h!" << endl;
-		}
+		useSequential = true;
 	}
 
 	// .obj path
@@ -135,11 +131,12 @@ int main(int argc, char* argv[]) {
 	Camera camera = Camera(camPos, camTarget, camUp, camRt, 90.0f, width, height);
 	scene.setCamera(camera);
 	Clock timer = Clock();
+	Vector3Df* imgData;
 	if (useSequential) {
-		Vector3Df* imgData = sequentialRenderWrapper(scene, width, height, samples, numStreams, useTextureMemory, argc, argv);
+		imgData = sequentialRenderWrapper(scene, width, height, samples, numStreams, useTextureMemory, argc, argv);
 	}
 	else {
-		Vector3Df* imgData = pathtraceWrapper(scene, width, height, samples, numStreams, useTextureMemory);
+		imgData = pathtraceWrapper(scene, width, height, samples, numStreams, useTextureMemory);
 	}
 	saveImageToPng(outFile, width, height, imgData);
 
