@@ -13,8 +13,6 @@
 
 Vector3Df min3(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c);
 Vector3Df max3(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c);
-Vector3Df max4(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c, const Vector3Df& d);
-Vector3Df min4(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c, const Vector3Df& d);
 
 namespace geom {
 
@@ -55,14 +53,14 @@ namespace geom {
 		float _surfaceArea = 0.0f;
 		__device__ __host__ Triangle() {}
 		__device__ __host__ Triangle(const Triangle &t);
-		__device__ Triangle(float3 v1, float3 e1, float3 e2, float3 n1, float3 n2, float3 n3, float3 diff, float3 spec, float3 emit, unsigned triId);
-		__device__ Triangle(float4 v1, float4 e1, float4 e2, float4 n1, float4 n2, float4 n3, float4 diff, float4 spec, float4 emit);
+//		__device__ Triangle(float3 v1, float3 e1, float3 e2, float3 n1, float3 n2, float3 n3, float3 diff, float3 spec, float3 emit, unsigned triId);
+//		__device__ Triangle(float4 v1, float4 e1, float4 e2, float4 n1, float4 n2, float4 n3, float4 diff, float4 spec, float4 emit);
 		__host__ __device__ float intersect(const Ray &r, float &_u, float &_v) const;
 		__device__ Vector3Df getNormal(const  RayHit& rh) const;
 		__device__ Vector3Df getRandomPointOn(curandState *randState) const;
-		__device__ bool isEmissive() const;
-		__device__ bool isSpecular() const;
-		__device__ bool isDiffuse() const;
+		__host__ __device__ bool isEmissive() const;
+//		__host__ __device__ bool isSpecular() const;
+		__host__ __device__ bool isDiffuse() const;
 		// TODO: Implement these properties
 		// Center point
 		Vector3Df _center;
@@ -76,7 +74,7 @@ namespace geom {
 
 	struct RayHit {
 		Triangle* hitTriPtr;
-		float u, v;
-	};
+		float u, v, t;
+	}__attribute__((aligned (32)));
 }
 #endif
