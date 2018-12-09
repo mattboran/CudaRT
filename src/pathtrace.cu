@@ -191,14 +191,14 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray);
 	}
 	if (t < FLT_MAX) {
-		hitPt = ray.pointAlong(t);
 		pHitTriangle = hitData.pHitTriangle;
-		normal = pHitTriangle->getNormal(hitData);
 		// if we hit a light directly, add its contribution here so as not to double dip in the BSDF calculations below
 		if (pHitTriangle->isEmissive()) {
 			d_imgPtr[j * d_settings->width + i] += pHitTriangle->_colorEmit;
 			return;
 		}
+		hitPt = ray.pointAlong(t);
+		normal = pHitTriangle->getNormal(hitData);
 	} else {
 		return;
 	}

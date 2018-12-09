@@ -10,7 +10,7 @@ using namespace geom;
 
 bool intersectTriangles(Triangle* triPtr, int numTriangles, const Ray& ray, RayHit *hitData);
 void averageSamplesAndGammaCorrect(Vector3Df* img, int width, int height, int samples);
-Vector3Df radiance(Scene& scene, const Ray& ray, bool useBVH, int depth);
+Vector3Df radiance(Scene& scene, Ray& ray, bool useBVH);
 bool intersectBVH(BVHNode* bvh, const Ray& ray, RayHit *hitData);
 Vector3Df getRandomPointOn(Triangle* tri);
 float uniformRandom();
@@ -123,7 +123,7 @@ Vector3Df* Sequential::pathtraceWrapper(Scene& scene, int width, int height, int
 			int idx = width*i + j;
 			for (int s = 0; s < samples; s++) {
 				Ray ray = camera->computeSequentialCameraRay(j, i);
-				img[idx] += radiance(scene, ray, useBVH, 0);
+				img[idx] += radiance(scene, ray, useBVH);
 			}
 		}
 	}
@@ -131,13 +131,9 @@ Vector3Df* Sequential::pathtraceWrapper(Scene& scene, int width, int height, int
 	return img;
 }
 
-Vector3Df radiance(Scene& scene, const Ray& ray, bool useBVH, int depth) {
-	Vector3Df color(0.0f, 0.0f, 0.0f);
-	if (depth >= 5) {
-		return color;
-	}
-
-	Vector3Df hitPt, normal, nextDir;
+Vector3Df radiance(Scene& scene, Ray& ray, bool useBVH) {
+	Vector3Df hitPt, normal, nextDir, color;
+	Vector3Df mask(1.0f, 1.0f, 1.0f);
 	RayHit hitData, lightHitData;
 	Triangle* pHitTriangle;
 	Triangle* pTriangles = scene.getTriPtr();
@@ -156,11 +152,16 @@ Vector3Df radiance(Scene& scene, const Ray& ray, bool useBVH, int depth) {
 			return pHitTriangle->_colorEmit;
 		}
 
-		hitPt = hitData.t;
+		hitPt = ray.pointAlong(hitData.t);
 		normal = pHitTriangle->getNormal(hitData);
-		color += pHitTriangle->_colorEmit;
+	}
+	else {
+		return color;
+	}
 
-//		// Calculate direct lighting for diffuse bounces
+	for (unsigned bounces = 0; bounces < 4; bounces++) {
+
+		// Calculate direct lighting for diffuse bounces
 		int selectedLightIndex = rand() % scene.getNumLights();
 		Triangle* selectedLight = &scene.getLightsPtr()[selectedLightIndex];
 		Vector3Df lightRayDir = normalize(getRandomPointOn(selectedLight) - hitPt);
@@ -181,12 +182,43 @@ Vector3Df radiance(Scene& scene, const Ray& ray, bool useBVH, int depth) {
 				float distanceSquared = t*t; // scale by factor of 10
 				float incidenceAngle = fabs(dot(selectedLight->getNormal(lightHitData), -lightRayDir));
 				float weightFactor = surfaceArea/distanceSquared * incidenceAngle;
-				color += selectedLight->_colorEmit * hitData.pHitTriangle->_colorDiffuse * weightFactor;
+				color += mask * selectedLight->_colorEmit * hitData.pHitTriangle->_colorDiffuse * weightFactor;
 			}
-		} else {
-			return color + hitData.pHitTriangle->_colorDiffuse;
 		}
-		return color;
+
+		// Now compute indirect lighting
+		if (useBVH) {
+			intersection = intersectBVH(pBvh, ray, &hitData);
+		} else {
+			intersection = intersectTriangles(pTriangles, numTriangles, ray, &hitData);
+		}
+		if (intersection) {
+			Vector3Df hitPt = ray.pointAlong(hitData.t);
+			Triangle* hitTriPtr = hitData.pHitTriangle;
+			Vector3Df normal = hitTriPtr->getNormal(hitData);
+
+			if (hitTriPtr->isDiffuse()) {
+				float r1 = 2 * M_PI * uniformRandom();
+				float r2 = uniformRandom();
+				float r2sq = sqrtf(r2);
+
+				// calculate orthonormal coordinates u, v, w, at hitpt
+				Vector3Df w = normal;
+				Vector3Df u = normalize(cross( (fabs(w.x) > 0.1f ?
+							Vector3Df(0.f, 1.f, 0.f) :
+							Vector3Df(1.f, 0.f, 0.f)), w));
+				Vector3Df v = cross(w, u);
+
+				// Random point on unit hemisphere @ hit_point and centered at normal
+				nextDir = normalize(u * cosf(r1) * r2sq + v * sinf(r1) * r2sq + w * sqrtf(1.f - r2));
+				// Division by 1/2 for this PDF weighted by cosine
+				mask *= hitTriPtr->_colorDiffuse * dot(nextDir, normal) * 2.f;
+				// Shift hitpoint outward by an epsilon
+				hitPt += normal * EPSILON;
+			}
+			ray = Ray(hitPt, nextDir);
+		}
+//		return color;
 		// Calculate indirect lighting
 		// TODO: getNormal should just take u,v
 //		float r1 = 2 * M_PI * uniformRandom();
