@@ -9,7 +9,7 @@ using namespace std;
 using namespace geom;
 
 void averageSamplesAndGammaCorrect(Vector3Df* img, int width, int height, int samples);
-Vector3Df radiance(Scene& scene, const Ray& ray);
+Vector3Df radiance(Scene& scene, const Ray& ray, bool useBVH);
 
 bool hitsBox(const Ray& ray, BVHNode* bbox) {
 	float t0 = -FLT_MAX, t1 = FLT_MAX;
@@ -88,7 +88,7 @@ bool recursiveIntersectBVH(BVHNode* bvh,
 }
 
 
-Vector3Df* sequentialRenderWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool &useTexMemory, int argc, char** argv) {
+Vector3Df* Sequential::pathtraceWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool useBVH) {
 
 	Vector3Df* img = new Vector3Df[width*height];
 	srand(0);
@@ -102,11 +102,7 @@ Vector3Df* sequentialRenderWrapper(Scene& scene, int width, int height, int samp
 			int idx = width*i + j;
 			for (int s = 0; s < samples; s++) {
 				Ray ray = camera->computeSequentialCameraRay(j, i);
-				img[idx] += radiance(scene, ray);
-//				if(recursiveIntersectBVH(bboxPtr, ray, &hitData)) {
-//					img[idx] += hitData.hitTriPtr->_colorDiffuse;
-
-//				}
+				img[idx] += radiance(scene, ray, useBVH);
 			}
 		}
 	}
@@ -114,7 +110,7 @@ Vector3Df* sequentialRenderWrapper(Scene& scene, int width, int height, int samp
 	return img;
 }
 
-Vector3Df radiance(Scene& scene, const Ray& ray) {
+Vector3Df radiance(Scene& scene, const Ray& ray, bool useBVH) {
 	Vector3Df color(0.0f, 0.0f, 0.0f);
 	Vector3Df hitPt, normal;
 	RayHit hitData, lightHitData;
@@ -146,6 +142,5 @@ void averageSamplesAndGammaCorrect(Vector3Df* img, int width, int height, int sa
 			img[idx].z = powf(fminf(pixel.z, 1.0f), invGamma);
 		}
 	}
-
 
 }

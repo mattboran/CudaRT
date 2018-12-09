@@ -23,8 +23,7 @@ int main(int argc, char* argv[]) {
 	int width = 480;
 	int height = 320;
 	string objPath = "../meshes/cornell.obj";
-	bool multipleObjs = false;
-	bool useTextureMemory = false;
+	bool useBVH = false;
 	bool useSequential = false;
 	int numStreams = 1;
 
@@ -39,6 +38,7 @@ int main(int argc, char* argv[]) {
 				"-w \t<width>\tdefault:480px\n" \
 				"-h \t<height>\tdefault:320px\n" \
 				"-f \t<path to .obj to render>\tdefault:./meshes/cornell.obj\n" \
+				"-b \t<flag to use bounding volume heirarchy (GPU only)>\tdefault: false" \
 				"--cpu \t<flag to run sequential code on CPU only>\tdefault: false>\n" \
 				;
 		return(1);
@@ -66,9 +66,11 @@ int main(int argc, char* argv[]) {
 	if ((find(args.begin(), args.end(), "-w") < args.end() - 1)) {
 		try {
 			width = stoi(*(find(args.begin(), args.end(), "-w") + 1));
-			if (width % (blockWidth * blockWidth) != 0) {
-				cout << "Width should be a multiple of " << blockWidth \
-						<< ". You may see something weird happen because of this!" << endl;
+			if (!useSequential) {
+				if (width % (Parallel::blockWidth * Parallel::blockWidth) != 0) {
+					cout << "Width should be a multiple of " << Parallel::blockWidth \
+							<< ". You may see something weird happen because of this!" << endl;
+				}
 			}
 		} catch (invalid_argument& e) {
 			cerr << "Invalid argument to -w!" << endl;
@@ -79,13 +81,20 @@ int main(int argc, char* argv[]) {
 	if ((find(args.begin(), args.end(), "-h") < args.end() - 1)) {
 		try {
 			height = stoi(*(find(args.begin(), args.end(), "-h") + 1));
-			if (height % (blockWidth * blockWidth) != 0) {
-				cout << "Height should be a multiple of " << blockWidth \
-						<< ". You may see something weird happen because of this!" << endl;
+			if (!useSequential){
+				if (height % (Parallel::blockWidth * Parallel::blockWidth) != 0) {
+					cout << "Height should be a multiple of " << Parallel::blockWidth \
+							<< ". You may see something weird happen because of this!" << endl;
+				}
 			}
 		} catch (invalid_argument& e) {
 			cerr << "Invalid argument to -h!" << endl;
 		}
+	}
+
+	// UseBVH Flag
+	if ((find(args.begin(), args.end(), "-b") < args.end())) {
+		useBVH = true;
 	}
 
 	// Sequential flag
@@ -96,7 +105,6 @@ int main(int argc, char* argv[]) {
 	// .obj path
 	if ((find(args.begin(), args.end(), "-f") < args.end() - 1)) {
 		objPath = *(find(args.begin(), args.end(), "-f") + 1);
-		multipleObjs = false;
 	}
 
 	cout << "Samples: " << samples << endl \
@@ -134,10 +142,10 @@ int main(int argc, char* argv[]) {
 
 	Vector3Df* imgData;
 	if (useSequential) {
-		imgData = sequentialRenderWrapper(scene, width, height, samples, numStreams, useTextureMemory, argc, argv);
+		imgData = Sequential::pathtraceWrapper(scene, width, height, samples, numStreams, useBVH);
 	}
 	else {
-		imgData = pathtraceWrapper(scene, width, height, samples, numStreams, useTextureMemory);
+		imgData = Parallel::pathtraceWrapper(scene, width, height, samples, numStreams, useBVH);
 	}
 
 	saveImageToPng(outFile, width, height, imgData);

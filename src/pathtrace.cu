@@ -8,7 +8,6 @@
  ============================================================================
  */
 #include "camera.cuh"
-#include "cuda_textures.cuh"
 #include "pathtrace.h"
 
 #include <cuda.h>
@@ -22,11 +21,16 @@
 
 using namespace geom;
 using namespace std;
+using namespace Parallel;
 
+__global__ void setupCurandKernel(curandState *randState, int streamOffset);
+__global__ void renderKernel(TrianglesData* d_tris, Camera* d_camPtr, Vector3Df* d_imgPtr, LightsData* d_lights, SettingsData* d_settings, curandState *randState, int streamId);
+__global__ void averageSamplesAndGammaCorrectKernel(Vector3Df* d_streamImgDataPtr, Vector3Df* d_imgPtr, SettingsData* d_settings);
+__device__ bool rayIntersectsBox(const geom::Ray& ray, CacheFriendlyBVHNode *bvhNode);
+__device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh, geom::Triangle* d_triPtr, unsigned* d_triIndexPtr, geom::RayHit& hitData, const geom::Ray& ray);
+__device__ float intersectTriangles(geom::Triangle* d_triPtr, int numTriangles, geom::RayHit& hitData, const geom::Ray& ray);
 
-texture_t triangleTexture;
-
-Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool &useTexMemory) {
+Vector3Df* Parallel::pathtraceWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool useBVH) {
 	int pixels = width * height;
 	unsigned numTris = scene.getNumTriangles();
 	unsigned numBVHNodes = scene.getNumBVHNodes();
@@ -49,7 +53,6 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 
 	// CacheFriendlyBVHNodes -> d_bvh
 	CacheFriendlyBVHNode* h_bvh = scene.getSceneCFBVHPtr();
-//	std::copy(scene.cfBVHNodeVector.begin(), scene.cfBVHNodeVector.end(), h_bvh);
 	CacheFriendlyBVHNode* d_bvh = NULL;
 	CUDA_CHECK_RETURN(cudaMalloc((void** )&d_bvh, bvhBytes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void* )d_bvh, (void* )h_bvh, bvhBytes, cudaMemcpyHostToDevice));
@@ -63,20 +66,6 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	TrianglesData* d_tris = NULL;
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_tris, sizeof(TrianglesData) + triangleBytes + bvhBytes + sizeof(unsigned) * numBVHNodes));
 	CUDA_CHECK_RETURN(cudaMemcpy((void*)d_tris, (void*)h_tris, sizeof(TrianglesData) + triangleBytes, cudaMemcpyHostToDevice));
-
-	// Bind triangles to texture memory -- texture memory doesn't quite work
-	cudaArray* d_triDataArray = NULL;
-	if (useTexMemory && numTris > TEX_ARRAY_MAX) {
-		std::cout << "Not using texture memory because we cannot fit "
-				<< numTris << " triangles in 1D cudaArray" << std::endl;
-		useTexMemory = false;
-	}
-	if (useTexMemory) {
-		std::cout << "Using texture memory!" << std::endl;
-		configureTexture(triangleTexture);
-		d_triDataArray = bindTrianglesToTexture(h_triPtr, numTris,
-				triangleTexture);
-	}
 
 	// Lights -> d_lights
 	Triangle* lightsPtr = scene.getLightsPtr();
@@ -104,8 +93,8 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	h_settings.width = width;
 	h_settings.height = height;
 	h_settings.samples = samples;
-	h_settings.useTexMem = useTexMemory;
 	h_settings.numStreams = numStreams;
+	h_settings.useBVH = useBVH;
 	SettingsData* d_settings;
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_settings, sizeof(SettingsData)));
 	CUDA_CHECK_RETURN(cudaMemcpy((void*)d_settings, &h_settings, sizeof(SettingsData), cudaMemcpyHostToDevice));
@@ -170,8 +159,6 @@ Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, in
 	cudaFree((void*) d_curandState);
 	cudaFree((void*) d_imgDataPtr);
 	cudaFree((void*) d_streamImgDataPtr);
-	if (useTexMemory)
-		cudaFreeArray(d_triDataArray);
 	return imgDataPtr;
 }
 
@@ -188,6 +175,7 @@ __global__ void renderKernel(TrianglesData* d_tris,
 	i = blockIdx.x * blockDim.x + threadIdx.x;
 	j = blockIdx.y * blockDim.y + threadIdx.y;
 
+	bool useBVH = d_settings->useBVH;
 	Ray ray = d_camPtr->computeCameraRay(i, j, &randState[idx]);
 	RayHit hitData, lightHitData;
 	Triangle* hitTriPtr;
@@ -196,7 +184,12 @@ __global__ void renderKernel(TrianglesData* d_tris,
 
 	// First see if the camera ray hits anything. If not, return black.
 	// float t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray, d_settings->useTexMem);
-	float t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->bvhIndexPtr, hitData, ray, d_settings->useTexMem);
+	float t;
+	if (useBVH) {
+		t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->bvhIndexPtr, hitData, ray);
+	} else {
+		t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray);
+	}
 	if (t < FLT_MAX) {
 		hitPt = ray.pointAlong(t);
 		hitTriPtr = hitData.hitTriPtr;
@@ -223,7 +216,11 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		Vector3Df lightRayDir = normalize(selectedLight.getRandomPointOn(&randState[idx]) - hitPt);
 
 		Ray lightRay(hitPt + normal * EPSILON, lightRayDir);
-		t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->bvhIndexPtr, lightHitData, lightRay, d_settings->useTexMem);
+		if (useBVH) {
+			t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->bvhIndexPtr, lightHitData, lightRay);
+		} else {
+			t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, lightHitData, lightRay);
+		}
 		if (t < FLT_MAX){
 			// See if we've hit the light we tested for
 			Triangle* lightRayHitPtr = lightHitData.hitTriPtr;
@@ -237,7 +234,11 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		}
 
 		// Now compute indirect lighting
-		t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->bvhIndexPtr, hitData, ray, d_settings->useTexMem);
+		if (useBVH) {
+				t = intersectBVH(d_tris->bvhPtr, d_tris->triPtr, d_tris->bvhIndexPtr, hitData, ray);
+			} else {
+				t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray);
+			}
 		if (t < FLT_MAX) {
 
 			Vector3Df hitPt = ray.pointAlong(t);
@@ -296,19 +297,13 @@ __global__ void setupCurandKernel(curandState *randState, int streamOffset) {
 __device__ float intersectTriangles(Triangle* d_triPtr,
 									int numTriangles,
 									RayHit& hitData,
-									const Ray& ray,
-									bool useTexMemory) {
+									const Ray& ray) {
 	float t = FLT_MAX, tprime = FLT_MAX;
 	float u, v;
 
 	for (unsigned i = 0; i < numTriangles; i++) {
 		Triangle tri;
-		if (useTexMemory) {
-			tri = getTriangleFromTexture(i);
-			tprime = tri.intersect(ray, u, v);
-		} else {
-			tprime = d_triPtr[i].intersect(ray, u, v);
-		}
+		tprime = d_triPtr[i].intersect(ray, u, v);
 		if (tprime < t && tprime > 0.f) {
 			t = tprime;
 			hitData.hitTriPtr = &d_triPtr[i];
@@ -344,8 +339,7 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 							  Triangle* d_triPtr,
 							  unsigned* d_bvhIndexPtr,
 							  RayHit& hitData,
-							  const Ray& ray,
-							  bool useTexMemory) {
+							  const Ray& ray) {
 	int stack[BVH_STACK_SIZE];
 	int stackIdx = 0;
 	stack[stackIdx++] = 0;

@@ -3,6 +3,7 @@
 #include "pathtrace.h"
 struct BBox;
 
-Vector3Df* sequentialRenderWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool &useTexMemory, int argc, char** argv);
-void testRender(BBox* bboxPtr, Camera* camPtr, Vector3Df* imgPtr, int width, int height);
+namespace Sequential {
+	Vector3Df* pathtraceWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool useBVH);
+}
 #endif
