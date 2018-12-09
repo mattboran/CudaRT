@@ -8,8 +8,12 @@
 using namespace std;
 using namespace geom;
 
+bool intersectTriangles(Triangle* triPtr, int numTriangles, const Ray& ray, RayHit *hitData);
 void averageSamplesAndGammaCorrect(Vector3Df* img, int width, int height, int samples);
-Vector3Df radiance(Scene& scene, const Ray& ray, bool useBVH);
+Vector3Df radiance(Scene& scene, const Ray& ray, bool useBVH, int depth);
+bool intersectBVH(BVHNode* bvh, const Ray& ray, RayHit *hitData);
+Vector3Df getRandomPointOn(Triangle* tri);
+float uniformRandom();
 
 bool hitsBox(const Ray& ray, BVHNode* bbox) {
 	float t0 = -FLT_MAX, t1 = FLT_MAX;
@@ -54,7 +58,7 @@ bool hitsBox(const Ray& ray, BVHNode* bbox) {
 	return true;
 }
 
-bool recursiveIntersectBVH(BVHNode* bvh,
+bool intersectBVH(BVHNode* bvh,
 				  const Ray& ray,
 				  RayHit *hitData) {
 	float t = FLT_MAX;
@@ -62,8 +66,8 @@ bool recursiveIntersectBVH(BVHNode* bvh,
 	if (!(bvh->IsLeaf())) {   // INNER NODE
 		if (hitsBox(ray, bvh)) {
 			BVHInner *p = dynamic_cast<BVHInner*>(bvh);
-			return (recursiveIntersectBVH(p->_right, ray, hitData)
-				 || recursiveIntersectBVH(p->_left, ray, hitData));
+			return (intersectBVH(p->_right, ray, hitData)
+				 || intersectBVH(p->_left, ray, hitData));
 		}
 	}
 	else { // LEAF NODE
@@ -76,7 +80,7 @@ bool recursiveIntersectBVH(BVHNode* bvh,
 			tprime = triangle.intersect(ray, u, v);
 			if (tprime < t && tprime > 0.f) {
 				t = tprime;
-				hitData->hitTriPtr = &triangle;
+				hitData->pHitTriangle = &triangle;
 				hitData->u = u;
 				hitData->v = v;
 				hitData->t = t;
@@ -87,6 +91,25 @@ bool recursiveIntersectBVH(BVHNode* bvh,
 	return false;
 }
 
+// TODO: This should be a function in geometry.cu
+bool intersectTriangles(Triangle* triPtr, int numTriangles, const Ray& ray, RayHit *hitData) {
+	float u, v;
+	float t = FLT_MAX, tprime = FLT_MAX;
+	Triangle* pTriangle = triPtr;
+	for (int i = 0; i < numTriangles; i++){
+		tprime = pTriangle->intersect(ray, u, v);
+		if (tprime < t && tprime > 0.f) {
+			t = tprime;
+			hitData->pHitTriangle = pTriangle;
+			hitData->u = u;
+			hitData->v = v;
+			hitData->t = t;
+		}
+		pTriangle++;
+	}
+	return t < FLT_MAX;
+}
+
 
 Vector3Df* Sequential::pathtraceWrapper(Scene& scene, int width, int height, int samples, int numStreams, bool useBVH) {
 
@@ -94,15 +117,13 @@ Vector3Df* Sequential::pathtraceWrapper(Scene& scene, int width, int height, int
 	srand(0);
 	Camera* camera = scene.getCameraPtr();
 	BVHNode* bboxPtr = scene.getSceneBVHPtr();
-	Triangle* triangles = scene.getTriPtr();
-	Triangle* lights = scene.getLightsPtr();
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < width; j++){
 			RayHit hitData;
 			int idx = width*i + j;
 			for (int s = 0; s < samples; s++) {
 				Ray ray = camera->computeSequentialCameraRay(j, i);
-				img[idx] += radiance(scene, ray, useBVH);
+				img[idx] += radiance(scene, ray, useBVH, 0);
 			}
 		}
 	}
@@ -110,20 +131,75 @@ Vector3Df* Sequential::pathtraceWrapper(Scene& scene, int width, int height, int
 	return img;
 }
 
-Vector3Df radiance(Scene& scene, const Ray& ray, bool useBVH) {
+Vector3Df radiance(Scene& scene, const Ray& ray, bool useBVH, int depth) {
 	Vector3Df color(0.0f, 0.0f, 0.0f);
-	Vector3Df hitPt, normal;
+	if (depth >= 5) {
+		return color;
+	}
+
+	Vector3Df hitPt, normal, nextDir;
 	RayHit hitData, lightHitData;
-	Triangle* hitTriPtr;
-	if(recursiveIntersectBVH(scene.getSceneBVHPtr(), ray, &hitData)) {
-		hitTriPtr = hitData.hitTriPtr;
+	Triangle* pHitTriangle;
+	Triangle* pTriangles = scene.getTriPtr();
+	unsigned numTriangles = scene.getNumTriangles();
+	BVHNode* pBvh = scene.getSceneBVHPtr();
+
+	bool intersection = false;
+	if (useBVH) {
+		intersection = intersectBVH(pBvh, ray, &hitData);
+	} else {
+		intersection = intersectTriangles(pTriangles, numTriangles, ray, &hitData);
+	}
+	if(intersection) {
+		pHitTriangle = hitData.pHitTriangle;
+		if (pHitTriangle->isEmissive()) {
+			return pHitTriangle->_colorEmit;
+		}
+
 		hitPt = hitData.t;
-		color += hitTriPtr->_colorDiffuse;
+		normal = pHitTriangle->getNormal(hitData);
+		color += pHitTriangle->_colorEmit;
+
+//		// Calculate direct lighting for diffuse bounces
+		int selectedLightIndex = rand() % scene.getNumLights();
+		Triangle* selectedLight = &scene.getLightsPtr()[selectedLightIndex];
+		Vector3Df lightRayDir = normalize(getRandomPointOn(selectedLight) - hitPt);
+
+		intersection = false;
+		Ray lightRay(hitPt + normal * EPSILON, lightRayDir);
+		if (useBVH) {
+			intersection = intersectBVH(pBvh, lightRay, &lightHitData);
+		} else {
+			intersection = intersectTriangles(pTriangles, numTriangles, lightRay, &lightHitData);
+		}
+		if (intersection){
+			// See if we've hit the light we tested for
+			Triangle* pLightHitTri = lightHitData.pHitTriangle;
+			if (pLightHitTri->_triId == selectedLight->_triId) {
+				float t = lightHitData.t;
+				float surfaceArea = selectedLight->_surfaceArea;
+				float distanceSquared = t*t; // scale by factor of 10
+				float incidenceAngle = fabs(dot(selectedLight->getNormal(lightHitData), -lightRayDir));
+				float weightFactor = surfaceArea/distanceSquared * incidenceAngle;
+				color += selectedLight->_colorEmit * hitData.pHitTriangle->_colorDiffuse * weightFactor;
+			}
+		} else {
+			return color + hitData.pHitTriangle->_colorDiffuse;
+		}
+		return color;
+		// Calculate indirect lighting
 		// TODO: getNormal should just take u,v
-//		normal = hitTriPtr->getNormal(hitData);
-//		if (hitTriPtr->isEmissive()) {
-//			color += hitTriPtr->_colorEmit;
-//		}
+//		float r1 = 2 * M_PI * uniformRandom();
+//		float r2 = uniformRandom();
+//		float r2sq = sqrtf(r2);
+//		Vector3Df w = normal;
+//		Vector3Df u = normalize(cross( (fabs(w.x) > 0.1f ?
+//					Vector3Df(0.f, 1.f, 0.f) :
+//					Vector3Df(1.f, 0.f, 0.f)), w));
+//		Vector3Df v = cross(w, u);
+//		nextDir = normalize(u * cosf(r1) * r2sq + v * sinf(r1) * r2sq + w * sqrtf(1.f - r2));
+//		hitPt += normal * EPSILON;
+//		return color + radiance(scene, Ray(hitPt, nextDir), useBVH, depth+1) * (pHitTriangle->_colorDiffuse * dot(nextDir, normal) * 2.f);
 	}
 	return color;
 }
@@ -142,5 +218,18 @@ void averageSamplesAndGammaCorrect(Vector3Df* img, int width, int height, int sa
 			img[idx].z = powf(fminf(pixel.z, 1.0f), invGamma);
 		}
 	}
+}
 
+Vector3Df getRandomPointOn(Triangle* tri){
+	float u = uniformRandom();
+	float v = uniformRandom();
+	if (u + v >= 1.0f) {
+		u = 1.0f - u;
+		v = 1.0f - v;
+	}
+	return Vector3Df(tri->_v1 + tri->_e1 * u + tri->_e2 * v);
+}
+
+float uniformRandom() {
+	return (float) rand() / (RAND_MAX + 1.f);
 }

@@ -56,7 +56,7 @@ __device__ float Triangle::intersect(const Ray& r, float &_u, float &_v) const {
 	return FLT_MAX;
 }
 
-__device__ Vector3Df Triangle::getNormal(const RayHit& rh) const {
+__host__ __device__ Vector3Df Triangle::getNormal(const RayHit& rh) const {
 	// Face normal:  Vector3Df(normalize(_n1 + _n2 + _n3));
 	float w = 1 - rh.u - rh.v;
 	float u = rh.u;

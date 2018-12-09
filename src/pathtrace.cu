@@ -178,7 +178,7 @@ __global__ void renderKernel(TrianglesData* d_tris,
 	bool useBVH = d_settings->useBVH;
 	Ray ray = d_camPtr->computeCameraRay(i, j, &randState[idx]);
 	RayHit hitData, lightHitData;
-	Triangle* hitTriPtr;
+	Triangle* pHitTriangle;
 	Vector3Df hitPt, nextDir, normal, colorAtPixel;
 	Vector3Df mask(1.0f, 1.0f, 1.0f);
 
@@ -192,11 +192,11 @@ __global__ void renderKernel(TrianglesData* d_tris,
 	}
 	if (t < FLT_MAX) {
 		hitPt = ray.pointAlong(t);
-		hitTriPtr = hitData.hitTriPtr;
-		normal = hitTriPtr->getNormal(hitData);
+		pHitTriangle = hitData.pHitTriangle;
+		normal = pHitTriangle->getNormal(hitData);
 		// if we hit a light directly, add its contribution here so as not to double dip in the BSDF calculations below
-		if (hitTriPtr->isEmissive()) {
-			d_imgPtr[j * d_settings->width + i] += hitTriPtr->_colorEmit;
+		if (pHitTriangle->isEmissive()) {
+			d_imgPtr[j * d_settings->width + i] += pHitTriangle->_colorEmit;
 			return;
 		}
 	} else {
@@ -223,13 +223,13 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		}
 		if (t < FLT_MAX){
 			// See if we've hit the light we tested for
-			Triangle* lightRayHitPtr = lightHitData.hitTriPtr;
-			if (lightRayHitPtr->_triId == selectedLight._triId) {
+			Triangle* pLightHitTri = lightHitData.pHitTriangle;
+			if (pLightHitTri->_triId == selectedLight._triId) {
 				float surfaceArea = selectedLight._surfaceArea;
 				float distanceSquared = t*t; // scale by factor of 10
 				float incidenceAngle = fabs(dot(selectedLight.getNormal(lightHitData), -lightRayDir));
 				float weightFactor = surfaceArea/distanceSquared * incidenceAngle;
-				colorAtPixel += mask * selectedLight._colorEmit * hitData.hitTriPtr->_colorDiffuse * weightFactor;
+				colorAtPixel += mask * selectedLight._colorEmit * hitData.pHitTriangle->_colorDiffuse * weightFactor;
 			}
 		}
 
@@ -242,7 +242,7 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		if (t < FLT_MAX) {
 
 			Vector3Df hitPt = ray.pointAlong(t);
-			Triangle* hitTriPtr = hitData.hitTriPtr;
+			Triangle* hitTriPtr = hitData.pHitTriangle;
 			Vector3Df normal = hitTriPtr->getNormal(hitData);
 
 			if (hitTriPtr->isDiffuse()) {
@@ -306,7 +306,7 @@ __device__ float intersectTriangles(Triangle* d_triPtr,
 		tprime = d_triPtr[i].intersect(ray, u, v);
 		if (tprime < t && tprime > 0.f) {
 			t = tprime;
-			hitData.hitTriPtr = &d_triPtr[i];
+			hitData.pHitTriangle = &d_triPtr[i];
 			hitData.u = u;
 			hitData.v = v;
 		}
@@ -326,7 +326,7 @@ __device__ float intersectBVHTriangles(Triangle* d_triPtr,
 		tprime = d_triPtr[i + offset].intersect(ray, u, v);
 		if (tprime < t && tprime > 0.f) {
 			t = tprime;
-			hitData.hitTriPtr = &d_triPtr[i + offset];
+			hitData.pHitTriangle = &d_triPtr[i + offset];
 			hitData.u = u;
 			hitData.v = v;
 		}
@@ -373,7 +373,7 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 					t = tprime;
 					hitData.u = u;
 					hitData.v = v;
-					hitData.hitTriPtr = &d_triPtr[i + offset];
+					hitData.pHitTriangle = &d_triPtr[i + offset];
 				}
 			}
 		}
