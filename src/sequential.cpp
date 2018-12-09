@@ -63,14 +63,7 @@ bool intersectBVH(BVHNode* bvh,
 				  RayHit *hitData) {
 	float t = FLT_MAX;
 	float tprime = FLT_MAX;
-	if (!(bvh->IsLeaf())) {   // INNER NODE
-		if (hitsBox(ray, bvh)) {
-			BVHInner *p = dynamic_cast<BVHInner*>(bvh);
-			return (intersectBVH(p->_right, ray, hitData)
-				 || intersectBVH(p->_left, ray, hitData));
-		}
-	}
-	else { // LEAF NODE
+	if ((bvh->IsLeaf())) {   // LEAF NODE
 		BVHLeaf *p = dynamic_cast<BVHLeaf*>(bvh);
 		float u, v;
 		t = FLT_MAX;
@@ -86,10 +79,58 @@ bool intersectBVH(BVHNode* bvh,
 				hitData->t = t;
 			}
 		}
-		return t < FLT_MAX;
+//		return t < FLT_MAX;
 	}
-	return false;
+	else { // INNER NODE
+		if (hitsBox(ray, bvh)) {
+			BVHInner *p = dynamic_cast<BVHInner*>(bvh);
+			return (intersectBVH(p->_right, ray, hitData) ||
+					intersectBVH(p->_left, ray, hitData));
+		}
+	}
+	return t < FLT_MAX;
 }
+//bool intersectBVH(BVHNode* bvh,
+//				  const Ray& ray,
+//				  RayHit *hitData) {
+//	vector<BVHNode*> stack;
+//	float t = FLT_MAX;
+//	float tprime = FLT_MAX;
+//	while (stack.size()) {
+//		BVHNode* pCurrent = stack.back();
+//		stack.pop_back();
+//
+//		if (!(bvh->IsLeaf())) {
+//			if (hitsBox(ray, bvh)) {
+//				BVHInner *p = dynamic_cast<BVHInner*>(pCurrent);
+//				stack.push_back(p->_right);
+//				stack.push_back(p->_left);
+//			}
+//		}
+//		else {
+//			BVHLeaf *p = dynamic_cast<BVHLeaf*>(pCurrent);
+//			float u, v;
+//			t = FLT_MAX;
+//			tprime = FLT_MAX;
+//			for (auto tri: p->_triangles) {
+//				Triangle triangle = *tri;
+//				tprime = triangle.intersect(ray, u, v);
+//				if (tprime < t && tprime > 0.f) {
+//					t = tprime;
+//					hitData->pHitTriangle = &triangle;
+//					hitData->u = u;
+//					hitData->v = v;
+//					hitData->t = t;
+//				}
+//			}
+////			return t < FLT_MAX;
+//		}
+//	}
+//	return t < FLT_MAX;
+//}
+
+
+
 
 // TODO: This should be a function in geometry.cu
 bool intersectTriangles(Triangle* triPtr, int numTriangles, const Ray& ray, RayHit *hitData) {
@@ -167,6 +208,7 @@ Vector3Df radiance(Scene& scene, Ray& ray, bool useBVH) {
 		Vector3Df lightRayDir = normalize(getRandomPointOn(selectedLight) - hitPt);
 
 		intersection = false;
+		pBvh = scene.getSceneBVHPtr();
 		Ray lightRay(hitPt + normal * EPSILON, lightRayDir);
 		if (useBVH) {
 			intersection = intersectBVH(pBvh, lightRay, &lightHitData);
@@ -185,6 +227,8 @@ Vector3Df radiance(Scene& scene, Ray& ray, bool useBVH) {
 				color += mask * selectedLight->_colorEmit * hitData.pHitTriangle->_colorDiffuse * weightFactor;
 			}
 		}
+
+		pBvh = scene.getSceneBVHPtr();
 
 		// Now compute indirect lighting
 		if (useBVH) {
@@ -218,20 +262,6 @@ Vector3Df radiance(Scene& scene, Ray& ray, bool useBVH) {
 			}
 			ray = Ray(hitPt, nextDir);
 		}
-//		return color;
-		// Calculate indirect lighting
-		// TODO: getNormal should just take u,v
-//		float r1 = 2 * M_PI * uniformRandom();
-//		float r2 = uniformRandom();
-//		float r2sq = sqrtf(r2);
-//		Vector3Df w = normal;
-//		Vector3Df u = normalize(cross( (fabs(w.x) > 0.1f ?
-//					Vector3Df(0.f, 1.f, 0.f) :
-//					Vector3Df(1.f, 0.f, 0.f)), w));
-//		Vector3Df v = cross(w, u);
-//		nextDir = normalize(u * cosf(r1) * r2sq + v * sinf(r1) * r2sq + w * sqrtf(1.f - r2));
-//		hitPt += normal * EPSILON;
-//		return color + radiance(scene, Ray(hitPt, nextDir), useBVH, depth+1) * (pHitTriangle->_colorDiffuse * dot(nextDir, normal) * 2.f);
 	}
 	return color;
 }

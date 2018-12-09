@@ -38,8 +38,9 @@ int main(int argc, char* argv[]) {
 				"-w \t<width>\tdefault:480px\n" \
 				"-h \t<height>\tdefault:320px\n" \
 				"-f \t<path to .obj to render>\tdefault:./meshes/cornell.obj\n" \
-				"-b \t<flag to use bounding volume heirarchy (GPU only)>\tdefault: false" \
+				"-b \t<flag to use bounding volume heirarchy (GPU only)>\tdefault: false\n" \
 				"--cpu \t<flag to run sequential code on CPU only>\tdefault: false>\n" \
+				"Note: BVH has bugs in both CUDA and CPU version. CPU version is worse.\n"\
 				;
 		return(1);
 	}
