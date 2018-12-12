@@ -53,6 +53,8 @@ Optional Parameters:
 
 `-h <height (pixels) of output>`
 
+`--cpu`:			flag to use sequential CPU version instead of parallel GPU version
+
 Note that the time complexity of this renderer is O(T\*S\*W\*H) without Bounding Volume
 Heirarchy, and O(log(T)\*S\*W\*H) using Bounding Volume Heirarchy, where
 
