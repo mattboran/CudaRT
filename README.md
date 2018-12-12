@@ -37,7 +37,7 @@ Optional Parameters:
 				
 				'../meshes/cornellDonut.obj' - 836 triangles
 				
-				'../meshes/monkeyBox.obj' - 3612 triangles
+				'../meshes/monkeyBox.obj' - 3972 triangles
 				
 				'../meshes/dragonBox.obj' - 100012 triangles
 				
