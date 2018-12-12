@@ -30,7 +30,6 @@ Required Parameter:
 
 Optional Parameters:
 `-f <path to mesh to render>` : the .obj file that will be loaded and rendered
-
 				note: the available files are in CudaRT/meshes/
 				so this path should take the form '../meshes/<file>`
 				
@@ -43,14 +42,12 @@ Optional Parameters:
 				'../meshes/dragonBox.obj' - 100012 triangles
 				
 `-b`:  	 			this flag tells the engine whether or not to use 
-
 				the bounding volume heirarchy acceleration structure
-				
 				during ray-scene traversal
 				
 `-s <samples per pixel>`:	number of samples per pixel. Default = 10. 
 				reccommendation is to use at least 128, but
-				1024 generates a fairly variance/noise-free image
+				512 generates a fairly variance/noise-free image
 
 `-w <width (pixels) of output>`
 
