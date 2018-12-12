@@ -19,11 +19,11 @@ then
 
 `make all`
 
-To run this program, the following pattern should be used
-`.../CudaRT/Release: $ ./CudaRT <parameters>`
+To run this program, the following pattern should be used while still in the `CudaRT/Release` directory
+`./CudaRT <parameters>`
 
 To see the parameters that this program accepts, simply run 
-`.../CudaRT/Release: $ ./CudaRT`
+`./CudaRT`
 
 Required Parameter:
 `-o <output file.png>`: the PNG file that the output should be written to
