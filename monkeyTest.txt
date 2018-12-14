@@ -1,0 +1,79 @@
+NO BVH
+CPU 8 samples
+Total time from start to output to t.png:               2796.66 seconds                                                                                         GPU 8 samples
+Total time from start to output to t.png:               92.17 seconds
+CPU 16 samples
+Total time from start to output to t.png:               5632.19 seconds
+GPU 16 samples
+Total time from start to output to t.png:               181.74 seconds
+CPU 32 samples
+Total time from start to output to t.png:               11296.1 seconds
+GPU 32 samples
+Total time from start to output to t.png:               182.12 seconds
+CPU 64 samples
+Total time from start to output to t.png:               22095.8 seconds
+GPU 64 samples
+Total time from start to output to t.png:               721.16 seconds
+CPU 128 samples
+Total time from start to output to t.png:               43383.4 seconds
+GPU 128 samples
+Total time from start to output to t.png:               1437.47 seconds
+With BVH
+CPU 8 samples
+Total time from start to output to t.png:               19.97 seconds
+GPU 8 samples
+Total time from start to output to t.png:               4.96 seconds
+CPU 16 samples
+Total time from start to output to t.png:               39.25 seconds
+GPU 16 samples
+Total time from start to output to t.png:               6.87 seconds
+CPU 32 samples
+Total time from start to output to t.png:                78.05 seconds
+GPU 32 samples
+Total time from start to output to t.png:               6.89 seconds
+CPU 64 samples
+Total time from start to output to t.png:               154.93 seconds
+GPU 64 samples
+Total time from start to output to t.png:               18.32 seconds
+CPU 128 samples
+Total time from start to output to t.png:               313.1 seconds
+GPU 128 samples
+Total time from start to output to t.png:               33.76 seconds
+GPU BVH 320x240, 64 spp
+Total time from start to output to t.png:               1.85 seconds
+CPU BVH 320x240, 64 spp
+Total time from start to output to t.png:               15.39 seconds
+GPU BVH 480x320, 64 spp
+Total time from start to output to t.png:               3.06 seconds
+CPU BVH 480x320, 64 spp
+Total time from start to output to t.png:               27.54 seconds
+GPU BVH 640x480, 64 spp
+Total time from start to output to t.png:               6.65 seconds
+CPU BVH 640x480, 64 spp
+Total time from start to output to t.png:               61.41 seconds
+GPU BVH 1200x720, 64 spp
+Total time from start to output to t.png:               16.92 seconds
+CPU BVH 1200x720, 64 spp
+Total time from start to output to t.png:               138.73 seconds
+GPU BVH 1920x1080, 64 spp
+Total time from start to output to t.png:               39.77 seconds
+CPU BVH 1920x1080, 64 spp
+Total time from start to output to t.png:               313.27 seconds
+
+-----REDONE TESTS:
+[tmb341@cuda1 Release]$ ./CudaRT -o t.png -w 1024 -h 768 -s 32 | grep time;
+Total time from start to output to t.png:               6.73 seconds
+[tmb341@cuda1 Release]$ ./CudaRT -o t.png -w 1024 -h 768 -s 32 -b | grep time;
+Total time from start to output to t.png:               7.05 seconds
+[tmb341@cuda1 Release]$ ./CudaRT -o t.png -w 1024 -h 768 -s 32 -b --cpu | grep time;
+Total time from start to output to t.png:               68.1 seconds
+[tmb341@cuda1 Release]$ ./CudaRT -o t.png -w 1024 -h 768 -s 32 --cpu | grep time;
+Total time from start to output to t.png:               97.54 seconds
+[tmb341@cuda1 Release]$ ./CudaRT -o t.png -w 1024 -h 768 -s 32 -f ../meshes/monkeyBox.obj | grep time;
+Total time from start to output to t.png:               405.99 seconds
+[tmb341@cuda1 Release]$ ./CudaRT -o t.png -w 1024 -h 768 -s 32 -f ../meshes/monkeyBox.obj --cpu | grep time;
+Total time from start to output to t.png:               11296.1 seconds
+[tmb341@cuda1 Release]$ ./CudaRT -o t.png -w 1024 -h 768 -s 32 -f ../meshes/monkeyBox.obj --cpu -b | grep time;
+Total time from start to output to t.png:               78.05 seconds
+
+
