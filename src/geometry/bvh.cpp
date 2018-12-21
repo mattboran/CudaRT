@@ -1,5 +1,5 @@
 #include "bvh.h"
-#include "geometry.cuh"
+#include "geometry.h"
 //TODO: Add this to -I
 #include "../pathtrace.h"
 

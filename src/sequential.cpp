@@ -1,4 +1,4 @@
-#include "camera.cuh"
+#include "camera.h"
 #include "sequential.h"
 #include <algorithm>
 #include <cstdlib>
@@ -79,7 +79,6 @@ bool intersectBVH(BVHNode* bvh,
 				hitData->t = t;
 			}
 		}
-//		return t < FLT_MAX;
 	}
 	else { // INNER NODE
 		if (hitsBox(ray, bvh)) {
@@ -90,45 +89,6 @@ bool intersectBVH(BVHNode* bvh,
 	}
 	return t < FLT_MAX;
 }
-//bool intersectBVH(BVHNode* bvh,
-//				  const Ray& ray,
-//				  RayHit *hitData) {
-//	vector<BVHNode*> stack;
-//	float t = FLT_MAX;
-//	float tprime = FLT_MAX;
-//	while (stack.size()) {
-//		BVHNode* pCurrent = stack.back();
-//		stack.pop_back();
-//
-//		if (!(bvh->IsLeaf())) {
-//			if (hitsBox(ray, bvh)) {
-//				BVHInner *p = dynamic_cast<BVHInner*>(pCurrent);
-//				stack.push_back(p->_right);
-//				stack.push_back(p->_left);
-//			}
-//		}
-//		else {
-//			BVHLeaf *p = dynamic_cast<BVHLeaf*>(pCurrent);
-//			float u, v;
-//			t = FLT_MAX;
-//			tprime = FLT_MAX;
-//			for (auto tri: p->_triangles) {
-//				Triangle triangle = *tri;
-//				tprime = triangle.intersect(ray, u, v);
-//				if (tprime < t && tprime > 0.f) {
-//					t = tprime;
-//					hitData->pHitTriangle = &triangle;
-//					hitData->u = u;
-//					hitData->v = v;
-//					hitData->t = t;
-//				}
-//			}
-////			return t < FLT_MAX;
-//		}
-//	}
-//	return t < FLT_MAX;
-//}
-
 
 
 

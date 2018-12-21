@@ -3,8 +3,8 @@
 #define SCENE_H
 
 #include "bvh.h"
-#include "camera.cuh"
-#include "geometry.cuh"
+#include "camera.h"
+#include "geometry.h"
 #include "obj_load.h"
 
 #include <string>

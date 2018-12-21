@@ -1,6 +1,6 @@
 #ifndef CAMERA_H
 #define CAMERA_H
-#include "geometry.cuh"
+#include "geometry.h"
 
 #include <cuda_runtime_api.h>
 #include <curand.h>

@@ -7,7 +7,7 @@
  Description : CUDA raytracer
  ============================================================================
  */
-#include "camera.cuh"
+#include "camera.h"
 #include "pathtrace.h"
 
 #include <cuda.h>

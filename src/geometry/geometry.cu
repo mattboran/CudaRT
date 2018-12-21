@@ -1,4 +1,4 @@
-#include "geometry.cuh"
+#include "geometry.h"
 #include <cfloat>
 #include <math.h>
 
@@ -6,49 +6,50 @@ using namespace geom;
 using std::max;
 using std::min;
 
-extern Vector3Df min3(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c) {
+extern Vector3Df min3(const Vector3Df& a, const Vector3Df& b,
+		const Vector3Df& c) {
 	float x = min(a.x, min(b.x, c.x));
 	float y = min(a.y, min(b.y, c.y));
 	float z = min(a.z, min(b.z, c.z));
-	return Vector3Df(x,y,z);
+	return Vector3Df(x, y, z);
 }
 
-extern Vector3Df max3(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c) {
+extern Vector3Df max3(const Vector3Df& a, const Vector3Df& b,
+		const Vector3Df& c) {
 	float x = max(a.x, max(b.x, c.x));
 	float y = max(a.y, max(b.y, c.y));
 	float z = max(a.z, max(b.z, c.z));
-	return Vector3Df(x,y,z);
+	return Vector3Df(x, y, z);
 }
 
 __host__ __device__ Triangle::Triangle(const Triangle &t) :
-	_v1(t._v1), _e1(t._e1), _e2(t._e2), _n1(t._n1), _n2(t._n2), _n3(t._n3), _colorDiffuse(t._colorDiffuse), _colorSpec(t._colorSpec), _colorEmit(t._colorEmit), _surfaceArea(t._surfaceArea), _triId(t._triId) {}
+		_v1(t._v1), _e1(t._e1), _e2(t._e2), _n1(t._n1), _n2(t._n2), _n3(t._n3), _colorDiffuse(
+				t._colorDiffuse), _colorSpec(t._colorSpec), _colorEmit(
+				t._colorEmit), _surfaceArea(t._surfaceArea), _triId(t._triId) {
+}
 
 __device__ float Triangle::intersect(const Ray& r, float &_u, float &_v) const {
 	Vector3Df P, Q, T;
 	P = cross(r.dir, _e2);
 	float det = dot(_e1, P);
 
-	if(fabsf(det) < EPSILON)
-	{
+	if (fabsf(det) < EPSILON) {
 		return FLT_MAX;
 	}
 	float inv_det = 1.f / det;
 	T = r.origin - _v1;
 	float u = dot(T, P) * inv_det;
-	if ( u < 0.f || u > 1.f)
-	{
+	if (u < 0.f || u > 1.f) {
 		return FLT_MAX;
 	}
 
 	Q = cross(T, _e1);
 	float v = dot(r.dir, Q) * inv_det;
-	if ( v < 0.f || u + v > 1.f)
-	{
+	if (v < 0.f || u + v > 1.f) {
 		return FLT_MAX;
 	}
 	float t = dot(_e2, Q) * inv_det;
-	if ( t > EPSILON)
-	{
+	if (t > EPSILON) {
 		_u = u;
 		_v = v;
 		return t;
@@ -61,7 +62,7 @@ __host__ __device__ Vector3Df Triangle::getNormal(const RayHit& rh) const {
 	float w = 1 - rh.u - rh.v;
 	float u = rh.u;
 	float v = rh.v;
-	return Vector3Df(normalize(_n1 *w + _n2 *u+ _n3*v));
+	return Vector3Df(normalize(_n1 * w + _n2 * u + _n3 * v));
 }
 
 __device__ Vector3Df Triangle::getRandomPointOn(curandState *randState) const {

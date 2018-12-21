@@ -1,4 +1,4 @@
-#include "camera.cuh"
+#include "camera.h"
 #include <cuda.h>
 #include <stdlib.h>
 #include <cuda_runtime_api.h>

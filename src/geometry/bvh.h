@@ -4,7 +4,7 @@
 #include <list>
 #include "linalg.h"
 #include "scene.h"
-#include "geometry.cuh"
+#include "geometry.h"
 
 #define BVH_STACK_SIZE 32
 
