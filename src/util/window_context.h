@@ -12,6 +12,7 @@ public:
 	WindowManager(int width, int height, std::string name);
 private:
 	GLFWwindow* createWindow(int width, int height, std::string name);
+	void initWindow();
 };
 
 
