@@ -10,9 +10,23 @@
 class WindowManager {
 public:
 	WindowManager(int width, int height, std::string name);
+	GLFWwindow* window;
+	void mainWindowLoop();
 private:
 	GLFWwindow* createWindow(int width, int height, std::string name);
 	void initWindow();
+	void initializeVertexBuffer(GLfloat screenQuadVertices[]);
+	GLint compileAndLinkShaders();
+	void deleteShadersAndBuffers();
+
+	GLfloat screenQuadVertices[30];
+	GLuint vboIndex;
+	GLuint vaoIndex;
+	GLuint texIndex;
+	GLuint vertexShader;
+	GLuint fragmentShader;
+	GLint shaderProgram;
+
 };
 
 

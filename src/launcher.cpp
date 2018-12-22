@@ -4,6 +4,7 @@
 #include "pathtrace.h"
 #include "scene.h"
 #include "sequential.h"
+#include "window.h"
 
 #include <algorithm>
 #include <iostream>
@@ -25,6 +26,7 @@ int main(int argc, char* argv[]) {
 	string objPath = "../meshes/cornell.obj";
 	bool useBVH = false;
 	bool useSequential = false;
+	bool renderToScreen = false;
 	int numStreams = 1;
 
 	//
@@ -39,7 +41,8 @@ int main(int argc, char* argv[]) {
 				"-h \t<height>\tdefault:320px\n" \
 				"-f \t<path to .obj to render>\tdefault:./meshes/cornell.obj\n" \
 				"-b \t<flag to use bounding volume heirarchy (GPU only)>\tdefault: false\n" \
-				"--cpu \t<flag to run sequential code on CPU only>\tdefault: false>\n" \
+				"--cpu \t<flag to run sequential code on CPU only>\tdefault: false\n" \
+				"--X \t<flag to render to screen>\tdefault: false\n" \
 				"Note: BVH has bugs in both CUDA and CPU version. CPU version is worse.\n"\
 				;
 		return(1);
@@ -103,6 +106,12 @@ int main(int argc, char* argv[]) {
 		useSequential = true;
 	}
 
+	// Render To Screen flag
+	if ((find(args.begin(), args.end(), "--X") < args.end())) {
+		renderToScreen = true;
+	}
+
+
 	// .obj path
 	if ((find(args.begin(), args.end(), "-f") < args.end() - 1)) {
 		objPath = *(find(args.begin(), args.end(), "-f") + 1);
@@ -127,6 +136,15 @@ int main(int argc, char* argv[]) {
 
 	cout << "Total number of triangles:\t" << scene.getNumTriangles() << endl;
 
+	if (renderToScreen) {
+		WindowManager windowManager(width, height, "CudaRT - Path Tracer in CUDA");
+		if (!windowManager.window) {
+			cout << "Window failed to initialize. Exiting!" << endl;
+			return 1;
+		}
+		windowManager.mainWindowLoop();
+		return 0;
+	}
 	//
 	// Initialize Scene : Camera
 	// TODO: Load this from .obj using cam meshes
@@ -154,7 +172,7 @@ int main(int argc, char* argv[]) {
 	cout << "Total time from start to output to " << outFile << ":\t\t" << timer.readS() << " seconds " << endl;
 
 	delete[] imgData;
-	return(0);
+	return 0;
 }
 
 
