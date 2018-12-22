@@ -66,7 +66,6 @@ GLFWwindow* WindowManager::createWindow(int width, int height, std::string name)
 		return NULL;
 	}
 	return window;
-
 }
 
 void WindowManager::initWindow() {

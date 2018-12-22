@@ -1,5 +1,5 @@
-#ifndef __TEST_RENDER__
-#define __TEST_RENDER__
+#ifndef __SEQUENTIAL_H__
+#define __SEQUENTIAL_H__
 #include "pathtrace.h"
 struct BBox;
 

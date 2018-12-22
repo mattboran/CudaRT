@@ -9,6 +9,7 @@
 #pragma comment(lib, "glu32.lib")
 class WindowManager {
 public:
+	WindowManager() {}
 	WindowManager(int width, int height, std::string name);
 	GLFWwindow* window;
 	void mainWindowLoop();
