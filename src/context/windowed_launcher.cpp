@@ -1,7 +1,9 @@
 #include "launcher.h"
 
-WindowedLauncher::WindowedLauncher(Renderer* _renderer) : BaseLauncher(_renderer) {
-	int width = renderer->getWidth();
-	int height = renderer->getHeight();
+WindowedLauncher::WindowedLauncher(Renderer* _renderer, const char* _outFilename)
+	: BaseLauncher(_renderer, _outFilename)
+{
+	int width = p_renderer->getWidth();
+	int height = p_renderer->getHeight();
 	windowManager = WindowManager(width, height, "CudaRT - Cuda Path Tracer by Tudor Boran");
 }

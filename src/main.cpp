@@ -4,7 +4,8 @@
 #include "pathtrace.h"
 #include "scene.h"
 #include "sequential.h"
-#include "window.h"
+//#include "window.h"
+#include "launcher.h"
 #include "renderer.h"
 
 #include <algorithm>
@@ -12,12 +13,10 @@
 #include <string>
 #include <vector>
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stbi_save_image.h"
 using namespace std;
 using namespace geom;
 
-static void saveImageToPng(string filename, int width, int height, const Vector3Df* data);
+//static void saveImageToPng(string filename, int width, int height, const Vector3Df* data);
 
 int main(int argc, char* argv[]) {
 	string outFile;
@@ -137,15 +136,15 @@ int main(int argc, char* argv[]) {
 
 	cout << "Total number of triangles:\t" << scene.getNumTriangles() << endl;
 
-	if (renderToScreen) {
-		WindowManager windowManager(width, height, "CudaRT - Path Tracer in CUDA");
-		if (!windowManager.window) {
-			cout << "Window failed to initialize. Exiting!" << endl;
-			return 1;
-		}
-		windowManager.mainWindowLoop();
-		return 0;
-	}
+//	if (renderToScreen) {
+//		WindowManager windowManager(width, height, "CudaRT - Path Tracer in CUDA");
+//		if (!windowManager.window) {
+//			cout << "Window failed to initialize. Exiting!" << endl;
+//			return 1;
+//		}
+//		windowManager.mainWindowLoop();
+//		return 0;
+//	}
 
 	//
 	// Initialize Scene : Camera
@@ -162,36 +161,40 @@ int main(int argc, char* argv[]) {
 	Clock timer = Clock();
 
 	ParallelRenderer renderer = ParallelRenderer(&scene, width, height, samples, useBVH);
-	Vector3Df* imgData;
-	if (useSequential) {
-		imgData = Sequential::pathtraceWrapper(scene, width, height, samples, numStreams, useBVH);
-	}
-	else {
-		imgData = Parallel::pathtraceWrapper(scene, width, height, samples, numStreams, useBVH);
-	}
+	TerminalLauncher launcher = TerminalLauncher(&renderer, outFile.c_str());
+	launcher.render();
+	launcher.saveToImage();
+//	Vector3Df* imgData;
+//	if (useSequential) {
+//		imgData = Sequential::pathtraceWrapper(scene, width, height, samples, numStreams, useBVH);
+//	}
+//	else {
+//		imgData = Parallel::pathtraceWrapper(scene, width, height, samples, numStreams, useBVH);
+//	}
+//
+//	saveImageToPng(outFile, width, height, imgData);
+//
+//	cout << "Total time from start to output to " << outFile << ":\t\t" << timer.readS() << " seconds " << endl;
 
-	saveImageToPng(outFile, width, height, imgData);
-
-	cout << "Total time from start to output to " << outFile << ":\t\t" << timer.readS() << " seconds " << endl;
-
-	delete[] imgData;
+//	delete[] imgData;
 	return 0;
 }
 
 
-static void saveImageToPng(string filename, int width, int height, const Vector3Df* data) {
-	const unsigned comp = 4;
-	const unsigned strideBytes = width * 4;
-	unsigned char* imageData = new unsigned char[width * height * comp];
-
-	unsigned char* currentPixelPtr = imageData;
-	for (int i = 0; i < width * height; i++) {
-		Vector3Df currentColor = data[i] * 255;
-		*currentPixelPtr = (unsigned char)currentColor.x; currentPixelPtr++;
-		*currentPixelPtr = (unsigned char)currentColor.y; currentPixelPtr++;
-		*currentPixelPtr = (unsigned char)currentColor.z; currentPixelPtr++;
-		*currentPixelPtr = (unsigned char)255u; currentPixelPtr++;
-	}
-	stbi_write_png(filename.c_str(), width, height, comp, imageData, strideBytes);
-	delete[] imageData;
-}
+//static void saveImageToPng(string filename, int width, int height, const Vector3Df* data) {
+//	const unsigned comp = 4;
+//	const unsigned strideBytes = width * 4;
+//	unsigned char* imageData = new unsigned char[width * height * comp];
+//
+//	unsigned char* currentPixelPtr = imageData;
+//	for (int i = 0; i < width * height; i++) {
+//		Vector3Df currentColor = data[i] * 255;
+//		*currentPixelPtr = (unsigned char)currentColor.x; currentPixelPtr++;
+//		*currentPixelPtr = (unsigned char)currentColor.y; currentPixelPtr++;
+//		*currentPixelPtr = (unsigned char)currentColor.z; currentPixelPtr++;
+//		*currentPixelPtr = (unsigned char)255u;
+//		currentPixelPtr++;
+//	}
+//	stbi_write_png(filename.c_str(), width, height, comp, imageData, strideBytes);
+//	delete[] imageData;
+//}

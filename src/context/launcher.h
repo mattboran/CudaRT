@@ -14,22 +14,26 @@
 class BaseLauncher
 {
 protected:
-	BaseLauncher(Renderer* _renderer) : renderer(_renderer) {}
-	Renderer* renderer;
+	BaseLauncher(Renderer* _renderer, const char* _outFilename) :
+		p_renderer(_renderer), outFilename(_outFilename) {}
+	Renderer* p_renderer;
+	const char* outFilename;
 public:
 	virtual ~BaseLauncher() {}
 	void saveToImage();
+	void render();
 };
 
 class WindowedLauncher : public BaseLauncher {
 public:
-	WindowedLauncher(Renderer* _renderer);
+	WindowedLauncher(Renderer* _renderer, const char* _outFilename);
 private:
 	WindowManager windowManager;
 };
 
 class TerminalLauncher : public BaseLauncher {
-	TerminalLauncher(Renderer* _renderer) : BaseLauncher(_renderer) {}
+public:
+	TerminalLauncher(Renderer* _renderer, const char* _outFilename) : BaseLauncher(_renderer, _outFilename) {}
 };
 
 #endif /* __LAUNCHER_H__ */

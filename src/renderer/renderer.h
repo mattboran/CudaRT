@@ -11,6 +11,8 @@
 #include "scene.h"
 #include "linalg.h"
 
+#include <curand.h>
+
 struct LightsData {
 	geom::Triangle* lightsPtr;
 	unsigned numLights;
@@ -29,32 +31,38 @@ struct SettingsData {
 	int width;
 	int height;
 	int samples;
-	// TODO: Decomission numStreams
-	int numStreams;
 	bool useBVH;
-} __attribute__ ((aligned (32)));
+};
+
+__host__ __device__ inline uchar4 vector3ToUchar4(const Vector3Df& v) {
+	uchar4 retVal;
+	float invGamma = 1.f/2.2f;
+	retVal.x = (unsigned char)(powf(clamp(v.x, 0.0f, 1.0f), invGamma)*(255.f));
+	retVal.y = (unsigned char)(powf(clamp(v.y, 0.0f, 1.0f), invGamma)*(255.f));
+	retVal.z = (unsigned char)(powf(clamp(v.z, 0.0f, 1.0f), invGamma)*(255.f));
+	retVal.w = 255u;
+	return retVal;
+}
+
+__host__ __device__ Vector3Df testSamplePixel(int x, int y, int width, int height);
 
 class Renderer {
 protected:
-	__host__ Renderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH) :
-		scenePtr(_scenePtr), width(_width), height(_height), samples(_samples), useBVH(_useBVH) {
-		h_imgPtr = (Vector3Df*)malloc(sizeof(Vector3Df) * width * height);
-	}
-	Scene* scenePtr;
+	__host__ Renderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH);
+	Scene* p_scene;
 	int width;
 	int height;
 	int samples;
-	int numStreams = 1;
 	int useBVH;
 public:
-	Vector3Df* h_imgPtr;
+	uchar4* h_imgPtr;
 	virtual ~Renderer() { free(h_imgPtr);	}
 	__host__ virtual void renderOneSamplePerPixel() = 0;
-	__host__ Scene* getScenePtr() { return scenePtr; }
+	__host__ virtual void copyImageBytes() = 0;
+	__host__ Scene* getScenePtr() { return p_scene; }
 	__host__ int getWidth() { return width; }
 	__host__ int getHeight() { return height; }
 	__host__ int getSamples() { return samples; }
-	__host__ int getNumStreams() { return numStreams; }
 	__host__ bool getUseBVH() { return useBVH; }
 };
 
@@ -64,24 +72,33 @@ public:
 	__host__ void renderOneSamplePerPixel();
 	~ParallelRenderer();
 private:
-	Vector3Df* d_imgPtr;
+	Vector3Df* d_imgVectorPtr;
+	uchar4* d_imgBytesPtr;
 	LightsData* d_lightsData;
 	TrianglesData* d_trianglesData;
 	SettingsData d_settingsData;
 	geom::Triangle* d_triPtr;
 	geom::Triangle* d_lightsPtr;
 	Camera* d_camPtr;
+	curandState* d_curandStatePtr;
+	// TODO: Consider storing block, grid instead
+	unsigned int threadsPerBlock;
+	unsigned int gridBlocks;
 
 	__host__ void copyMemoryToCuda();
 	__host__ void createSettingsData(SettingsData* p_settingsData);
+	__host__ void initializeCurand();
+	__host__ void copyImageBytes();
 };
 
 class SequentialRenderer : public Renderer {
+public:
 	SequentialRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH) :
 		Renderer(_scenePtr, _width, _height, _samples, _useBVH) {}
 	void renderOneSamplePerPixel() {
 		// not implemented yet
 	}
+	__host__ void copyImageBytes() { }
 	~SequentialRenderer();
 };
 
