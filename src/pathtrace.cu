@@ -9,15 +9,15 @@
  */
 #include "camera.h"
 #include "pathtrace.h"
+#include "cuda_error_check.h" // includes cuda.h and cuda_runtime_api.h
 
-#include <cuda.h>
-#include <cuda_runtime_api.h>
+//#include <cuda.h>
+//#include <cuda_runtime_api.h>
 #include <curand.h>
 #include <curand_kernel.h>
 
 #include <iostream>
 #include <cfloat>
-#include "cuda_error_check.h" // includes cuda.h and cuda_runtime_api.h
 
 using namespace geom;
 using namespace std;

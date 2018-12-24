@@ -36,7 +36,7 @@ struct SettingsData {
 
 class Renderer {
 protected:
-	Renderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH) :
+	__host__ Renderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH) :
 		scenePtr(_scenePtr), width(_width), height(_height), samples(_samples), useBVH(_useBVH) {
 		h_imgPtr = (Vector3Df*)malloc(sizeof(Vector3Df) * width * height);
 	}
@@ -49,36 +49,37 @@ protected:
 public:
 	Vector3Df* h_imgPtr;
 	virtual ~Renderer() { free(h_imgPtr);	}
-	virtual void renderOneSamplePerPixel() = 0;
-	int getWidth() { return width; }
-	int getHeight() { return height; }
-	int getSamples() { return samples; }
-	int getNumStreams() { return numStreams; }
-	bool getUseBVH() { return useBVH; }
+	__host__ virtual void renderOneSamplePerPixel() = 0;
+	__host__ Scene* getScenePtr() { return scenePtr; }
+	__host__ int getWidth() { return width; }
+	__host__ int getHeight() { return height; }
+	__host__ int getSamples() { return samples; }
+	__host__ int getNumStreams() { return numStreams; }
+	__host__ bool getUseBVH() { return useBVH; }
 };
 
 class ParallelRenderer : public Renderer {
 public:
-	ParallelRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH) :
-		Renderer(_scenePtr, _width, _height, _samples, _useBVH) {
-		h_lightsData = NULL;
-		h_trianglesData = NULL;
-		h_settingsData = NULL;
-	}
-	void renderOneSample();
+	__host__ ParallelRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH);
+	__host__ void renderOneSamplePerPixel();
 	~ParallelRenderer();
 private:
-	LightsData* h_lightsData;
-	TrianglesData* h_trianglesData;
-	SettingsData* h_settingsData;
-	void createHostDataStructures();
+	Vector3Df* d_imgPtr;
+	LightsData* d_lightsData;
+	TrianglesData* d_trianglesData;
+	SettingsData d_settingsData;
+	geom::Triangle* d_triPtr;
+	geom::Triangle* d_lightsPtr;
+	Camera* d_camPtr;
 
+	__host__ void copyMemoryToCuda();
+	__host__ void createSettingsData(SettingsData* p_settingsData);
 };
 
 class SequentialRenderer : public Renderer {
 	SequentialRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH) :
 		Renderer(_scenePtr, _width, _height, _samples, _useBVH) {}
-	void renderOneSample() {
+	void renderOneSamplePerPixel() {
 		// not implemented yet
 	}
 	~SequentialRenderer();

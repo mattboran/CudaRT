@@ -5,6 +5,7 @@
 #include "scene.h"
 #include "sequential.h"
 #include "window.h"
+#include "renderer.h"
 
 #include <algorithm>
 #include <iostream>
@@ -145,6 +146,7 @@ int main(int argc, char* argv[]) {
 		windowManager.mainWindowLoop();
 		return 0;
 	}
+
 	//
 	// Initialize Scene : Camera
 	// TODO: Load this from .obj using cam meshes
@@ -159,6 +161,7 @@ int main(int argc, char* argv[]) {
 	scene.setCamera(camera);
 	Clock timer = Clock();
 
+	ParallelRenderer renderer = ParallelRenderer(&scene, width, height, samples, useBVH);
 	Vector3Df* imgData;
 	if (useSequential) {
 		imgData = Sequential::pathtraceWrapper(scene, width, height, samples, numStreams, useBVH);
