@@ -48,6 +48,7 @@ __host__ __device__ Vector3Df testSamplePixel(int x, int y, int width, int heigh
 
 class Renderer {
 protected:
+	__host__ Renderer() {}
 	__host__ Renderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH);
 	Scene* p_scene;
 	int width;
@@ -68,6 +69,7 @@ public:
 
 class ParallelRenderer : public Renderer {
 public:
+	__host__ ParallelRenderer() : Renderer() {}
 	__host__ ParallelRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH);
 	__host__ void renderOneSamplePerPixel();
 	~ParallelRenderer();
@@ -93,6 +95,7 @@ private:
 
 class SequentialRenderer : public Renderer {
 public:
+	SequentialRenderer() : Renderer() {}
 	SequentialRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH) :
 		Renderer(_scenePtr, _width, _height, _samples, _useBVH) {}
 	void renderOneSamplePerPixel() {

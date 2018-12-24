@@ -10,7 +10,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stbi_save_image.h"
 
-void BaseLauncher::render() {
+void Launcher::render() {
 	int samples = p_renderer->getSamples();
 	for (int s = 0; s < 1; s++) {
 		p_renderer->renderOneSamplePerPixel();
@@ -18,7 +18,7 @@ void BaseLauncher::render() {
 	p_renderer->copyImageBytes();
 }
 
-void BaseLauncher::saveToImage() {
+void Launcher::saveToImage() {
 	int width = p_renderer->getWidth();
 	int height = p_renderer->getHeight();
 	uchar4* p_imgData = p_renderer->h_imgPtr;

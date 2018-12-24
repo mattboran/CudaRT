@@ -1,8 +1,8 @@
 #include "window.h"
 #include <iostream>
 #include <cstring>
-//#include <cuda.h>
-//#include <cuda_runtime.h>
+#include "cuda_gl_interop.h"
+
 #define INFO_LOG_BUFFER_SIZE 512
 
 WindowManager::WindowManager(int width, int height, std::string name) {

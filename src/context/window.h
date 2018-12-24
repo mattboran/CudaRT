@@ -7,6 +7,7 @@
 #include <string>
 #pragma comment(lib, "opengl32.lib")
 #pragma comment(lib, "glu32.lib")
+
 class WindowManager {
 public:
 	WindowManager() {}
@@ -27,7 +28,6 @@ private:
 	GLuint vertexShader;
 	GLuint fragmentShader;
 	GLint shaderProgram;
-
 };
 
 

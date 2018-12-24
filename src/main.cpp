@@ -4,7 +4,6 @@
 #include "pathtrace.h"
 #include "scene.h"
 #include "sequential.h"
-//#include "window.h"
 #include "launcher.h"
 #include "renderer.h"
 
@@ -15,8 +14,6 @@
 
 using namespace std;
 using namespace geom;
-
-//static void saveImageToPng(string filename, int width, int height, const Vector3Df* data);
 
 int main(int argc, char* argv[]) {
 	string outFile;
@@ -160,10 +157,29 @@ int main(int argc, char* argv[]) {
 	scene.setCamera(camera);
 	Clock timer = Clock();
 
-	ParallelRenderer renderer = ParallelRenderer(&scene, width, height, samples, useBVH);
-	TerminalLauncher launcher = TerminalLauncher(&renderer, outFile.c_str());
-	launcher.render();
-	launcher.saveToImage();
+	Renderer* p_renderer;
+	Launcher* p_launcher;
+
+	// TODO: There's a way to avoid having to do this but
+	// I have not figured it out yet
+	if (useSequential) {
+		if (renderToScreen) {
+
+		} else {
+
+		}
+		return 1;
+	} else {
+		ParallelRenderer parallelRenderer(&scene, width, height, samples, useBVH);
+		if (renderToScreen) {
+			return 1;
+		} else {
+			TerminalLauncher terminalLauncher(&parallelRenderer, outFile.c_str());
+			terminalLauncher.render();
+			terminalLauncher.saveToImage();
+		}
+	}
+
 //	Vector3Df* imgData;
 //	if (useSequential) {
 //		imgData = Sequential::pathtraceWrapper(scene, width, height, samples, numStreams, useBVH);
@@ -180,21 +196,3 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
-
-//static void saveImageToPng(string filename, int width, int height, const Vector3Df* data) {
-//	const unsigned comp = 4;
-//	const unsigned strideBytes = width * 4;
-//	unsigned char* imageData = new unsigned char[width * height * comp];
-//
-//	unsigned char* currentPixelPtr = imageData;
-//	for (int i = 0; i < width * height; i++) {
-//		Vector3Df currentColor = data[i] * 255;
-//		*currentPixelPtr = (unsigned char)currentColor.x; currentPixelPtr++;
-//		*currentPixelPtr = (unsigned char)currentColor.y; currentPixelPtr++;
-//		*currentPixelPtr = (unsigned char)currentColor.z; currentPixelPtr++;
-//		*currentPixelPtr = (unsigned char)255u;
-//		currentPixelPtr++;
-//	}
-//	stbi_write_png(filename.c_str(), width, height, comp, imageData, strideBytes);
-//	delete[] imageData;
-//}

@@ -11,29 +11,29 @@
 #include "renderer.h"
 #include "window.h"
 
-class BaseLauncher
+class Launcher
 {
 protected:
-	BaseLauncher(Renderer* _renderer, const char* _outFilename) :
+	Launcher(Renderer* _renderer, const char* _outFilename) :
 		p_renderer(_renderer), outFilename(_outFilename) {}
 	Renderer* p_renderer;
 	const char* outFilename;
 public:
-	virtual ~BaseLauncher() {}
+	virtual ~Launcher() {}
 	void saveToImage();
 	void render();
 };
 
-class WindowedLauncher : public BaseLauncher {
+class WindowedLauncher : public Launcher {
 public:
 	WindowedLauncher(Renderer* _renderer, const char* _outFilename);
 private:
 	WindowManager windowManager;
 };
 
-class TerminalLauncher : public BaseLauncher {
+class TerminalLauncher : public Launcher {
 public:
-	TerminalLauncher(Renderer* _renderer, const char* _outFilename) : BaseLauncher(_renderer, _outFilename) {}
+	TerminalLauncher(Renderer* _renderer, const char* _outFilename) : Launcher(_renderer, _outFilename) {}
 };
 
 #endif /* __LAUNCHER_H__ */
