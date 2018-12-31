@@ -8,6 +8,7 @@
 #include "renderer.h"
 
 #include <algorithm>
+#include <cuda.h>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -25,6 +26,7 @@ int main(int argc, char* argv[]) {
 	bool useSequential = false;
 	bool renderToScreen = false;
 	int numStreams = 1;
+	int cudaCapableDevices = 0;
 
 	//
 	//	Parse command line arguments
@@ -103,6 +105,7 @@ int main(int argc, char* argv[]) {
 		useSequential = true;
 	}
 
+
 	// Render To Screen flag
 	if ((find(args.begin(), args.end(), "--X") < args.end())) {
 		renderToScreen = true;
@@ -152,33 +155,28 @@ int main(int argc, char* argv[]) {
 	Vector3Df camTarget(0.0f, 5.0f, 0.0f);
 	Vector3Df camUp(0.0f, 7.0f, 0.0f);
 	Vector3Df camRt(-1.0f, 0.0f, 0.0f);
-
 	Camera camera = Camera(camPos, camTarget, camUp, camRt, 90.0f, width, height);
-	scene.setCamera(camera);
 	Clock timer = Clock();
-
 	Renderer* p_renderer;
 	Launcher* p_launcher;
 
-	// TODO: There's a way to avoid having to do this but
-	// I have not figured it out yet
-	if (useSequential) {
-		if (renderToScreen) {
-
-		} else {
-
-		}
-		return 1;
+	scene.setCamera(camera);
+	cudaGetDeviceCount(&cudaCapableDevices);
+	if (useSequential || cudaCapableDevices == 0) {
+		p_renderer = new SequentialRenderer(&scene, width, height, samples, useBVH);
 	} else {
-		ParallelRenderer parallelRenderer(&scene, width, height, samples, useBVH);
-		if (renderToScreen) {
-			return 1;
-		} else {
-			TerminalLauncher terminalLauncher(&parallelRenderer, outFile.c_str());
-			terminalLauncher.render();
-			terminalLauncher.saveToImage();
-		}
+		p_renderer = new ParallelRenderer(&scene, width, height, samples, useBVH);
 	}
+	if (renderToScreen) {
+		return(1);
+	} else {
+		p_launcher = new TerminalLauncher(p_renderer, outFile.c_str());
+	}
+
+	p_launcher->render();
+	p_launcher->saveToImage();
+	delete p_renderer;
+	delete p_launcher;
 
 //	Vector3Df* imgData;
 //	if (useSequential) {
@@ -193,6 +191,5 @@ int main(int argc, char* argv[]) {
 //	cout << "Total time from start to output to " << outFile << ":\t\t" << timer.readS() << " seconds " << endl;
 
 //	delete[] imgData;
-	return 0;
+	return(0);
 }
-

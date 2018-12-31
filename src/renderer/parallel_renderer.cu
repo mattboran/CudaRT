@@ -72,13 +72,6 @@ __host__ ParallelRenderer::~ParallelRenderer() {
 	cudaFree(d_curandStatePtr);
 }
 
-__host__ void ParallelRenderer::createSettingsData(SettingsData* p_settingsData){
-	p_settingsData->width = getWidth();
-	p_settingsData->height = getHeight();
-	p_settingsData->samples = getSamples();
-	p_settingsData->useBVH = getUseBVH();
-}
-
 __host__ void ParallelRenderer::copyMemoryToCuda() {
 	Scene* scenePtr = getScenePtr();
 	int numTris = scenePtr->getNumTriangles();

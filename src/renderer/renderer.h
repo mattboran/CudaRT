@@ -43,8 +43,9 @@ __host__ __device__ inline uchar4 vector3ToUchar4(const Vector3Df& v) {
 	retVal.w = 255u;
 	return retVal;
 }
-
 __host__ __device__ Vector3Df testSamplePixel(int x, int y, int width, int height);
+__host__ __device__ float intersectAllTriangles(geom::Triangle* p_triangles, int numTriangles, geom::RayHit &hitData, const geom::Ray& ray);
+__host__ __device__ Vector3Df radiance(TrianglesData* p_triData, LightsData* p_lightData, curandState* p_randState);
 
 class Renderer {
 protected:
@@ -57,7 +58,7 @@ protected:
 	int useBVH;
 public:
 	uchar4* h_imgPtr;
-	virtual ~Renderer() { free(h_imgPtr);	}
+	virtual ~Renderer() { delete[] h_imgPtr;	}
 	__host__ virtual void renderOneSamplePerPixel() = 0;
 	__host__ virtual void copyImageBytes() = 0;
 	__host__ Scene* getScenePtr() { return p_scene; }
@@ -65,6 +66,9 @@ public:
 	__host__ int getHeight() { return height; }
 	__host__ int getSamples() { return samples; }
 	__host__ bool getUseBVH() { return useBVH; }
+	__host__ void createSettingsData(SettingsData* p_settingsData);
+	__host__ void createTrianglesData(TrianglesData* p_trianglesData);
+	__host__ void createLightsData(LightsData* p_lightsData);
 };
 
 class ParallelRenderer : public Renderer {
@@ -88,7 +92,6 @@ private:
 	unsigned int gridBlocks;
 
 	__host__ void copyMemoryToCuda();
-	__host__ void createSettingsData(SettingsData* p_settingsData);
 	__host__ void initializeCurand();
 	__host__ void copyImageBytes();
 };
@@ -96,13 +99,13 @@ private:
 class SequentialRenderer : public Renderer {
 public:
 	SequentialRenderer() : Renderer() {}
-	SequentialRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH) :
-		Renderer(_scenePtr, _width, _height, _samples, _useBVH) {}
-	void renderOneSamplePerPixel() {
-		// not implemented yet
-	}
-	__host__ void copyImageBytes() { }
+	SequentialRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH);
+	__host__ void renderOneSamplePerPixel();
+	__host__ void copyImageBytes();
 	~SequentialRenderer();
+private:
+	uchar4* h_imgBytesPtr;
+	Vector3Df* h_imgVectorPtr;
 };
 
 #endif /* RENDERER_H_ */
