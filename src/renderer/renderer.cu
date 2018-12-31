@@ -53,13 +53,13 @@ __host__ __device__ Vector3Df testSamplePixel(int x, int y, int width, int heigh
 }
 
 __host__ __device__ float intersectAllTriangles(Triangle* p_triangles, int numTriangles, RayHit &hitData, const Ray& ray) {
-	float t = FLT_MAX;
-	float tprime = FLT_MAX;
+	float t = ray.tMax;
+	float tprime = ray.tMax;
 	float u, v;
 	Triangle* p_current = p_triangles;
 	while(numTriangles--) {
 		tprime = p_current->intersect(ray, u, v);
-		if (tprime < t && tprime > 0.f) {
+		if (tprime < t && tprime > ray.tMin) {
 			t = tprime;
 			hitData.pHitTriangle = p_current;
 			hitData.u = u;

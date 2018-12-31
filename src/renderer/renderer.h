@@ -45,7 +45,6 @@ __host__ __device__ inline uchar4 vector3ToUchar4(const Vector3Df& v) {
 }
 __host__ __device__ Vector3Df testSamplePixel(int x, int y, int width, int height);
 __host__ __device__ float intersectAllTriangles(geom::Triangle* p_triangles, int numTriangles, geom::RayHit &hitData, const geom::Ray& ray);
-__host__ __device__ Vector3Df radiance(TrianglesData* p_triData, LightsData* p_lightData, curandState* p_randState);
 
 class Renderer {
 protected:
@@ -109,6 +108,7 @@ private:
 	SettingsData h_settingsData;
 	TrianglesData* h_trianglesData;
 	LightsData* h_lightsData;
+	__host__ __device__ Vector3Df samplePixel(int x, int y);
 };
 
 #endif /* RENDERER_H_ */

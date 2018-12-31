@@ -39,11 +39,39 @@ __host__ void SequentialRenderer::renderOneSamplePerPixel() {
     for (unsigned x = 0; x < width; x++) {
         for (unsigned y = 0; y < height; y++) {
             int idx = y * width + x;
-            Vector3Df color = testSamplePixel(x, y, width, height);
+            Vector3Df color = samplePixel(x, y);
             h_imgVectorPtr[idx] = color;
             h_imgBytesPtr[idx] = vector3ToUchar4(color);
         }
     }
+}
+
+
+__host__ __device__  Vector3Df SequentialRenderer::samplePixel(int x, int y) {
+    Ray ray = p_scene->getCameraPtr()->computeSequentialCameraRay(x, y);
+
+    Vector3Df color(0.f, 0.f, 0.f);
+    Vector3Df mask(1.f, 1.f, 1.f);
+    RayHit hitData;
+    float t = 0.0f;
+
+    Triangle* p_triangles = h_trianglesData->triPtr;
+    Triangle* p_hitTriangle = NULL;
+    int numTriangles = h_trianglesData->numTriangles;
+
+    const unsigned maxBounces = 1;
+    for (unsigned bounces = 0; bounces < maxBounces; bounces++) {
+        t = intersectAllTriangles(p_triangles, numTriangles, hitData, ray);
+        if (t == FLT_MAX) {
+            break;
+        }
+        p_hitTriangle = hitData.pHitTriangle;
+        if (p_hitTriangle->isEmissive()) {
+            color += mask * p_hitTriangle->_colorEmit;
+        }
+        color = p_hitTriangle->_colorDiffuse;
+    }
+    return color;
 }
 
 __host__ void SequentialRenderer::copyImageBytes() {

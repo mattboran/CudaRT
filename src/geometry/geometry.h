@@ -2,11 +2,12 @@
 #define __GEOMETRY_H_
 
 #include "linalg.h"
+#include <cfloat>
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <curand.h>
 #include <curand_kernel.h>
-#include <limits>
+// #include <limits>
 #include <iostream>
 
 #define EPSILON 0.00001f
@@ -29,6 +30,8 @@ namespace geom {
 	struct Ray {
 		Vector3Df origin;
 		Vector3Df dir;
+		float tMin = 0.f;
+		float tMax = FLT_MAX;
 
 		__host__ __device__ Ray(Vector3Df o, Vector3Df d) : origin(o), dir(normalize(d)) { }
 		__device__ Vector3Df pointAlong(float t) { return Vector3Df(origin + dir*t); }
@@ -70,8 +73,15 @@ namespace geom {
 	} __attribute__ ((aligned (128))) ;
 
 	struct RayHit {
-		Triangle* pHitTriangle;
+		Triangle* pHitTriangle = NULL;
 		float u, v, t;
 	}__attribute__((aligned (32)));
+
+	struct SurfaceInteraction {
+		Vector3Df position;
+		Vector3Df normal;
+		Vector3Df inputDirection;
+		Vector3Df outputDirection;
+	};
 }
 #endif
