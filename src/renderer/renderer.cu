@@ -30,12 +30,18 @@ __host__ void Renderer::createSettingsData(SettingsData* p_settingsData){
 	p_settingsData->useBVH = getUseBVH();
 }
 
-__host__ void Renderer::createTrianglesData(TrianglesData* p_trianglesData) {
-
+__host__ void Renderer::createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles) {
+	p_trianglesData->triPtr = p_triangles;
+	p_trianglesData->numTriangles = p_scene->getNumTriangles();
+	p_trianglesData->bvhPtr = NULL;
+	p_trianglesData->bvhIndexPtr = NULL;
+	p_trianglesData->numBVHNodes = 0;
 }
 
-__host__ void Renderer::createLightsData(LightsData* p_lightsData) {
-
+__host__ void Renderer::createLightsData(LightsData* p_lightsData, Triangle* p_triangles) {
+	p_lightsData->lightsPtr = p_triangles;
+	p_lightsData->numLights = p_scene->getNumLights();
+	p_lightsData->totalSurfaceArea = p_scene->getLightsSurfaceArea();
 }
 
 __host__ __device__ Vector3Df testSamplePixel(int x, int y, int width, int height) {

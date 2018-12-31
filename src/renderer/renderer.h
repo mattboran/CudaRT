@@ -67,8 +67,8 @@ public:
 	__host__ int getSamples() { return samples; }
 	__host__ bool getUseBVH() { return useBVH; }
 	__host__ void createSettingsData(SettingsData* p_settingsData);
-	__host__ void createTrianglesData(TrianglesData* p_trianglesData);
-	__host__ void createLightsData(LightsData* p_lightsData);
+	__host__ void createTrianglesData(TrianglesData* p_trianglesData, geom::Triangle* p_triangles);
+	__host__ void createLightsData(LightsData* p_lightsData, geom::Triangle* p_triangles);
 };
 
 class ParallelRenderer : public Renderer {
@@ -106,6 +106,9 @@ public:
 private:
 	uchar4* h_imgBytesPtr;
 	Vector3Df* h_imgVectorPtr;
+	SettingsData h_settingsData;
+	TrianglesData* h_trianglesData;
+	LightsData* h_lightsData;
 };
 
 #endif /* RENDERER_H_ */

@@ -90,16 +90,10 @@ __host__ void ParallelRenderer::copyMemoryToCuda() {
 	CUDA_CHECK_RETURN(cudaMemcpy(d_triPtr, h_triPtr, sizeof(Triangle) * numTris, cudaMemcpyHostToDevice));
 	CUDA_CHECK_RETURN(cudaMemcpy(d_lightsPtr, h_lightsPtr, sizeof(Triangle) * numLights, cudaMemcpyHostToDevice));
 
-	h_trianglesData->triPtr = d_triPtr;
-	h_trianglesData->numTriangles = numTris;
-	h_trianglesData->bvhPtr = NULL;
-	h_trianglesData->bvhIndexPtr = NULL;
-	h_trianglesData->numBVHNodes = 0;
+	createTrianglesData(h_trianglesData, d_triPtr);
 	CUDA_CHECK_RETURN(cudaMemcpy(d_trianglesData, h_trianglesData, sizeof(TrianglesData) + trianglesBytes, cudaMemcpyHostToDevice));
 
-	h_lightsData->lightsPtr = d_lightsPtr;
-	h_lightsData->numLights = numLights;
-	h_lightsData->totalSurfaceArea = lightsSurfaceArea;
+	createLightsData(h_lightsData, d_lightsPtr);
 	CUDA_CHECK_RETURN(cudaMemcpy(d_lightsData, h_lightsData, sizeof(LightsData) + lightsBytes, cudaMemcpyHostToDevice));
 
 	free(h_trianglesData);
