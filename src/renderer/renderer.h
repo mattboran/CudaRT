@@ -56,10 +56,12 @@ protected:
 	int samples;
 	int useBVH;
 public:
+	bool useCuda = false;
 	uchar4* h_imgPtr;
 	virtual ~Renderer() { delete[] h_imgPtr;	}
 	__host__ virtual void renderOneSamplePerPixel() = 0;
 	__host__ virtual void copyImageBytes() = 0;
+	__host__ virtual uchar4* getImgBytesPointer() = 0;
 	__host__ Scene* getScenePtr() { return p_scene; }
 	__host__ int getWidth() { return width; }
 	__host__ int getHeight() { return height; }
@@ -75,6 +77,8 @@ public:
 	__host__ ParallelRenderer() : Renderer() {}
 	__host__ ParallelRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH);
 	__host__ void renderOneSamplePerPixel();
+	__host__ void copyImageBytes();
+	__host__ uchar4* getImgBytesPointer() { return d_imgBytesPtr; }
 	~ParallelRenderer();
 private:
 	Vector3Df* d_imgVectorPtr;
@@ -89,10 +93,8 @@ private:
 	// TODO: Consider storing block, grid instead
 	unsigned int threadsPerBlock;
 	unsigned int gridBlocks;
-
 	__host__ void copyMemoryToCuda();
 	__host__ void initializeCurand();
-	__host__ void copyImageBytes();
 };
 
 class SequentialRenderer : public Renderer {
@@ -101,6 +103,7 @@ public:
 	SequentialRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH);
 	__host__ void renderOneSamplePerPixel();
 	__host__ void copyImageBytes();
+	__host__ uchar4* getImgBytesPointer() { return h_imgBytesPtr; }
 	~SequentialRenderer();
 private:
 	uchar4* h_imgBytesPtr;

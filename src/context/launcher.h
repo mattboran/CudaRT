@@ -21,19 +21,21 @@ protected:
 public:
 	virtual ~Launcher() {}
 	void saveToImage();
-	void render();
+	virtual void render() = 0;
 };
 
 class WindowedLauncher : public Launcher {
 public:
 	WindowedLauncher(Renderer* _renderer, const char* _outFilename);
+	void render();
 private:
-	WindowManager windowManager;
+	WindowManager* p_windowManager;
 };
 
 class TerminalLauncher : public Launcher {
 public:
 	TerminalLauncher(Renderer* _renderer, const char* _outFilename) : Launcher(_renderer, _outFilename) {}
+	void render();
 };
 
 #endif /* __LAUNCHER_H__ */

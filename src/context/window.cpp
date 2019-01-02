@@ -1,45 +1,55 @@
 #include "window.h"
 #include <iostream>
-#include <cstring>
-#include "cuda_gl_interop.h"
 
 #define INFO_LOG_BUFFER_SIZE 512
 
-WindowManager::WindowManager(int width, int height, std::string name) {
-
-	GLfloat vertices[] = {
-			// positions			// UV
-			-1.0f, 1.0f, 0.0f,		0.0f, 1.0f,
-			1.0f, 1.0f, 0.0f,		1.0f, 1.0f,
-			-1.0f, -1.0f, 0.0f,		0.0f, 0.0f,
-			-1.0f, -1.0f, 0.0f,		0.0f, 0.0f,
-			1.0f, 1.0f, 0.0f,		1.0f, 1.0f,
-			1.0f, -1.0f, 0.0f,		1.0f, 0.0f
-		};
-	std::memcpy(&screenQuadVertices[0], &vertices[0], sizeof(GLfloat) * sizeof(vertices));
-
+WindowManager::WindowManager(int width, int height, std::string name, bool useCudaFlag) {
+	useCuda = useCudaFlag;
 	window = createWindow(width, height, name);
 }
 
-void WindowManager::mainWindowLoop() {
+void WindowManager::mainWindowLoop(Renderer* p_renderer) {
+	int width = p_renderer->getWidth();
+	int height = p_renderer->getHeight();
+	uchar4* p_img = p_renderer->getImgBytesPointer();
+	unsigned samples = 0;
+	GLuint *p_modified = new GLuint[4*width*height];
+	for (unsigned i = 0; i < width * height; i++) {
+		p_modified[i*4] = p_img[i].x;
+		p_modified[i*4+1] = p_img[i].y;
+		p_modified[i*4+2] = p_img[i].z;
+		p_modified[i*4+3] = p_img[i].w;
+	}
 	while (!glfwWindowShouldClose(window))
 	{
 		glBindVertexArray(vaoIndex);
 		glUseProgram(shaderProgram);
-
-//		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, WIDTH, HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+		glEnable(GL_TEXTURE_2D);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_modified);
 //		glEnable(GL_TEXTURE_2D);
+//		if (useCuda) {
+//			cudaGraphicsMapResources(1, &cudaPboResource, 0);
+//			cudaGraphicsResourceGetMappedPointer((void**)&p_img, NULL, cudaPboResource);
+//			p_renderer->renderOneSamplePerPixel();
+//			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+//			cudaGraphicsUnmapResources(1, &cudaPboResource, 0);
+//		}
+//		else {
+//			glBindTexture(GL_TEXTURE_2D, texIndex);
+//			p_renderer->renderOneSamplePerPixel();
+//			std::cout << "Rendering one sample per pixel sequentially" << std::endl;
+//			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_img);
+//		}
 
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		glfwSwapBuffers(window);
-
+		glDisable(GL_TEXTURE_2D);
 		glfwPollEvents();
-
-//		glDisable(GL_TEXTURE_2D);
 		glClear(GL_COLOR_BUFFER_BIT);
-		glClearColor(0.0f, 0.5f, 0.0f, 1.0f);
-//		cudaThreadSynchronize();
+		glClearColor(0.0f, 1.0f, 0.0f, 1.0f);
 	}
+	glDisable(GL_TEXTURE_2D);
+	p_renderer->copyImageBytes();
 	deleteShadersAndBuffers();
 }
 
@@ -60,7 +70,8 @@ GLFWwindow* WindowManager::createWindow(int width, int height, std::string name)
 	}
 	glViewport(0, 0, windowWidth, windowHeight);
 
-	initializeVertexBuffer(screenQuadVertices);
+	initializeVertexBuffer();
+	initializePixelBuffer(width, height);
 	GLint shaderCompilationSuccess = compileAndLinkShaders();
 	if (!shaderCompilationSuccess) {
 		return NULL;
@@ -72,23 +83,48 @@ void WindowManager::initWindow() {
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
+	glfwWindowHint(GLFW_OPENGL_ANY_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
 	glfwWindowHint(GLFW_OPENGL_COMPAT_PROFILE, GL_TRUE);
-	glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
+	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 }
 
-void WindowManager::initializeVertexBuffer(GLfloat* screenQuadVertices){
+void WindowManager::initializeVertexBuffer(){
+	GLfloat vertices[] = {
+		// positions			// UV
+		-1.0f, 1.0f, 0.0f,		0.0f, 1.0f,
+		1.0f, 1.0f, 0.0f,		1.0f, 1.0f,
+		-1.0f, -1.0f, 0.0f,		0.0f, 0.0f,
+		-1.0f, -1.0f, 0.0f,		0.0f, 0.0f,
+		1.0f, 1.0f, 0.0f,		1.0f, 1.0f,
+		1.0f, -1.0f, 0.0f,		1.0f, 0.0f
+	};
 	glGenBuffers(1, &vboIndex);
 	glGenVertexArrays(1, &vaoIndex);
 	glBindVertexArray(vaoIndex);
 	glBindBuffer(GL_ARRAY_BUFFER, vboIndex);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(screenQuadVertices), screenQuadVertices, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
 	// Setup Vertex attribute pointer
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)0);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
 	glEnableVertexAttribArray(1);
+}
+
+void WindowManager::initializePixelBuffer(int width, int height) {
+	glGenBuffers(1, &pboIndex);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pboIndex);
+
+	glGenTextures(1, &texIndex);
+	glBindTexture(GL_TEXTURE_2D, texIndex);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	if(useCuda) {
+		glBufferData(GL_PIXEL_UNPACK_BUFFER, 4*width*height*sizeof(GLubyte), 0, GL_STREAM_DRAW);
+		cudaGraphicsGLRegisterBuffer(&cudaPboResource, pboIndex, cudaGraphicsMapFlagsWriteDiscard);
+	}
 }
 
 GLint WindowManager::compileAndLinkShaders() {
@@ -116,7 +152,8 @@ GLint WindowManager::compileAndLinkShaders() {
 		"uniform sampler2D texSampler;"
 		"void main()"
 		"{"
-		"    frag_color = texture(texSampler, f_texCoord);"
+		"    frag_color = texture2D(texSampler, f_texCoord);"
+		// "    frag_color.xyz = vec3(gl_FragCoord.x/480.0f, gl_FragCoord.y/320.0f, 1.0f);"
 		"    frag_color.xyz = vec3(frag_color.x*frag_color.x, frag_color.y*frag_color.y, frag_color.z*frag_color.z);"
 		"}";
 
@@ -152,6 +189,11 @@ GLint WindowManager::compileAndLinkShaders() {
 }
 
 void WindowManager::deleteShadersAndBuffers() {
+	if (useCuda) {
+		cudaGraphicsUnregisterResource(cudaPboResource);
+	}
+	glDeleteBuffers(1, &pboIndex);
+	glDeleteTextures(1, &pboIndex);
 	glDeleteBuffers(1, &vboIndex);
 	glDeleteVertexArrays(1, &vaoIndex);
 	glDeleteShader(vertexShader);

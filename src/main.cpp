@@ -168,7 +168,7 @@ int main(int argc, char* argv[]) {
 		p_renderer = new ParallelRenderer(&scene, width, height, samples, useBVH);
 	}
 	if (renderToScreen) {
-		return(1);
+		p_launcher = new WindowedLauncher(p_renderer, outFile.c_str());
 	} else {
 		p_launcher = new TerminalLauncher(p_renderer, outFile.c_str());
 	}

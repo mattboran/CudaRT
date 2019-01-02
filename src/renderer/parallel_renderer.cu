@@ -27,6 +27,7 @@ __global__ void renderKernel(SettingsData settings,
 __host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH) :
 	Renderer(_scenePtr, _width, _height, _samples, _useBVH) {
 	// CUDA settings
+	useCuda = true;
 	threadsPerBlock = BLOCK_WIDTH * BLOCK_WIDTH;
 	gridBlocks = width / BLOCK_WIDTH * height / BLOCK_WIDTH;
 
