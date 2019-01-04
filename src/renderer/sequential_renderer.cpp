@@ -6,8 +6,27 @@
 #include <string.h>
 
 using namespace geom;
-
-__host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction, const RayHit& rayHit) {
+__host__ Vector3Df estimateDirect(Triangle* p_light, SurfaceInteraction &interaction) {
+	Vector3Df directLighting(0.0f, 0.0f, 0.0f);
+	if (interaction.pHitTriangle == p_light) {
+		return directLighting;
+	}
+	//if specular, return directLighting
+	Vector3Df lightDir = p_light->getRandomPointOn();
+	Ray ray(interaction.position, interaction.inputDirection);
+	// Sample the light
+	RayHit rayHit;
+	float t = intersectAllTriangles(p_light, 1, rayHit, ray);
+	if (t <= FLT_MAX) {
+		float surfaceArea = p_light->_surfaceArea;
+		float distanceSquared = t*t; // scale by factor of 10
+		float incidenceAngle = fabs(dot(p_light->getNormal(rayHit), -lightDir));
+		float weightFactor = surfaceArea/distanceSquared * incidenceAngle;
+		directLighting += p_light->_colorEmit * weightFactor;
+	}
+	return directLighting;
+}
+__host__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction, const RayHit& rayHit) {
 	float r1 = 2 * M_PI * (rand() / (RAND_MAX + 1.f));
 	float r2 = (rand() / (RAND_MAX + 1.f));
 	float r2sq = sqrtf(r2);
@@ -86,6 +105,7 @@ __host__ __device__  Vector3Df SequentialRenderer::samplePixel(int x, int y) {
         interaction.position = ray.pointAlong(ray.tMax);
         interaction.normal = p_hitTriangle->getNormal(rayHit);
         interaction.outputDirection = normalize(ray.dir);
+        interaction.pHitTriangle = p_hitTriangle;
         //IF DIFFUSE
         mask *= sampleDiffuseBSDF(&interaction, rayHit) / interaction.pdf;
 

@@ -58,6 +58,7 @@ namespace geom {
 		__device__ __host__ Triangle(const Triangle &t);
 		__host__ __device__ float intersect(const Ray &r, float &_u, float &_v) const;
 		__host__ __device__ Vector3Df getNormal(const  RayHit& rh) const;
+		__host__ Vector3Df getRandomPointOn() const;
 		__device__ Vector3Df getRandomPointOn(curandState *randState) const;
 		__host__ __device__ bool isEmissive() const;
 		__host__ __device__ bool isDiffuse() const;
