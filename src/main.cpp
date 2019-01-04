@@ -19,8 +19,8 @@ using namespace geom;
 int main(int argc, char* argv[]) {
 	string outFile;
 	int samples = 10;
-	int width = 480;
-	int height = 320;
+	int width = 640;
+	int height = 480;
 	string objPath = "../meshes/cornell.obj";
 	bool useBVH = false;
 	bool useSequential = false;

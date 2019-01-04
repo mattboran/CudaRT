@@ -12,38 +12,25 @@ void WindowManager::mainWindowLoop(Renderer* p_renderer) {
 	int width = p_renderer->getWidth();
 	int height = p_renderer->getHeight();
 	uchar4* p_img = p_renderer->getImgBytesPointer();
-	unsigned samples = 0;
-	GLuint *p_modified = new GLuint[4*width*height];
-	for (unsigned i = 0; i < width * height; i++) {
-		p_modified[i*4] = p_img[i].x;
-		p_modified[i*4+1] = p_img[i].y;
-		p_modified[i*4+2] = p_img[i].z;
-		p_modified[i*4+3] = p_img[i].w;
-	}
 	while (!glfwWindowShouldClose(window))
 	{
 		glBindVertexArray(vaoIndex);
 		glUseProgram(shaderProgram);
-		glEnable(GL_TEXTURE_2D);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_modified);
-//		glEnable(GL_TEXTURE_2D);
-//		if (useCuda) {
-//			cudaGraphicsMapResources(1, &cudaPboResource, 0);
-//			cudaGraphicsResourceGetMappedPointer((void**)&p_img, NULL, cudaPboResource);
-//			p_renderer->renderOneSamplePerPixel();
-//			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-//			cudaGraphicsUnmapResources(1, &cudaPboResource, 0);
-//		}
-//		else {
-//			glBindTexture(GL_TEXTURE_2D, texIndex);
-//			p_renderer->renderOneSamplePerPixel();
-//			std::cout << "Rendering one sample per pixel sequentially" << std::endl;
-//			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_img);
-//		}
+		if (useCuda) {
+			cudaGraphicsMapResources(1, &cudaPboResource, 0);
+			cudaGraphicsResourceGetMappedPointer((void**)&p_img, NULL, cudaPboResource);
+			p_renderer->renderOneSamplePerPixel();
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+			cudaGraphicsUnmapResources(1, &cudaPboResource, 0);
+		}
+		else {
+			p_renderer->renderOneSamplePerPixel();
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_img);
+		}
 
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		glfwSwapBuffers(window);
-		glDisable(GL_TEXTURE_2D);
+
 		glfwPollEvents();
 		glClear(GL_COLOR_BUFFER_BIT);
 		glClearColor(0.0f, 1.0f, 0.0f, 1.0f);
@@ -91,12 +78,12 @@ void WindowManager::initWindow() {
 void WindowManager::initializeVertexBuffer(){
 	GLfloat vertices[] = {
 		// positions			// UV
-		-1.0f, 1.0f, 0.0f,		0.0f, 1.0f,
-		1.0f, 1.0f, 0.0f,		1.0f, 1.0f,
-		-1.0f, -1.0f, 0.0f,		0.0f, 0.0f,
-		-1.0f, -1.0f, 0.0f,		0.0f, 0.0f,
-		1.0f, 1.0f, 0.0f,		1.0f, 1.0f,
-		1.0f, -1.0f, 0.0f,		1.0f, 0.0f
+		-1.0f, 1.0f, 0.0f,		0.0f, 0.0f,
+		1.0f, 1.0f, 0.0f,		1.0f, 0.0f,
+		-1.0f, -1.0f, 0.0f,		0.0f, 1.0f,
+		-1.0f, -1.0f, 0.0f,		0.0f, 1.0f,
+		1.0f, 1.0f, 0.0f,		1.0f, 0.0f,
+		1.0f, -1.0f, 0.0f,		1.0f, 1.0f
 	};
 	glGenBuffers(1, &vboIndex);
 	glGenVertexArrays(1, &vaoIndex);
@@ -112,14 +99,17 @@ void WindowManager::initializeVertexBuffer(){
 }
 
 void WindowManager::initializePixelBuffer(int width, int height) {
-	glGenBuffers(1, &pboIndex);
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pboIndex);
+//	glGenBuffers(1, &pboIndex);
+//	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pboIndex);
 
 	glGenTextures(1, &texIndex);
+	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texIndex);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+
 
 	if(useCuda) {
 		glBufferData(GL_PIXEL_UNPACK_BUFFER, 4*width*height*sizeof(GLubyte), 0, GL_STREAM_DRAW);
