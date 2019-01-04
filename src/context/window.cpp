@@ -12,6 +12,7 @@ void WindowManager::mainWindowLoop(Renderer* p_renderer) {
 	int width = p_renderer->getWidth();
 	int height = p_renderer->getHeight();
 	uchar4* p_img = p_renderer->getImgBytesPointer();
+	size_t bufferSize = 4 *width*height* sizeof(GLubyte);
 	while (!glfwWindowShouldClose(window))
 	{
 		glBindVertexArray(vaoIndex);
@@ -25,7 +26,13 @@ void WindowManager::mainWindowLoop(Renderer* p_renderer) {
 		}
 		else {
 			p_renderer->renderOneSamplePerPixel();
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, p_img);
+			glBufferData(GL_PIXEL_UNPACK_BUFFER, bufferSize, 0, GL_STREAM_DRAW);
+			GLubyte* p_pbo = (GLubyte*)glMapBuffer(GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY);
+			if (p_pbo) {
+				memcpy(p_pbo, p_img, bufferSize);
+				glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
+			}
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 		}
 
 		glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -99,8 +106,10 @@ void WindowManager::initializeVertexBuffer(){
 }
 
 void WindowManager::initializePixelBuffer(int width, int height) {
-//	glGenBuffers(1, &pboIndex);
-//	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pboIndex);
+	size_t bufferSize = 4 *width*height* sizeof(GLubyte);
+	glGenBuffers(1, &pboIndex);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pboIndex);
+	glBufferData(GL_PIXEL_UNPACK_BUFFER, bufferSize, 0, GL_STREAM_DRAW);
 
 	glGenTextures(1, &texIndex);
 	glActiveTexture(GL_TEXTURE0);
@@ -109,10 +118,7 @@ void WindowManager::initializePixelBuffer(int width, int height) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-
-
 	if(useCuda) {
-		glBufferData(GL_PIXEL_UNPACK_BUFFER, 4*width*height*sizeof(GLubyte), 0, GL_STREAM_DRAW);
 		cudaGraphicsGLRegisterBuffer(&cudaPboResource, pboIndex, cudaGraphicsMapFlagsWriteDiscard);
 	}
 }
