@@ -36,12 +36,13 @@ SequentialRenderer::~SequentialRenderer() {
 }
 
 __host__ void SequentialRenderer::renderOneSamplePerPixel() {
+	samplesRendered++;
     for (unsigned x = 0; x < width; x++) {
         for (unsigned y = 0; y < height; y++) {
             int idx = y * width + x;
             Vector3Df color = samplePixel(x, y);
-            h_imgVectorPtr[idx] = color;
-            h_imgBytesPtr[idx] = vector3ToUchar4(color);
+            h_imgVectorPtr[idx] += color;
+            h_imgBytesPtr[idx] = vector3ToUchar4(h_imgVectorPtr[idx]*(1.f/samplesRendered));
         }
     }
 }
@@ -75,7 +76,10 @@ __host__ __device__  Vector3Df SequentialRenderer::samplePixel(int x, int y) {
 }
 
 __host__ void SequentialRenderer::copyImageBytes() {
-  int pixels = width * height;
+	int pixels = width * height;
 	size_t imgBytes = sizeof(uchar4) * pixels;
-  memcpy(h_imgPtr, h_imgBytesPtr, imgBytes);
+	memcpy(h_imgPtr, h_imgBytesPtr, imgBytes);
+	for (unsigned i = 0; i < pixels; i++) {
+		gammaCorrectPixel(h_imgPtr[i]);
+	}
 }

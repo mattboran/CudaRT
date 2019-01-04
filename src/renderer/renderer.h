@@ -36,16 +36,15 @@ struct SettingsData {
 
 __host__ __device__ inline uchar4 vector3ToUchar4(const Vector3Df& v) {
 	uchar4 retVal;
-	float invGamma = 1.f/2.2f;
-	retVal.x = (unsigned char)(powf(clamp(v.x, 0.0f, 1.0f), invGamma)*(255.f));
-	retVal.y = (unsigned char)(powf(clamp(v.y, 0.0f, 1.0f), invGamma)*(255.f));
-	retVal.z = (unsigned char)(powf(clamp(v.z, 0.0f, 1.0f), invGamma)*(255.f));
+	retVal.x = (unsigned char)(clamp(v.x, 0.0f, 1.0f)*(255.f));
+	retVal.y = (unsigned char)(clamp(v.y, 0.0f, 1.0f)*(255.f));
+	retVal.z = (unsigned char)(clamp(v.z, 0.0f, 1.0f)*(255.f));
 	retVal.w = 255u;
 	return retVal;
 }
 __host__ __device__ Vector3Df testSamplePixel(int x, int y, int width, int height);
 __host__ __device__ float intersectAllTriangles(geom::Triangle* p_triangles, int numTriangles, geom::RayHit &hitData, const geom::Ray& ray);
-
+__host__ __device__ void gammaCorrectPixel(uchar4 &p);
 class Renderer {
 protected:
 	__host__ Renderer() {}
@@ -55,6 +54,7 @@ protected:
 	int height;
 	int samples;
 	int useBVH;
+	int samplesRendered = 0;
 public:
 	bool useCuda = false;
 	uchar4* h_imgPtr;

@@ -21,7 +21,6 @@ void WindowManager::mainWindowLoop(Renderer* p_renderer) {
 			cudaGraphicsMapResources(1, &cudaPboResource, 0);
 			cudaGraphicsResourceGetMappedPointer((void**)&p_img, NULL, cudaPboResource);
 			p_renderer->renderOneSamplePerPixel();
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 			cudaGraphicsUnmapResources(1, &cudaPboResource, 0);
 		}
 		else {
@@ -32,8 +31,8 @@ void WindowManager::mainWindowLoop(Renderer* p_renderer) {
 				memcpy(p_pbo, p_img, bufferSize);
 				glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
 			}
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 		}
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		glfwSwapBuffers(window);
@@ -149,8 +148,8 @@ GLint WindowManager::compileAndLinkShaders() {
 		"void main()"
 		"{"
 		"    frag_color = texture2D(texSampler, f_texCoord);"
-		// "    frag_color.xyz = vec3(gl_FragCoord.x/480.0f, gl_FragCoord.y/320.0f, 1.0f);"
-		"    frag_color.xyz = vec3(frag_color.x*frag_color.x, frag_color.y*frag_color.y, frag_color.z*frag_color.z);"
+		"	 float gamma = 2.2f;"
+		"    frag_color.xyz = pow(frag_color.xyz, vec3(1.0/gamma));"
 		"}";
 
 	vertexShader = glCreateShader(GL_VERTEX_SHADER);

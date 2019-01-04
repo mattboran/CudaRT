@@ -69,3 +69,14 @@ __host__ __device__ float intersectAllTriangles(Triangle* p_triangles, int numTr
 	}
 	return t;
 }
+
+__host__ __device__ void gammaCorrectPixel(uchar4 &p) {
+	float invGamma = 1.f/2.2f;
+	float3 fp;
+	fp.x = pow((float)p.x * 1.f/255.f, invGamma);
+	fp.y = pow((float)p.y * 1.f/255.f, invGamma);
+	fp.z = pow((float)p.z * 1.f/255.f, invGamma);
+	p.x = (unsigned char)(fp.x * 255.f);
+	p.y = (unsigned char)(fp.y * 255.f);
+	p.z = (unsigned char)(fp.z * 255.f);
+}
