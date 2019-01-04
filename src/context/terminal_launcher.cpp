@@ -9,7 +9,7 @@
 
 void TerminalLauncher::render() {
 	int samples = p_renderer->getSamples();
-	for (int s = 0; s < 1; s++) {
+	for (int s = 0; s < samples; s++) {
 		p_renderer->renderOneSamplePerPixel();
 	}
 	p_renderer->copyImageBytes();

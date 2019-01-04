@@ -1,10 +1,27 @@
 #include "renderer.h"
 
+
 #include <algorithm>
 #include <iterator>
 #include <string.h>
 
 using namespace geom;
+
+__host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction, const RayHit& rayHit) {
+	float r1 = 2 * M_PI * (rand() / (RAND_MAX + 1.f));
+	float r2 = (rand() / (RAND_MAX + 1.f));
+	float r2sq = sqrtf(r2);
+	// calculate orthonormal coordinates u, v, w, at hitpt
+	Vector3Df w = p_interaction->normal;
+	Vector3Df u = normalize(cross( (fabs(w.x) > 0.1f ?
+				Vector3Df(0.f, 1.f, 0.f) :
+				Vector3Df(1.f, 0.f, 0.f)), w));
+	Vector3Df v = cross(w, u);
+	p_interaction->inputDirection = normalize(u * cosf(r1) * r2sq + v * sinf(r1) * r2sq + w * sqrtf(1.f - r2));
+	p_interaction->pdf = 0.5f;
+	float cosineWeight = dot(p_interaction->inputDirection, p_interaction->normal);
+	return rayHit.pHitTriangle->_colorDiffuse * cosineWeight;
+}
 
 SequentialRenderer::SequentialRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH) :
   Renderer(_scenePtr, _width, _height, _samples, _useBVH)
@@ -40,37 +57,42 @@ __host__ void SequentialRenderer::renderOneSamplePerPixel() {
     for (unsigned x = 0; x < width; x++) {
         for (unsigned y = 0; y < height; y++) {
             int idx = y * width + x;
-            Vector3Df color = samplePixel(x, y);
-            h_imgVectorPtr[idx] += color;
-            h_imgBytesPtr[idx] = vector3ToUchar4(h_imgVectorPtr[idx]*(1.f/samplesRendered));
+            h_imgVectorPtr[idx] += samplePixel(x, y);
+            h_imgBytesPtr[idx] = vector3ToUchar4(h_imgVectorPtr[idx]/samplesRendered);
         }
     }
 }
-
 
 __host__ __device__  Vector3Df SequentialRenderer::samplePixel(int x, int y) {
     Ray ray = p_scene->getCameraPtr()->computeSequentialCameraRay(x, y);
 
     Vector3Df color(0.f, 0.f, 0.f);
     Vector3Df mask(1.f, 1.f, 1.f);
-    RayHit hitData;
+    RayHit rayHit;
     float t = 0.0f;
-
+    SurfaceInteraction interaction;
     Triangle* p_triangles = h_trianglesData->triPtr;
     Triangle* p_hitTriangle = NULL;
     int numTriangles = h_trianglesData->numTriangles;
-
-    const unsigned maxBounces = 1;
-    for (unsigned bounces = 0; bounces < maxBounces; bounces++) {
-        t = intersectAllTriangles(p_triangles, numTriangles, hitData, ray);
-        if (t == FLT_MAX) {
+    for (unsigned bounces = 0; bounces < 6; bounces++) {
+        t = intersectAllTriangles(p_triangles, numTriangles, rayHit, ray);
+        if (t >= FLT_MAX) {
             break;
         }
-        p_hitTriangle = hitData.pHitTriangle;
-        if (p_hitTriangle->isEmissive()) {
-            color += mask * p_hitTriangle->_colorEmit;
-        }
-        color = p_hitTriangle->_colorDiffuse;
+        p_hitTriangle = rayHit.pHitTriangle;
+
+        color += mask * p_hitTriangle->_colorEmit;
+
+        interaction.position = ray.pointAlong(ray.tMax);
+        interaction.normal = p_hitTriangle->getNormal(rayHit);
+        interaction.outputDirection = normalize(ray.dir);
+        //IF DIFFUSE
+        mask *= sampleDiffuseBSDF(&interaction, rayHit) / interaction.pdf;
+
+        ray.origin = interaction.position;
+        ray.dir = interaction.inputDirection;
+        ray.tMin = EPSILON;
+        ray.tMax = FLT_MAX;
     }
     return color;
 }

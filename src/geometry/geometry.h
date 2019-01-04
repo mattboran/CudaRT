@@ -30,7 +30,7 @@ namespace geom {
 	struct Ray {
 		Vector3Df origin;
 		Vector3Df dir;
-		float tMin = 0.f;
+		float tMin = EPSILON;
 		float tMax = FLT_MAX;
 
 		__host__ __device__ Ray(Vector3Df o, Vector3Df d) : origin(o), dir(normalize(d)) { }
@@ -78,10 +78,12 @@ namespace geom {
 	}__attribute__((aligned (32)));
 
 	struct SurfaceInteraction {
+		Triangle* pHitTriangle = NULL;
 		Vector3Df position;
 		Vector3Df normal;
 		Vector3Df inputDirection;
 		Vector3Df outputDirection;
+		float pdf, u, v, t;
 	};
 }
 #endif

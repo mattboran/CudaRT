@@ -43,7 +43,7 @@ __host__ __device__ inline uchar4 vector3ToUchar4(const Vector3Df& v) {
 	return retVal;
 }
 __host__ __device__ Vector3Df testSamplePixel(int x, int y, int width, int height);
-__host__ __device__ float intersectAllTriangles(geom::Triangle* p_triangles, int numTriangles, geom::RayHit &hitData, const geom::Ray& ray);
+__host__ __device__ float intersectAllTriangles(geom::Triangle* p_triangles, int numTriangles, geom::RayHit &hitData, geom::Ray& ray);
 __host__ __device__ void gammaCorrectPixel(uchar4 &p);
 class Renderer {
 protected:

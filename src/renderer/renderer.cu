@@ -52,7 +52,7 @@ __host__ __device__ Vector3Df testSamplePixel(int x, int y, int width, int heigh
 	return retVal;
 }
 
-__host__ __device__ float intersectAllTriangles(Triangle* p_triangles, int numTriangles, RayHit &hitData, const Ray& ray) {
+__host__ __device__ float intersectAllTriangles(Triangle* p_triangles, int numTriangles, RayHit &hitData, Ray& ray) {
 	float t = ray.tMax;
 	float tprime = ray.tMax;
 	float u, v;
@@ -67,6 +67,7 @@ __host__ __device__ float intersectAllTriangles(Triangle* p_triangles, int numTr
 		}
 		p_current++;
 	}
+	ray.tMax = t;
 	return t;
 }
 
