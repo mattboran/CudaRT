@@ -1,31 +1,36 @@
 #include "renderer.h"
 
-
 #include <algorithm>
 #include <iterator>
 #include <string.h>
 
 using namespace geom;
-__host__ Vector3Df estimateDirect(Triangle* p_light, SurfaceInteraction &interaction) {
+
+__host__ Vector3Df estimateDirect(Triangle* p_light, TrianglesData* p_trianglesData, const SurfaceInteraction &interaction) {
 	Vector3Df directLighting(0.0f, 0.0f, 0.0f);
 	if (interaction.pHitTriangle == p_light) {
 		return directLighting;
 	}
 	//if specular, return directLighting
-	Vector3Df lightDir = p_light->getRandomPointOn();
-	Ray ray(interaction.position, interaction.inputDirection);
-	// Sample the light
+	Ray ray(interaction.position,  normalize(p_light->getRandomPointOn() - interaction.position));
 	RayHit rayHit;
-	float t = intersectAllTriangles(p_light, 1, rayHit, ray);
-	if (t <= FLT_MAX) {
+	// Sample the light
+	Triangle* p_triangles = p_trianglesData->triPtr;
+	float t = intersectAllTriangles(p_triangles, p_trianglesData->numTriangles, rayHit, ray);
+	if (t < FLT_MAX && (rayHit.pHitTriangle->_triId == p_light->_triId)) {
 		float surfaceArea = p_light->_surfaceArea;
-		float distanceSquared = t*t; // scale by factor of 10
-		float incidenceAngle = fabs(dot(p_light->getNormal(rayHit), -lightDir));
+		float distanceSquared = t*t;
+		float incidenceAngle = fabs(dot(p_light->getNormal(rayHit), -ray.dir));
 		float weightFactor = surfaceArea/distanceSquared * incidenceAngle;
 		directLighting += p_light->_colorEmit * weightFactor;
+		// This introduces bias!!!
+		directLighting.x = directLighting.x > 1.0f ? 1.0f: directLighting.x;
+		directLighting.y = directLighting.y > 1.0f ? 1.0f: directLighting.y;
+		directLighting.z = directLighting.z > 1.0f ? 1.0f: directLighting.z;
 	}
 	return directLighting;
 }
+
 __host__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction, const RayHit& rayHit) {
 	float r1 = 2 * M_PI * (rand() / (RAND_MAX + 1.f));
 	float r2 = (rand() / (RAND_MAX + 1.f));
@@ -99,14 +104,19 @@ __host__ __device__  Vector3Df SequentialRenderer::samplePixel(int x, int y) {
             break;
         }
         p_hitTriangle = rayHit.pHitTriangle;
-
-        color += mask * p_hitTriangle->_colorEmit;
-
+        if (bounces == 0) {
+        	color += mask * p_hitTriangle->_colorEmit;
+        }
         interaction.position = ray.pointAlong(ray.tMax);
         interaction.normal = p_hitTriangle->getNormal(rayHit);
         interaction.outputDirection = normalize(ray.dir);
         interaction.pHitTriangle = p_hitTriangle;
+
         //IF DIFFUSE
+		{
+			int lightIdx = rand() % h_lightsData->numLights;
+			color += mask * estimateDirect(&h_lightsData->lightsPtr[lightIdx], h_trianglesData, interaction);
+		}
         mask *= sampleDiffuseBSDF(&interaction, rayHit) / interaction.pdf;
 
         ray.origin = interaction.position;
