@@ -2,11 +2,12 @@
 #define __GEOMETRY_H_
 
 #include "linalg.h"
+#include <cfloat>
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <curand.h>
 #include <curand_kernel.h>
-#include <limits>
+// #include <limits>
 #include <iostream>
 
 #define EPSILON 0.00001f
@@ -29,6 +30,8 @@ namespace geom {
 	struct Ray {
 		Vector3Df origin;
 		Vector3Df dir;
+		float tMin = EPSILON;
+		float tMax = FLT_MAX;
 
 		__host__ __device__ Ray(Vector3Df o, Vector3Df d) : origin(o), dir(normalize(d)) { }
 		__device__ Vector3Df pointAlong(float t) { return Vector3Df(origin + dir*t); }
@@ -53,13 +56,11 @@ namespace geom {
 		float _surfaceArea = 0.0f;
 		__device__ __host__ Triangle() {}
 		__device__ __host__ Triangle(const Triangle &t);
-//		__device__ Triangle(float3 v1, float3 e1, float3 e2, float3 n1, float3 n2, float3 n3, float3 diff, float3 spec, float3 emit, unsigned triId);
-//		__device__ Triangle(float4 v1, float4 e1, float4 e2, float4 n1, float4 n2, float4 n3, float4 diff, float4 spec, float4 emit);
 		__host__ __device__ float intersect(const Ray &r, float &_u, float &_v) const;
 		__host__ __device__ Vector3Df getNormal(const  RayHit& rh) const;
+		__host__ Vector3Df getRandomPointOn() const;
 		__device__ Vector3Df getRandomPointOn(curandState *randState) const;
 		__host__ __device__ bool isEmissive() const;
-//		__host__ __device__ bool isSpecular() const;
 		__host__ __device__ bool isDiffuse() const;
 		// TODO: Implement these properties
 		// Center point
@@ -73,8 +74,17 @@ namespace geom {
 	} __attribute__ ((aligned (128))) ;
 
 	struct RayHit {
-		Triangle* pHitTriangle;
+		Triangle* pHitTriangle = NULL;
 		float u, v, t;
 	}__attribute__((aligned (32)));
+
+	struct SurfaceInteraction {
+		Triangle* pHitTriangle = NULL;
+		Vector3Df position;
+		Vector3Df normal;
+		Vector3Df inputDirection;
+		Vector3Df outputDirection;
+		float pdf, u, v, t;
+	};
 }
 #endif

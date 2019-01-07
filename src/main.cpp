@@ -4,28 +4,29 @@
 #include "pathtrace.h"
 #include "scene.h"
 #include "sequential.h"
+#include "launcher.h"
+#include "renderer.h"
 
 #include <algorithm>
+#include <cuda.h>
 #include <iostream>
 #include <string>
 #include <vector>
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stbi_save_image.h"
 using namespace std;
 using namespace geom;
-
-static void saveImageToPng(string filename, int width, int height, const Vector3Df* data);
 
 int main(int argc, char* argv[]) {
 	string outFile;
 	int samples = 10;
-	int width = 480;
-	int height = 320;
+	int width = 640;
+	int height = 480;
 	string objPath = "../meshes/cornell.obj";
 	bool useBVH = false;
 	bool useSequential = false;
+	bool renderToScreen = false;
 	int numStreams = 1;
+	int cudaCapableDevices = 0;
 
 	//
 	//	Parse command line arguments
@@ -39,7 +40,8 @@ int main(int argc, char* argv[]) {
 				"-h \t<height>\tdefault:320px\n" \
 				"-f \t<path to .obj to render>\tdefault:./meshes/cornell.obj\n" \
 				"-b \t<flag to use bounding volume heirarchy (GPU only)>\tdefault: false\n" \
-				"--cpu \t<flag to run sequential code on CPU only>\tdefault: false>\n" \
+				"--cpu \t<flag to run sequential code on CPU only>\tdefault: false\n" \
+				"--X \t<flag to render to screen>\tdefault: false\n" \
 				"Note: BVH has bugs in both CUDA and CPU version. CPU version is worse.\n"\
 				;
 		return(1);
@@ -103,6 +105,13 @@ int main(int argc, char* argv[]) {
 		useSequential = true;
 	}
 
+
+	// Render To Screen flag
+	if ((find(args.begin(), args.end(), "--X") < args.end())) {
+		renderToScreen = true;
+	}
+
+
 	// .obj path
 	if ((find(args.begin(), args.end(), "-f") < args.end() - 1)) {
 		objPath = *(find(args.begin(), args.end(), "-f") + 1);
@@ -127,6 +136,16 @@ int main(int argc, char* argv[]) {
 
 	cout << "Total number of triangles:\t" << scene.getNumTriangles() << endl;
 
+//	if (renderToScreen) {
+//		WindowManager windowManager(width, height, "CudaRT - Path Tracer in CUDA");
+//		if (!windowManager.window) {
+//			cout << "Window failed to initialize. Exiting!" << endl;
+//			return 1;
+//		}
+//		windowManager.mainWindowLoop();
+//		return 0;
+//	}
+
 	//
 	// Initialize Scene : Camera
 	// TODO: Load this from .obj using cam meshes
@@ -136,41 +155,41 @@ int main(int argc, char* argv[]) {
 	Vector3Df camTarget(0.0f, 5.0f, 0.0f);
 	Vector3Df camUp(0.0f, 7.0f, 0.0f);
 	Vector3Df camRt(-1.0f, 0.0f, 0.0f);
-
 	Camera camera = Camera(camPos, camTarget, camUp, camRt, 90.0f, width, height);
-	scene.setCamera(camera);
 	Clock timer = Clock();
+	Renderer* p_renderer;
+	Launcher* p_launcher;
 
-	Vector3Df* imgData;
-	if (useSequential) {
-		imgData = Sequential::pathtraceWrapper(scene, width, height, samples, numStreams, useBVH);
+	scene.setCamera(camera);
+	cudaGetDeviceCount(&cudaCapableDevices);
+	if (useSequential || cudaCapableDevices == 0) {
+		p_renderer = new SequentialRenderer(&scene, width, height, samples, useBVH);
+	} else {
+		p_renderer = new ParallelRenderer(&scene, width, height, samples, useBVH);
 	}
-	else {
-		imgData = Parallel::pathtraceWrapper(scene, width, height, samples, numStreams, useBVH);
+	if (renderToScreen) {
+		p_launcher = new WindowedLauncher(p_renderer, outFile.c_str());
+	} else {
+		p_launcher = new TerminalLauncher(p_renderer, outFile.c_str());
 	}
 
-	saveImageToPng(outFile, width, height, imgData);
+	p_launcher->render();
+	p_launcher->saveToImage();
+	delete p_renderer;
+	delete p_launcher;
 
-	cout << "Total time from start to output to " << outFile << ":\t\t" << timer.readS() << " seconds " << endl;
+//	Vector3Df* imgData;
+//	if (useSequential) {
+//		imgData = Sequential::pathtraceWrapper(scene, width, height, samples, numStreams, useBVH);
+//	}
+//	else {
+//		imgData = Parallel::pathtraceWrapper(scene, width, height, samples, numStreams, useBVH);
+//	}
+//
+//	saveImageToPng(outFile, width, height, imgData);
+//
+//	cout << "Total time from start to output to " << outFile << ":\t\t" << timer.readS() << " seconds " << endl;
 
-	delete[] imgData;
+//	delete[] imgData;
 	return(0);
-}
-
-
-static void saveImageToPng(string filename, int width, int height, const Vector3Df* data) {
-	const unsigned comp = 4;
-	const unsigned strideBytes = width * 4;
-	unsigned char* imageData = new unsigned char[width * height * comp];
-
-	unsigned char* currentPixelPtr = imageData;
-	for (int i = 0; i < width * height; i++) {
-		Vector3Df currentColor = data[i] * 255;
-		*currentPixelPtr = (unsigned char)currentColor.x; currentPixelPtr++;
-		*currentPixelPtr = (unsigned char)currentColor.y; currentPixelPtr++;
-		*currentPixelPtr = (unsigned char)currentColor.z; currentPixelPtr++;
-		*currentPixelPtr = (unsigned char)255u; currentPixelPtr++;
-	}
-	stbi_write_png(filename.c_str(), width, height, comp, imageData, strideBytes);
-	delete[] imageData;
 }

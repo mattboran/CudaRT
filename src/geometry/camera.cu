@@ -16,7 +16,9 @@ __host__ Camera::Camera(Vector3Df pos, Vector3Df target, Vector3Df upv, Vector3D
 // Compute tent filtered ray
 __device__ Ray Camera::computeCameraRay(int i, int j, curandState* randState) const
 {
-	float r1 = 2 * curand_uniform(randState);
+	float r1, r2;
+	r1 = 2.f * curand_uniform(randState);
+	r2 = 2.f * curand_uniform(randState);
 	float dx;
 	if (r1 < 1.f){
 		dx = sqrtf(r1) - 1.f;
@@ -24,7 +26,6 @@ __device__ Ray Camera::computeCameraRay(int i, int j, curandState* randState) co
 	else{
 		dx = 1.f - sqrtf(2.f - r1);
 	}
-	float r2 = 2 * curand_uniform(randState);
 	float dy;
 	if (r2 < 1){
 		dy = sqrtf(r2) - 1.f;
