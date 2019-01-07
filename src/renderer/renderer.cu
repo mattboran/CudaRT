@@ -71,6 +71,7 @@ __host__ __device__ float intersectAllTriangles(Triangle* p_triangles, int numTr
 	return t;
 }
 
+
 __host__ __device__ void gammaCorrectPixel(uchar4 &p) {
 	float invGamma = 1.f/2.2f;
 	float3 fp;

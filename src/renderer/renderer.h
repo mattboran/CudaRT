@@ -42,6 +42,9 @@ __host__ __device__ inline uchar4 vector3ToUchar4(const Vector3Df& v) {
 	retVal.w = 255u;
 	return retVal;
 }
+__host__ __device__ inline bool sameTriangle(geom::Triangle* p_a, geom::Triangle* p_b) {
+	return p_a->_triId == p_b->_triId;
+}
 __host__ __device__ Vector3Df testSamplePixel(int x, int y, int width, int height);
 __host__ __device__ float intersectAllTriangles(geom::Triangle* p_triangles, int numTriangles, geom::RayHit &hitData, geom::Ray& ray);
 __host__ __device__ void gammaCorrectPixel(uchar4 &p);
