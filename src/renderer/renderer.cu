@@ -33,9 +33,6 @@ __host__ void Renderer::createSettingsData(SettingsData* p_settingsData){
 __host__ void Renderer::createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles) {
 	p_trianglesData->p_triangles = p_triangles;
 	p_trianglesData->numTriangles = p_scene->getNumTriangles();
-	p_trianglesData->bvhPtr = NULL;
-	p_trianglesData->bvhIndexPtr = NULL;
-	p_trianglesData->numBVHNodes = 0;
 }
 
 __host__ void Renderer::createLightsData(LightsData* p_lightsData, Triangle* p_triangles) {
@@ -62,7 +59,49 @@ __host__ __device__ float intersectAllTriangles(Triangle* p_triangles, int numTr
 	ray.tMax = t;
 	return t;
 }
+/*
+bool hitsBox(const Ray& ray, BVHNode* bbox) {
+	float t0 = -FLT_MAX, t1 = FLT_MAX;
+	//axes
 
+	float invRayDir = 1.f/ray.dir.x;
+	float tNear = (bbox->_bottom.x - ray.origin.x) * invRayDir;
+	float tFar = (bbox->_top.x - ray.origin.x) * invRayDir;
+	if (tNear > tFar) {
+		float tmp = tNear;
+		tNear = tFar;
+		tFar = tmp;
+	}
+	t0 = tNear > t0 ? tNear : t0;
+	t1 = tFar < t1 ? tFar : t1;
+	if (t0 > t1) return false;
+
+	invRayDir = 1.f/ray.dir.y;
+	tNear = (bbox->_bottom.y - ray.origin.y) * invRayDir;
+	tFar = (bbox->_top.y - ray.origin.y) * invRayDir;
+	if (tNear > tFar) {
+		float tmp = tNear;
+		tNear = tFar;
+		tFar = tmp;
+	}
+	t0 = tNear > t0 ? tNear : t0;
+	t1 = tFar < t1 ? tFar : t1;
+	if (t0 > t1) return false;
+
+	invRayDir = 1.f/ray.dir.z;
+	tNear = (bbox->_bottom.z - ray.origin.z) * invRayDir;
+	tFar = (bbox->_top.z - ray.origin.z) * invRayDir;
+	if (tNear > tFar) {
+		float tmp = tNear;
+		tNear = tFar;
+		tFar = tmp;
+	}
+	t0 = tNear > t0 ? tNear : t0;
+	t1 = tFar < t1 ? tFar : t1;
+	if (t0 > t1) return false;
+
+	return true;
+}*/
 
 __host__ __device__ void gammaCorrectPixel(uchar4 &p) {
 	float invGamma = 1.f/2.2f;

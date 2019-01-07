@@ -2,7 +2,6 @@
 #ifndef SCENE_H
 #define SCENE_H
 
-#include "bvh.h"
 #include "camera.h"
 #include "geometry.h"
 #include "obj_load.h"
@@ -15,7 +14,7 @@ struct CacheFriendlyBVHNode;
 
 class Scene {
 public:
-	~Scene();
+	~Scene() {};
 	Scene(std::string filename);
 	Scene(std::vector<std::string>& filenames);
 
@@ -30,11 +29,6 @@ public:
 	objl::Vertex* getVertexPtr();
 	unsigned* getVertexIndicesPtr();
 
-	BVHNode* getSceneBVHPtr();
-	CacheFriendlyBVHNode* getSceneCFBVHPtr();
-	std::vector<CacheFriendlyBVHNode> cfBVHNodeVector;
-	unsigned *getTriIndexBVHPtr();
-	unsigned *getBVHIndexPtr();
 	unsigned getNumBVHNodes();
 
 	objl::Mesh getMesh(int i);
@@ -42,23 +36,9 @@ public:
 
 	// Set methods
 	void setCamera(const Camera& cam);
-	void setBVHPtr(BVHNode* bvhPtr);
-	void setCacheFriendlyVBHPtr(CacheFriendlyBVHNode* bvhPtr);
-	void setNumBVHNodes(unsigned i);
-	void allocateCFBVHNodeArray(unsigned nodes);
-	void allocateBVHNodeIndexArray(unsigned nodes);
 private:
-	// BVH Variables
-	BVHNode* sceneBVH;
-	CacheFriendlyBVHNode* sceneCFBVH;
-	unsigned numBVHNodes;
-	// Corresponds with the sceneCFBVH: an index into trianglesPtr
-	unsigned* triIndexBVHPtr;
-	// Indices into sceneCFBVHPtr
-	unsigned* bvhIndexPtr;
-
 	// Geometry - todo: phase these out if possible
-	geom::Triangle* trianglesPtr = NULL;
+	geom::Triangle* p_triangles = NULL;
 	std::vector<geom::Triangle> lightsList;
 	objl::Loader meshLoader;
 	Camera camera;

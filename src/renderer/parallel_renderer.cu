@@ -37,7 +37,6 @@ __host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, int _width, int _h
 	int pixels = width * height;
 	unsigned numTris = p_scene->getNumTriangles();
 	unsigned numLights = p_scene->getNumLights();
-	unsigned numBVHNodes = p_scene->getNumBVHNodes();
 	size_t trianglesBytes = sizeof(Triangle) * numTris;
 	size_t lightsBytes = sizeof(Triangle) * numLights;
 	size_t curandBytes = sizeof(curandState) * threadsPerBlock * gridBlocks;

@@ -1,7 +1,6 @@
 // Implementation for Scene functions. This file is responsible for setting up the scene for rendering
 
 #include "scene.h"
-#include "bvh.h"
 
 #include <algorithm>
 #include <iostream>
@@ -18,24 +17,13 @@ Scene::Scene(std::string filename) {
 	if (!meshLoader.LoadFile(filename)) {
 		std::cerr << "Failed to load mesh for " << filename << std::endl;
 	}
-	trianglesPtr = loadTriangles();
+	p_triangles = loadTriangles();
 	vertexIndices = &meshLoader.LoadedIndices[0];
 	vertexPtr = &meshLoader.LoadedVertices[0];
-
-	// Create BVH and CFBVH
-	triIndexBVHPtr = new unsigned[getNumTriangles()];
-	CreateBoundingVolumeHeirarchy(this);
 }
 
 Scene::Scene(vector<std::string>& filenames) {
 	std::cerr << "Multiple .objs not implemented yet!" << std::endl;
-}
-
-Scene::~Scene() {
-	// TODO: Find out why there's a memory corruption or double free when we delete
-	// the other pointers in this class
-//	delete sceneCFBVH;
-//	delete triIndexBVHPtr;
 }
 
 // Get methods
@@ -67,7 +55,7 @@ float Scene::getLightsSurfaceArea() {
 	return surfaceArea;
 }
 Triangle* Scene::getTriPtr() {
-	return trianglesPtr;
+	return p_triangles;
 }
 
 Triangle* Scene::getLightsPtr(){
@@ -82,26 +70,6 @@ unsigned* Scene::getVertexIndicesPtr(){
 	return vertexIndices;
 }
 
-BVHNode* Scene::getSceneBVHPtr() {
-	return sceneBVH;
-}
-
-unsigned* Scene::getBVHIndexPtr() {
-	return bvhIndexPtr;
-}
-
-CacheFriendlyBVHNode* Scene::getSceneCFBVHPtr() {
-	return &cfBVHNodeVector[0];
-}
-
-unsigned *Scene::getTriIndexBVHPtr() {
-	return triIndexBVHPtr;
-}
-
-unsigned Scene::getNumBVHNodes() {
-	return numBVHNodes;
-}
-
 Camera* Scene::getCameraPtr() {
 	return &camera;
 }
@@ -109,26 +77,6 @@ Camera* Scene::getCameraPtr() {
 
 void Scene::setCamera(const Camera& cam) {
 	camera = Camera(cam);
-}
-
-void Scene::setBVHPtr(BVHNode *bvhPtr) {
-	sceneBVH = bvhPtr;
-}
-
-void Scene::setCacheFriendlyVBHPtr(CacheFriendlyBVHNode* bvhPtr) {
-	sceneCFBVH = bvhPtr;
-}
-
-void Scene::setNumBVHNodes(unsigned i) {
-	numBVHNodes = i;
-}
-
-void Scene::allocateCFBVHNodeArray(unsigned nodes) {
-	sceneCFBVH = new CacheFriendlyBVHNode[nodes];
-}
-
-void Scene::allocateBVHNodeIndexArray(unsigned nodes) {
-	bvhIndexPtr = new unsigned[nodes];
 }
 
 Triangle* Scene::loadTriangles() {

@@ -1,9 +1,7 @@
 // This file is responsible for parsing command line arguments,
 // getting the scene set up, and launching the pathtrace kernel
 
-#include "pathtrace.h"
 #include "scene.h"
-#include "sequential.h"
 #include "launcher.h"
 #include "renderer.h"
 
@@ -69,12 +67,6 @@ int main(int argc, char* argv[]) {
 	if ((find(args.begin(), args.end(), "-w") < args.end() - 1)) {
 		try {
 			width = stoi(*(find(args.begin(), args.end(), "-w") + 1));
-			if (!useSequential) {
-				if (width % (Parallel::blockWidth * Parallel::blockWidth) != 0) {
-					cout << "Width should be a multiple of " << Parallel::blockWidth \
-							<< ". You may see something weird happen because of this!" << endl;
-				}
-			}
 		} catch (invalid_argument& e) {
 			cerr << "Invalid argument to -w!" << endl;
 		}
@@ -84,12 +76,6 @@ int main(int argc, char* argv[]) {
 	if ((find(args.begin(), args.end(), "-h") < args.end() - 1)) {
 		try {
 			height = stoi(*(find(args.begin(), args.end(), "-h") + 1));
-			if (!useSequential){
-				if (height % (Parallel::blockWidth * Parallel::blockWidth) != 0) {
-					cout << "Height should be a multiple of " << Parallel::blockWidth \
-							<< ". You may see something weird happen because of this!" << endl;
-				}
-			}
 		} catch (invalid_argument& e) {
 			cerr << "Invalid argument to -h!" << endl;
 		}
@@ -147,7 +133,6 @@ int main(int argc, char* argv[]) {
 	Vector3Df camUp(0.0f, 1.0f, 0.0f);
 	Vector3Df camRt(-1.0f, 0.0f, 0.0f);
 	Camera camera = Camera(camPos * scale, camTarget * scale, camUp, camRt, 90.0f, width, height);
-	Clock timer = Clock();
 	Renderer* p_renderer;
 	Launcher* p_launcher;
 
@@ -169,8 +154,7 @@ int main(int argc, char* argv[]) {
 	delete p_renderer;
 	delete p_launcher;
 
-	cout << "Rendered " << p_renderer->getSamplesRendered() << " samples per pixel. " << endl;
-	cout << "Total time from start to output to " << outFile << ":\t\t" << timer.readS() << " seconds " << endl;
+	cout << "Rendered to " << outFile << " for " << p_renderer->getSamplesRendered() << " samples per pixel. " << endl;
 
 	return(0);
 }

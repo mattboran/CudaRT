@@ -63,7 +63,7 @@ __host__ __device__ Vector3Df Triangle::getNormal(const RayHit& rh) const {
 	float w = 1 - rh.u - rh.v;
 	float u = rh.u;
 	float v = rh.v;
-	return Vector3Df(normalize(_n1 * w + _n2 * u + _n3 * v));
+	return _n1*w + _n2*u + _n3*v;
 }
 
 __host__ Vector3Df Triangle::getRandomPointOn() const {

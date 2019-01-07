@@ -21,10 +21,7 @@ struct LightsData {
 
 struct TrianglesData {
 	geom::Triangle* p_triangles;
-	CacheFriendlyBVHNode* bvhPtr;
-	unsigned *bvhIndexPtr;
 	unsigned numTriangles;
-	unsigned numBVHNodes;
 };
 
 struct SettingsData {
