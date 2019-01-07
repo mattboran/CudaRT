@@ -13,7 +13,9 @@
 #define BLOCK_WIDTH 16u
 
 using namespace geom;
-
+__device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction, const RayHit& rayHit, curandState* p_curandState);
+__device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, const SurfaceInteraction &interaction, curandState* p_curandState);
+__device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, TrianglesData* p_trianglesData, LightsData *p_lightsData, curandState *p_curandState);
 // Kernels
 __global__ void initializeCurandKernel(curandState* p_curandState);
 __global__ void renderKernel(SettingsData settings,
@@ -22,7 +24,8 @@ __global__ void renderKernel(SettingsData settings,
 		Camera* p_camera,
 		TrianglesData* p_tris,
 		LightsData* p_lights,
-		curandState *p_curandState);
+		curandState *p_curandState,
+		int sampleNumber);
 
 __host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH) :
 	Renderer(_scenePtr, _width, _height, _samples, _useBVH) {
@@ -108,17 +111,18 @@ __host__ void ParallelRenderer::initializeCurand() {
 	initializeCurandKernel<<<grid, block, 0>>>(d_curandStatePtr);
 }
 
-__host__ void ParallelRenderer::renderOneSamplePerPixel() {
+__host__ void ParallelRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 	dim3 block = dim3(BLOCK_WIDTH, BLOCK_WIDTH, 1);
 	dim3 grid = dim3(width/BLOCK_WIDTH, height/BLOCK_WIDTH, 1);
-
+	samplesRendered++;
 	renderKernel<<<grid, block, 0>>>(d_settingsData,
 			d_imgVectorPtr,
-			d_imgBytesPtr,
+			p_img,
 			d_camPtr,
 			d_trianglesData,
 			d_lightsData,
-			d_curandStatePtr);
+			d_curandStatePtr,
+			samplesRendered);
 }
 
 __host__ void ParallelRenderer::copyImageBytes() {
@@ -142,10 +146,101 @@ __global__ void renderKernel(SettingsData settings,
 		Camera* p_camera,
 		TrianglesData* p_tris,
 		LightsData* p_lights,
-		curandState *p_curandState) {
+		curandState *p_curandState,
+		int sampleNumber) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
 	int idx = y * settings.width + x;
-	Vector3Df color = testSamplePixel(x, y, settings.width, settings.height);
-	p_outImg[idx] = vector3ToUchar4(color);
+	curandState* p_threadCurand = &p_curandState[idx];
+	Vector3Df color = samplePixel(x, y, p_camera, p_tris, p_lights, p_threadCurand);
+	p_imgBuffer[idx] += color;
+	p_outImg[idx] = vector3ToUchar4(p_imgBuffer[idx]/(float)sampleNumber);
+}
+
+__device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, TrianglesData* p_trianglesData, LightsData *p_lightsData, curandState *p_curandState) {
+    Ray ray = p_camera->computeCameraRay(x, y, p_curandState);
+
+    Vector3Df color(0.f, 0.f, 0.f);
+    Vector3Df mask(1.f, 1.f, 1.f);
+    RayHit rayHit;
+    float t = 0.0f;
+    SurfaceInteraction interaction;
+    Triangle* p_triangles = p_trianglesData->triPtr;
+    Triangle* p_hitTriangle = NULL;
+    int numTriangles = p_trianglesData->numTriangles;
+    for (unsigned bounces = 0; bounces < 6; bounces++) {
+        t = intersectAllTriangles(p_triangles, numTriangles, rayHit, ray);
+        if (t >= FLT_MAX) {
+            break;
+        }
+        p_hitTriangle = rayHit.pHitTriangle;
+        if (bounces == 0) {
+        	color += mask * p_hitTriangle->_colorEmit;
+        }
+        interaction.position = ray.pointAlong(ray.tMax);
+        interaction.normal = p_hitTriangle->getNormal(rayHit);
+        interaction.outputDirection = normalize(ray.dir);
+        interaction.pHitTriangle = p_hitTriangle;
+
+        //IF DIFFUSE
+		{
+			float randomNumber = curand_uniform(p_curandState) * ((float)p_lightsData->numLights - 1.0f + 0.9999999f);
+			int selectedLightIdx = (int)truncf(randomNumber);
+			Triangle* p_light = &p_lightsData->lightsPtr[selectedLightIdx];
+			Vector3Df directLighting = estimateDirectLighting(p_light, p_trianglesData, interaction, p_curandState);
+
+			bool clampRadiance = true;
+			if (clampRadiance){
+				// This introduces bias!!!
+				directLighting.x = clamp(directLighting.x, 0.0f, 1.0f);
+				directLighting.y = clamp(directLighting.y, 0.0f, 1.0f);
+				directLighting.z = clamp(directLighting.z, 0.0f, 1.0f);
+			}
+			color += mask * directLighting;
+		}
+        mask *= sampleDiffuseBSDF(&interaction, rayHit, p_curandState) / interaction.pdf;
+
+        ray.origin = interaction.position;
+        ray.dir = interaction.inputDirection;
+        ray.tMin = EPSILON;
+        ray.tMax = FLT_MAX;
+    }
+    return color;
+}
+
+__device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction, const RayHit& rayHit, curandState* p_curandState) {
+	float r1 = 2 * M_PI * curand_uniform(p_curandState);
+	float r2 = curand_uniform(p_curandState);
+	float r2sq = sqrtf(r2);
+	// calculate orthonormal coordinates u, v, w, at hitpt
+	Vector3Df w = p_interaction->normal;
+	Vector3Df u = normalize(cross( (fabs(w.x) > 0.1f ?
+				Vector3Df(0.f, 1.f, 0.f) :
+				Vector3Df(1.f, 0.f, 0.f)), w));
+	Vector3Df v = cross(w, u);
+	p_interaction->inputDirection = normalize(u * cosf(r1) * r2sq + v * sinf(r1) * r2sq + w * sqrtf(1.f - r2));
+	p_interaction->pdf = 0.5f;
+	float cosineWeight = dot(p_interaction->inputDirection, p_interaction->normal);
+	return rayHit.pHitTriangle->_colorDiffuse * cosineWeight;
+}
+
+__device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, const SurfaceInteraction &interaction, curandState* p_curandState) {
+	Vector3Df directLighting(0.0f, 0.0f, 0.0f);
+	if (sameTriangle(interaction.pHitTriangle, p_light)) {
+		return directLighting;
+	}
+	//if specular, return directLighting
+	Ray ray(interaction.position,  normalize(p_light->getRandomPointOn(p_curandState) - interaction.position));
+	RayHit rayHit;
+	// Sample the light
+	Triangle* p_triangles = p_trianglesData->triPtr;
+	float t = intersectAllTriangles(p_triangles, p_trianglesData->numTriangles, rayHit, ray);
+	if (t < FLT_MAX && sameTriangle(rayHit.pHitTriangle, p_light)) {
+		float surfaceArea = p_light->_surfaceArea;
+		float distanceSquared = t*t;
+		float incidenceAngle = fabs(dot(p_light->getNormal(rayHit), -ray.dir));
+		float weightFactor = surfaceArea/distanceSquared * incidenceAngle;
+		directLighting += p_light->_colorEmit * weightFactor;
+	}
+	return directLighting;
 }

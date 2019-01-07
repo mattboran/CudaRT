@@ -72,13 +72,13 @@ SequentialRenderer::~SequentialRenderer() {
     delete[] h_imgVectorPtr;
 }
 
-__host__ void SequentialRenderer::renderOneSamplePerPixel() {
+__host__ void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 	samplesRendered++;
     for (unsigned x = 0; x < width; x++) {
         for (unsigned y = 0; y < height; y++) {
             int idx = y * width + x;
             h_imgVectorPtr[idx] += samplePixel(x, y);
-            h_imgBytesPtr[idx] = vector3ToUchar4(h_imgVectorPtr[idx]/samplesRendered);
+            p_img[idx] = vector3ToUchar4(h_imgVectorPtr[idx]/samplesRendered);
         }
     }
 }

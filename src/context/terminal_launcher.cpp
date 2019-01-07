@@ -9,8 +9,9 @@
 
 void TerminalLauncher::render() {
 	int samples = p_renderer->getSamples();
+	uchar4* p_img = p_renderer->getImgBytesPointer();
 	for (int s = 0; s < samples; s++) {
-		p_renderer->renderOneSamplePerPixel();
+		p_renderer->renderOneSamplePerPixel(p_img);
 	}
 	p_renderer->copyImageBytes();
 }

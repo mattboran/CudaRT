@@ -44,14 +44,6 @@ __host__ void Renderer::createLightsData(LightsData* p_lightsData, Triangle* p_t
 	p_lightsData->totalSurfaceArea = p_scene->getLightsSurfaceArea();
 }
 
-__host__ __device__ Vector3Df testSamplePixel(int x, int y, int width, int height) {
-	Vector3Df retVal;
-	retVal.x = (float)x/(float)width;
-	retVal.y = (float)y/(float)height;
-	retVal.z = 1.0f;
-	return retVal;
-}
-
 __host__ __device__ float intersectAllTriangles(Triangle* p_triangles, int numTriangles, RayHit &hitData, Ray& ray) {
 	float t = ray.tMax;
 	float tprime = ray.tMax;

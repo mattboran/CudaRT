@@ -13,6 +13,7 @@ void WindowManager::mainWindowLoop(Renderer* p_renderer) {
 	int height = p_renderer->getHeight();
 	uchar4* p_img = p_renderer->getImgBytesPointer();
 	size_t bufferSize = 4 *width*height* sizeof(GLubyte);
+
 	while (!glfwWindowShouldClose(window))
 	{
 		glBindVertexArray(vaoIndex);
@@ -20,23 +21,16 @@ void WindowManager::mainWindowLoop(Renderer* p_renderer) {
 		if (useCuda) {
 			cudaGraphicsMapResources(1, &cudaPboResource, 0);
 			cudaGraphicsResourceGetMappedPointer((void**)&p_img, NULL, cudaPboResource);
-			p_renderer->renderOneSamplePerPixel();
+			p_renderer->renderOneSamplePerPixel(p_img);
 			cudaGraphicsUnmapResources(1, &cudaPboResource, 0);
 		}
 		else {
-			p_renderer->renderOneSamplePerPixel();
-			glBufferData(GL_PIXEL_UNPACK_BUFFER, bufferSize, 0, GL_STREAM_DRAW);
-			GLubyte* p_pbo = (GLubyte*)glMapBuffer(GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY);
-			if (p_pbo) {
-				memcpy(p_pbo, p_img, bufferSize);
-				glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
-			}
+			p_renderer->renderOneSamplePerPixel(p_img);
+			glBufferData(GL_PIXEL_UNPACK_BUFFER, bufferSize, p_img, GL_STREAM_DRAW);
 		}
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		glfwSwapBuffers(window);
-
 		glfwPollEvents();
 		glClear(GL_COLOR_BUFFER_BIT);
 		glClearColor(0.0f, 1.0f, 0.0f, 1.0f);
@@ -118,6 +112,7 @@ void WindowManager::initializePixelBuffer(int width, int height) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	if(useCuda) {
+		std::cout<< "Using CUDA!" << std::endl;
 		cudaGraphicsGLRegisterBuffer(&cudaPboResource, pboIndex, cudaGraphicsMapFlagsWriteDiscard);
 	}
 }
@@ -188,7 +183,7 @@ void WindowManager::deleteShadersAndBuffers() {
 		cudaGraphicsUnregisterResource(cudaPboResource);
 	}
 	glDeleteBuffers(1, &pboIndex);
-	glDeleteTextures(1, &pboIndex);
+	glDeleteTextures(1, &texIndex);
 	glDeleteBuffers(1, &vboIndex);
 	glDeleteVertexArrays(1, &vaoIndex);
 	glDeleteShader(vertexShader);

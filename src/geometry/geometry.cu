@@ -58,7 +58,8 @@ __device__ float Triangle::intersect(const Ray& r, float &_u, float &_v) const {
 }
 
 __host__ __device__ Vector3Df Triangle::getNormal(const RayHit& rh) const {
-	// Face normal:  Vector3Df(normalize(_n1 + _n2 + _n3));
+	// Face normal:
+	//return Vector3Df(normalize(_n1 + _n2 + _n3));
 	float w = 1 - rh.u - rh.v;
 	float u = rh.u;
 	float v = rh.v;
@@ -74,9 +75,9 @@ __host__ Vector3Df Triangle::getRandomPointOn() const {
 	}
 	return Vector3Df(_v1 + _e1 * u + _e2 * v);
 }
-__device__ Vector3Df Triangle::getRandomPointOn(curandState *randState) const {
-	float u = curand_uniform(randState);
-	float v = curand_uniform(randState);
+__device__ Vector3Df Triangle::getRandomPointOn(curandState *p_randstate) const {
+	float u = curand_uniform(p_randstate);
+	float v = curand_uniform(p_randstate);
 	if (u + v >= 1.0f) {
 		u = 1.0f - u;
 		v = 1.0f - v;
