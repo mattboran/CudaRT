@@ -73,7 +73,7 @@ bool intersectBVH(BVHNode* bvh,
 			tprime = triangle.intersect(ray, u, v);
 			if (tprime < t && tprime > 0.f) {
 				t = tprime;
-				hitData->pHitTriangle = &triangle;
+				hitData->p_hitTriangle = &triangle;
 				hitData->u = u;
 				hitData->v = v;
 				hitData->t = t;
@@ -101,7 +101,7 @@ bool intersectTriangles(Triangle* triPtr, int numTriangles, const Ray& ray, RayH
 		tprime = pTriangle->intersect(ray, u, v);
 		if (tprime < t && tprime > 0.f) {
 			t = tprime;
-			hitData->pHitTriangle = pTriangle;
+			hitData->p_hitTriangle = pTriangle;
 			hitData->u = u;
 			hitData->v = v;
 			hitData->t = t;
@@ -148,7 +148,7 @@ Vector3Df radiance(Scene& scene, Ray& ray, bool useBVH) {
 		intersection = intersectTriangles(pTriangles, numTriangles, ray, &hitData);
 	}
 	if(intersection) {
-		pHitTriangle = hitData.pHitTriangle;
+		pHitTriangle = hitData.p_hitTriangle;
 		if (pHitTriangle->isEmissive()) {
 			return pHitTriangle->_colorEmit;
 		}
@@ -177,14 +177,14 @@ Vector3Df radiance(Scene& scene, Ray& ray, bool useBVH) {
 		}
 		if (intersection){
 			// See if we've hit the light we tested for
-			Triangle* pLightHitTri = lightHitData.pHitTriangle;
+			Triangle* pLightHitTri = lightHitData.p_hitTriangle;
 			if (pLightHitTri->_triId == selectedLight->_triId) {
 				float t = lightHitData.t;
 				float surfaceArea = selectedLight->_surfaceArea;
 				float distanceSquared = t*t; // scale by factor of 10
 				float incidenceAngle = fabs(dot(selectedLight->getNormal(lightHitData), -lightRayDir));
 				float weightFactor = surfaceArea/distanceSquared * incidenceAngle;
-				color += mask * selectedLight->_colorEmit * hitData.pHitTriangle->_colorDiffuse * weightFactor;
+				color += mask * selectedLight->_colorEmit * hitData.p_hitTriangle->_colorDiffuse * weightFactor;
 			}
 		}
 
@@ -198,7 +198,7 @@ Vector3Df radiance(Scene& scene, Ray& ray, bool useBVH) {
 		}
 		if (intersection) {
 			Vector3Df hitPt = ray.pointAlong(hitData.t);
-			Triangle* hitTriPtr = hitData.pHitTriangle;
+			Triangle* hitTriPtr = hitData.p_hitTriangle;
 			Vector3Df normal = hitTriPtr->getNormal(hitData);
 
 			if (hitTriPtr->isDiffuse()) {

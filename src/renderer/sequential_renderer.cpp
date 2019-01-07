@@ -19,21 +19,21 @@ __host__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction, const Ra
 	p_interaction->inputDirection = normalize(u * cosf(r1) * r2sq + v * sinf(r1) * r2sq + w * sqrtf(1.f - r2));
 	p_interaction->pdf = 0.5f;
 	float cosineWeight = dot(p_interaction->inputDirection, p_interaction->normal);
-	return rayHit.pHitTriangle->_colorDiffuse * cosineWeight;
+	return rayHit.p_hitTriangle->_colorDiffuse * cosineWeight;
 }
 
 __host__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, const SurfaceInteraction &interaction) {
 	Vector3Df directLighting(0.0f, 0.0f, 0.0f);
-	if (sameTriangle(interaction.pHitTriangle, p_light)) {
+	if (sameTriangle(interaction.p_hitTriangle, p_light)) {
 		return directLighting;
 	}
 	//if specular, return directLighting
 	Ray ray(interaction.position,  normalize(p_light->getRandomPointOn() - interaction.position));
 	RayHit rayHit;
 	// Sample the light
-	Triangle* p_triangles = p_trianglesData->triPtr;
+	Triangle* p_triangles = p_trianglesData->p_triangles;
 	float t = intersectAllTriangles(p_triangles, p_trianglesData->numTriangles, rayHit, ray);
-	if (t < FLT_MAX && sameTriangle(rayHit.pHitTriangle, p_light)) {
+	if (t < FLT_MAX && sameTriangle(rayHit.p_hitTriangle, p_light)) {
 		float surfaceArea = p_light->_surfaceArea;
 		float distanceSquared = t*t;
 		float incidenceAngle = fabs(dot(p_light->getNormal(rayHit), -ray.dir));
@@ -91,7 +91,7 @@ __host__ __device__  Vector3Df SequentialRenderer::samplePixel(int x, int y) {
     RayHit rayHit;
     float t = 0.0f;
     SurfaceInteraction interaction;
-    Triangle* p_triangles = h_trianglesData->triPtr;
+    Triangle* p_triangles = h_trianglesData->p_triangles;
     Triangle* p_hitTriangle = NULL;
     int numTriangles = h_trianglesData->numTriangles;
     for (unsigned bounces = 0; bounces < 6; bounces++) {
@@ -99,14 +99,14 @@ __host__ __device__  Vector3Df SequentialRenderer::samplePixel(int x, int y) {
         if (t >= FLT_MAX) {
             break;
         }
-        p_hitTriangle = rayHit.pHitTriangle;
+        p_hitTriangle = rayHit.p_hitTriangle;
         if (bounces == 0) {
         	color += mask * p_hitTriangle->_colorEmit;
         }
         interaction.position = ray.pointAlong(ray.tMax);
         interaction.normal = p_hitTriangle->getNormal(rayHit);
         interaction.outputDirection = normalize(ray.dir);
-        interaction.pHitTriangle = p_hitTriangle;
+        interaction.p_hitTriangle = p_hitTriangle;
 
         //IF DIFFUSE
 		{

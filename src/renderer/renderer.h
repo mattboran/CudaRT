@@ -20,7 +20,7 @@ struct LightsData {
 };
 
 struct TrianglesData {
-	geom::Triangle* triPtr;
+	geom::Triangle* p_triangles;
 	CacheFriendlyBVHNode* bvhPtr;
 	unsigned *bvhIndexPtr;
 	unsigned numTriangles;
@@ -70,6 +70,7 @@ public:
 	__host__ int getHeight() { return height; }
 	__host__ int getSamples() { return samples; }
 	__host__ bool getUseBVH() { return useBVH; }
+	__host__ int getSamplesRendered() { return samplesRendered; }
 	__host__ void createSettingsData(SettingsData* p_settingsData);
 	__host__ void createTrianglesData(TrianglesData* p_trianglesData, geom::Triangle* p_triangles);
 	__host__ void createLightsData(LightsData* p_lightsData, geom::Triangle* p_triangles);

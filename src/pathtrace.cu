@@ -191,7 +191,7 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		t = intersectTriangles(d_tris->triPtr, d_tris->numTriangles, hitData, ray);
 	}
 	if (t < FLT_MAX) {
-		pHitTriangle = hitData.pHitTriangle;
+		pHitTriangle = hitData.p_hitTriangle;
 		// if we hit a light directly, add its contribution here so as not to double dip in the BSDF calculations below
 		if (pHitTriangle->isEmissive()) {
 			d_imgPtr[j * d_settings->width + i] += pHitTriangle->_colorEmit;
@@ -223,13 +223,13 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		}
 		if (t < FLT_MAX){
 			// See if we've hit the light we tested for
-			Triangle* pLightHitTri = lightHitData.pHitTriangle;
+			Triangle* pLightHitTri = lightHitData.p_hitTriangle;
 			if (pLightHitTri->_triId == selectedLight._triId) {
 				float surfaceArea = selectedLight._surfaceArea;
 				float distanceSquared = t*t; // scale by factor of 10
 				float incidenceAngle = fabs(dot(selectedLight.getNormal(lightHitData), -lightRayDir));
 				float weightFactor = surfaceArea/distanceSquared * incidenceAngle;
-				colorAtPixel += mask * selectedLight._colorEmit * hitData.pHitTriangle->_colorDiffuse * weightFactor;
+				colorAtPixel += mask * selectedLight._colorEmit * hitData.p_hitTriangle->_colorDiffuse * weightFactor;
 			}
 		}
 
@@ -242,7 +242,7 @@ __global__ void renderKernel(TrianglesData* d_tris,
 		if (t < FLT_MAX) {
 
 			Vector3Df hitPt = ray.pointAlong(t);
-			Triangle* hitTriPtr = hitData.pHitTriangle;
+			Triangle* hitTriPtr = hitData.p_hitTriangle;
 			Vector3Df normal = hitTriPtr->getNormal(hitData);
 
 			if (hitTriPtr->isDiffuse()) {
@@ -306,7 +306,7 @@ __device__ float intersectTriangles(Triangle* d_triPtr,
 		tprime = d_triPtr[i].intersect(ray, u, v);
 		if (tprime < t && tprime > 0.f) {
 			t = tprime;
-			hitData.pHitTriangle = &d_triPtr[i];
+			hitData.p_hitTriangle = &d_triPtr[i];
 			hitData.u = u;
 			hitData.v = v;
 		}
@@ -326,7 +326,7 @@ __device__ float intersectBVHTriangles(Triangle* d_triPtr,
 		tprime = d_triPtr[i + offset].intersect(ray, u, v);
 		if (tprime < t && tprime > 0.f) {
 			t = tprime;
-			hitData.pHitTriangle = &d_triPtr[i + offset];
+			hitData.p_hitTriangle = &d_triPtr[i + offset];
 			hitData.u = u;
 			hitData.v = v;
 		}
@@ -373,7 +373,7 @@ __device__ float intersectBVH(CacheFriendlyBVHNode* d_bvh,
 					t = tprime;
 					hitData.u = u;
 					hitData.v = v;
-					hitData.pHitTriangle = &d_triPtr[i + offset];
+					hitData.p_hitTriangle = &d_triPtr[i + offset];
 				}
 			}
 		}

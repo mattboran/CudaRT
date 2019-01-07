@@ -111,10 +111,8 @@ void WindowManager::initializePixelBuffer(int width, int height) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	if(useCuda) {
-		std::cout<< "Using CUDA!" << std::endl;
+	if(useCuda)
 		cudaGraphicsGLRegisterBuffer(&cudaPboResource, pboIndex, cudaGraphicsMapFlagsWriteDiscard);
-	}
 }
 
 GLint WindowManager::compileAndLinkShaders() {

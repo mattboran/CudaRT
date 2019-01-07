@@ -31,7 +31,7 @@ __host__ void Renderer::createSettingsData(SettingsData* p_settingsData){
 }
 
 __host__ void Renderer::createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles) {
-	p_trianglesData->triPtr = p_triangles;
+	p_trianglesData->p_triangles = p_triangles;
 	p_trianglesData->numTriangles = p_scene->getNumTriangles();
 	p_trianglesData->bvhPtr = NULL;
 	p_trianglesData->bvhIndexPtr = NULL;
@@ -53,7 +53,7 @@ __host__ __device__ float intersectAllTriangles(Triangle* p_triangles, int numTr
 		tprime = p_current->intersect(ray, u, v);
 		if (tprime < t && tprime > ray.tMin) {
 			t = tprime;
-			hitData.pHitTriangle = p_current;
+			hitData.p_hitTriangle = p_current;
 			hitData.u = u;
 			hitData.v = v;
 		}

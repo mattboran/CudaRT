@@ -74,12 +74,12 @@ namespace geom {
 	} __attribute__ ((aligned (128))) ;
 
 	struct RayHit {
-		Triangle* pHitTriangle = NULL;
+		Triangle* p_hitTriangle = NULL;
 		float u, v, t;
 	}__attribute__((aligned (32)));
 
 	struct SurfaceInteraction {
-		Triangle* pHitTriangle = NULL;
+		Triangle* p_hitTriangle = NULL;
 		Vector3Df position;
 		Vector3Df normal;
 		Vector3Df inputDirection;

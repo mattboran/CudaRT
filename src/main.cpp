@@ -136,26 +136,17 @@ int main(int argc, char* argv[]) {
 
 	cout << "Total number of triangles:\t" << scene.getNumTriangles() << endl;
 
-//	if (renderToScreen) {
-//		WindowManager windowManager(width, height, "CudaRT - Path Tracer in CUDA");
-//		if (!windowManager.window) {
-//			cout << "Window failed to initialize. Exiting!" << endl;
-//			return 1;
-//		}
-//		windowManager.mainWindowLoop();
-//		return 0;
-//	}
-
 	//
 	// Initialize Scene : Camera
 	// TODO: Load this from .obj using cam meshes
 	// alternatively, use a camera.json file
 	//
+	float scale = 0.1f;
 	Vector3Df camPos(14.0f, 5.0f, 0.0f);
 	Vector3Df camTarget(0.0f, 5.0f, 0.0f);
-	Vector3Df camUp(0.0f, 7.0f, 0.0f);
+	Vector3Df camUp(0.0f, 1.0f, 0.0f);
 	Vector3Df camRt(-1.0f, 0.0f, 0.0f);
-	Camera camera = Camera(camPos, camTarget, camUp, camRt, 90.0f, width, height);
+	Camera camera = Camera(camPos * scale, camTarget * scale, camUp, camRt, 90.0f, width, height);
 	Clock timer = Clock();
 	Renderer* p_renderer;
 	Launcher* p_launcher;
@@ -178,18 +169,8 @@ int main(int argc, char* argv[]) {
 	delete p_renderer;
 	delete p_launcher;
 
-//	Vector3Df* imgData;
-//	if (useSequential) {
-//		imgData = Sequential::pathtraceWrapper(scene, width, height, samples, numStreams, useBVH);
-//	}
-//	else {
-//		imgData = Parallel::pathtraceWrapper(scene, width, height, samples, numStreams, useBVH);
-//	}
-//
-//	saveImageToPng(outFile, width, height, imgData);
-//
-//	cout << "Total time from start to output to " << outFile << ":\t\t" << timer.readS() << " seconds " << endl;
+	cout << "Rendered " << p_renderer->getSamplesRendered() << " samples per pixel. " << endl;
+	cout << "Total time from start to output to " << outFile << ":\t\t" << timer.readS() << " seconds " << endl;
 
-//	delete[] imgData;
 	return(0);
 }
