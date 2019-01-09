@@ -9,16 +9,18 @@
 #define BVH_H_
 
 #include "geometry.h"
+#include "scene.h"
 
 #include <vector>
 
-using std::vector;
+void constructBVH(Scene* p_scene);
 
 struct BVHNode {
 	BVHNode(Vector3Df &a, Vector3Df &b) : min(a), max(b) {}
 	Vector3Df min;
 	Vector3Df max;
 	virtual bool isLeaf() = 0;
+	virtual ~BVHNode();
 };
 
 struct BVHInner : BVHNode {
@@ -28,8 +30,8 @@ struct BVHInner : BVHNode {
 };
 
 struct BVHLeaf : BVHNode {
-	std::vector<geom::Triangle*> _triangles;
-	virtual bool IsLeaf() { return true; }
+	std::vector<geom::Triangle*> v_triangles;
+	virtual bool isLeaf() { return true; }
 };
 
 #endif /* BVH_H_ */

@@ -59,14 +59,13 @@ __host__ __device__ float intersectAllTriangles(Triangle* p_triangles, int numTr
 	ray.tMax = t;
 	return t;
 }
-/*
-bool hitsBox(const Ray& ray, BVHNode* bbox) {
+
+__host__ __device__ bool rayIntersectsBox(const Ray& ray, BVHNode* bbox) {
 	float t0 = -FLT_MAX, t1 = FLT_MAX;
-	//axes
 
 	float invRayDir = 1.f/ray.dir.x;
-	float tNear = (bbox->_bottom.x - ray.origin.x) * invRayDir;
-	float tFar = (bbox->_top.x - ray.origin.x) * invRayDir;
+	float tNear = (bbox->min.x - ray.origin.x) * invRayDir;
+	float tFar = (bbox->max.x - ray.origin.x) * invRayDir;
 	if (tNear > tFar) {
 		float tmp = tNear;
 		tNear = tFar;
@@ -77,8 +76,8 @@ bool hitsBox(const Ray& ray, BVHNode* bbox) {
 	if (t0 > t1) return false;
 
 	invRayDir = 1.f/ray.dir.y;
-	tNear = (bbox->_bottom.y - ray.origin.y) * invRayDir;
-	tFar = (bbox->_top.y - ray.origin.y) * invRayDir;
+	tNear = (bbox->min.y - ray.origin.y) * invRayDir;
+	tFar = (bbox->max.y - ray.origin.y) * invRayDir;
 	if (tNear > tFar) {
 		float tmp = tNear;
 		tNear = tFar;
@@ -89,8 +88,8 @@ bool hitsBox(const Ray& ray, BVHNode* bbox) {
 	if (t0 > t1) return false;
 
 	invRayDir = 1.f/ray.dir.z;
-	tNear = (bbox->_bottom.z - ray.origin.z) * invRayDir;
-	tFar = (bbox->_top.z - ray.origin.z) * invRayDir;
+	tNear = (bbox->min.z - ray.origin.z) * invRayDir;
+	tFar = (bbox->max.z - ray.origin.z) * invRayDir;
 	if (tNear > tFar) {
 		float tmp = tNear;
 		tNear = tFar;
@@ -101,7 +100,7 @@ bool hitsBox(const Ray& ray, BVHNode* bbox) {
 	if (t0 > t1) return false;
 
 	return true;
-}*/
+}
 
 __host__ __device__ void gammaCorrectPixel(uchar4 &p) {
 	float invGamma = 1.f/2.2f;
