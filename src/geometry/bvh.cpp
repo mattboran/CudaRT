@@ -42,10 +42,10 @@ Vector3Df max2(Vector3Df& a, Vector3Df& b);
 void createTriangleBboxes(Scene* p_scene);
 void cleanupBboxes();
 void constructBVH(Scene* p_scene);
-BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& buildData,
+BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& trianglesInfo,
      uint start, uint end, uint* totalNodes, vector<Triangle> orderedTriangles);
 
-vector<TriangleBBox> buildData;
+vector<TriangleBBox> trianglesInfo;
 vector<Triangle> orderedTriangles;
 
 ostream& operator<< (ostream &out, const Vector3Df &v) {
@@ -54,14 +54,14 @@ ostream& operator<< (ostream &out, const Vector3Df &v) {
 }
 
 ostream& operator<< (ostream &out, const TriangleBBox &b){
-    out << "Min: " << b.min << " Max: " << b.max << " Center: " << b.center << endl;
+    out << "BBox #" << b.triId << ": Min: " << b.min << " Max: " << b.max << " Center: " << b.center << endl;
     return out;
 }
 
 void constructBVH(Scene* p_scene) {
     createTriangleBboxes(p_scene);
     uint totalNodes = 0;
-    BVHBuildNode* p_root = recursiveBuild(p_scene->getTriPtr(), buildData, 0, buildData.size(), &totalNodes, orderedTriangles);
+    BVHBuildNode* p_root = recursiveBuild(p_scene->getTriPtr(), trianglesInfo, 0, trianglesInfo.size(), &totalNodes, orderedTriangles);
     cout << "Total Nodes: " << totalNodes << endl << "Created BVH using mid point heuristic " << endl;
 }
 
@@ -69,7 +69,7 @@ void createTriangleBboxes(Scene* p_scene)  {
     objl::Vertex* p_vertices = p_scene->getVertexPtr();
     unsigned int* p_indices = p_scene->getVertexIndicesPtr();
     int numTriangles = p_scene->getNumTriangles();
-    buildData.reserve(numTriangles);
+    trianglesInfo.reserve(numTriangles);
     orderedTriangles.reserve(numTriangles);
     for (int i = 0; i < numTriangles; i++) {
         objl::Vertex v1 = p_vertices[p_indices[i*3]];
@@ -80,7 +80,7 @@ void createTriangleBboxes(Scene* p_scene)  {
         Vector3Df _v3(v3.Position);
         Vector3Df _min = min3(_v1, _v2, _v3);
         Vector3Df _max = max3(_v1, _v2, _v3);
-        buildData.push_back(TriangleBBox(i, _min, _max));
+        trianglesInfo.push_back(TriangleBBox(i, _min, _max));
     }
 }
 
@@ -100,23 +100,21 @@ void BVHBuildNode::initInner(uint axis, BVHBuildNode* c0, BVHBuildNode* c1) {
     numTriangles = 0;
 }
 
-int stopper = 0;
-BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& buildData, uint start, uint end, uint* totalNodes, vector<Triangle> orderedTriangles) {
+BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& trianglesInfo, uint start, uint end, uint* totalNodes, vector<Triangle> orderedTriangles) {
     (*totalNodes)++;
     stopper++;
     BVHBuildNode* node = new BVHBuildNode;
     Vector3Df workingMin(FLT_MAX, FLT_MAX, FLT_MAX);
     Vector3Df workingMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
     for (uint i = start; i < end; i++) {
-        workingMin = min2(workingMin, buildData[i].min);
-        workingMax = max2(workingMax, buildData[i].max);
+        workingMin = min2(workingMin, trianglesInfo[i].min);
+        workingMax = max2(workingMax, trianglesInfo[i].max);
     }
     uint numTriangles = end - start;
     if (numTriangles == 1) {
-        cout << "Creating leaf because numTriangles == 1" << endl;
         uint firstTriOffset = orderedTriangles.size();
         for (uint i = start; i < end; ++i) {
-            uint triId = buildData[i].triId;
+            uint triId = trianglesInfo[i].triId;
             orderedTriangles.push_back(p_triangles[triId]);
         }
         node->initLeaf(firstTriOffset, numTriangles, workingMin, workingMax);
@@ -124,16 +122,15 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& buildD
     else  {
         Vector3Df centroidMin, centroidMax;
         for (uint i = start; i < end; ++i) {
-            centroidMin = min2(centroidMin, buildData[i].center);
-            centroidMax = max2(centroidMax, buildData[i].center);
+            centroidMin = min2(centroidMin, trianglesInfo[i].center);
+            centroidMax = max2(centroidMax, trianglesInfo[i].center);
         }
         int dim = maximumExtent(centroidMin, centroidMax);
         uint mid = (start + end) / 2;
         if (centroidMax._v[dim] == centroidMin._v[dim]) {
-            cout << "Creating leaf because centroidMax._v[dim] == centroidMin._v[dim]" << endl;
             uint firstTriOffset = orderedTriangles.size();
             for (uint i = start; i < end; ++i) {
-                uint triId = buildData[i].triId;
+                uint triId = trianglesInfo[i].triId;
                 orderedTriangles.push_back(p_triangles[triId]);
             }
             node->initLeaf(firstTriOffset, numTriangles, workingMin, workingMax);
@@ -141,33 +138,38 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& buildD
         }
         // Partition primitives based on SAH
         // Temporary partition based on midpoint
-        float pmid = .5f * (centroidMin._v[dim] + centroidMax._v[dim]);
-
-        TriangleBBox* p_mid = std::partition(&buildData[start], &buildData[end-1] + 1,
-            [dim, pmid](const TriangleBBox &a) -> bool {return a.center._v[dim] < pmid;});
-        mid = p_mid - &buildData[0];
+		while (true) {
+			float pmid = .5f * (centroidMin._v[dim] + centroidMax._v[dim]);
+			TriangleBBox* p_mid = std::partition(&trianglesInfo[start], &trianglesInfo[end-1] + 1,
+				[dim, pmid](const TriangleBBox& a) -> bool {
+					return a.center._v[dim] < pmid;
+				});
+			mid = p_mid - &trianglesInfo[0];
+			if (mid != start && mid != end) {
+				break;
+			}
+			mid = (start + end) / 2;
+			std::nth_element(&trianglesInfo[start], &trianglesInfo[mid], &trianglesInfo[end-1] + 1,
+				[dim](const TriangleBBox& a, const TriangleBBox& b) {
+					return a.center._v[dim] < b.center._v[dim];
+				});
+			break;
+		}
         node->initInner(dim,
-                        recursiveBuild(p_triangles, buildData, start, mid, totalNodes, orderedTriangles),
-                        recursiveBuild(p_triangles, buildData, mid, end, totalNodes, orderedTriangles));
+                        recursiveBuild(p_triangles, trianglesInfo, mid, end, totalNodes, orderedTriangles),
+						recursiveBuild(p_triangles, trianglesInfo, start, mid, totalNodes, orderedTriangles));
     }
     return node;
 }
 
 int maximumExtent(const Vector3Df& min, const Vector3Df& max) {
     Vector3Df diag = max - min;
-    if (stopper < 100) {
-        cout << endl << "Max: " << max << "\nMin: " << min << "\nDiag: " << diag << endl;
-    }
     int retVal = 0;
     if (diag.x > diag.y && diag.x > diag.z)
-        retVal = 0;
-    else if (diag.y > diag.z)
-        retVal = 1;
-    else
-        retVal = 2;
-    if (stopper < 100)
-        cout << "Chose extent: " << retVal << endl;
-    return retVal;
+        return 0;
+    if (diag.y > diag.z)
+        return 1;
+    return 2;
 }
 
 Vector3Df min2(Vector3Df& a, Vector3Df& b) {
