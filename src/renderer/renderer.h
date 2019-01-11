@@ -8,11 +8,12 @@
 #ifndef RENDERER_H_
 #define RENDERER_H_
 
-#include "bvh.h"
+// #include "geometry.h"
+// #include "bvh.h"
 #include "scene.h"
-#include "linalg.h"
 
-#include <curand.h>
+#include <cuda.h>
+#include <curand_kernel.h>
 
 struct LightsData {
 	geom::Triangle* lightsPtr;
@@ -32,20 +33,17 @@ struct SettingsData {
 	bool useBVH;
 };
 
-__host__ __device__ inline uchar4 vector3ToUchar4(const Vector3Df& v) {
-	uchar4 retVal;
-	retVal.x = (unsigned char)(clamp(v.x, 0.0f, 1.0f)*(255.f));
-	retVal.y = (unsigned char)(clamp(v.y, 0.0f, 1.0f)*(255.f));
-	retVal.z = (unsigned char)(clamp(v.z, 0.0f, 1.0f)*(255.f));
-	retVal.w = 255u;
-	return retVal;
-}
-
-__host__ __device__ inline bool sameTriangle(geom::Triangle* p_a, geom::Triangle* p_b) {
-	return p_a->_triId == p_b->_triId;
-}
-__host__ __device__ bool rayIntersectsBox(const geom::Ray& ray, BVHNode* bbox) ;
+struct Sampler {
+	curandState* p_curandState = NULL;
+	__host__ Sampler() {}
+	__device__ Sampler(curandState* p_curand) : p_curandState(p_curand) {}
+	__host__ __device__ float getNextFloat();
+};
+// __host__ __device__ bool rayIntersectsBox(const geom::Ray& ray, BVHNode* bbox) ;
+__host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, TrianglesData* p_trianglesData, LightsData *p_lightsData, Sampler* p_sampler);
 __host__ __device__ float intersectAllTriangles(geom::Triangle* p_triangles, int numTriangles, geom::RayHit &hitData, geom::Ray& ray);
+__host__ __device__ Vector3Df sampleDiffuseBSDF(geom::SurfaceInteraction* p_interaction, const geom::RayHit& rayHit, Sampler* p_sampler);
+__host__ __device__ Vector3Df estimateDirectLighting(geom::Triangle* p_light, TrianglesData* p_trianglesData, const geom::SurfaceInteraction &interaction, Sampler* p_sampler);
 __host__ __device__ void gammaCorrectPixel(uchar4 &p);
 
 class Renderer {
@@ -110,12 +108,25 @@ public:
 	__host__ uchar4* getImgBytesPointer() { return h_imgBytesPtr; }
 	~SequentialRenderer();
 private:
+	// Sampler* p_sampler = new Sampler;
 	uchar4* h_imgBytesPtr;
 	Vector3Df* h_imgVectorPtr;
 	SettingsData h_settingsData;
 	TrianglesData* h_trianglesData;
 	LightsData* h_lightsData;
-	__host__ __device__ Vector3Df samplePixel(int x, int y);
 };
+
+__host__ __device__ inline uchar4 vector3ToUchar4(const Vector3Df& v) {
+	uchar4 retVal;
+	retVal.x = (unsigned char)(clamp(v.x, 0.0f, 1.0f)*(255.f));
+	retVal.y = (unsigned char)(clamp(v.y, 0.0f, 1.0f)*(255.f));
+	retVal.z = (unsigned char)(clamp(v.z, 0.0f, 1.0f)*(255.f));
+	retVal.w = 255u;
+	return retVal;
+}
+
+__host__ __device__ inline bool sameTriangle(geom::Triangle* p_a, geom::Triangle* p_b) {
+	return p_a->_triId == p_b->_triId;
+}
 
 #endif /* RENDERER_H_ */

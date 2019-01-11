@@ -2,15 +2,15 @@
 #define __GEOMETRY_H_
 
 #include "linalg.h"
+
 #include <cfloat>
 #include <cuda.h>
-#include <cuda_runtime_api.h>
-#include <curand.h>
-#include <curand_kernel.h>
 // #include <limits>
 #include <iostream>
 
 #define EPSILON 0.00001f
+
+struct Sampler;
 
 Vector3Df min3(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c);
 Vector3Df max3(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c);
@@ -34,7 +34,7 @@ namespace geom {
 		float tMax = FLT_MAX;
 
 		__host__ __device__ Ray(Vector3Df o, Vector3Df d) : origin(o), dir(normalize(d)) { }
-		__device__ Vector3Df pointAlong(float t) { return Vector3Df(origin + dir*t); }
+		__host__ __device__ Vector3Df pointAlong(float t) { return Vector3Df(origin + dir*t); }
 	};
 
 	struct RayHit;
@@ -58,16 +58,7 @@ namespace geom {
 		__device__ __host__ Triangle(const Triangle &t);
 		__host__ __device__ float intersect(const Ray &r, float &_u, float &_v) const;
 		__host__ __device__ Vector3Df getNormal(const  RayHit& rh) const;
-		__host__ Vector3Df getRandomPointOn() const;
-		__device__ Vector3Df getRandomPointOn(curandState *randState) const;
-		__host__ __device__ bool isEmissive() const;
-		__host__ __device__ bool isDiffuse() const;
-		// TODO: Implement these properties
-		// Center point
-		Vector3Df _center;
-		Vector3Df _bottom;
-		Vector3Df _top;
-
+		__host__ __device__ Vector3Df getRandomPointOn(Sampler* p_sampler) const;
 		// Raytracing intersection pre-computed cache:
 //		float _d, _d1, _d2, _d3;
 //		Vector3Df _e1, _e2, _e3;

@@ -2,12 +2,12 @@
 #ifndef SCENE_H
 #define SCENE_H
 
-#include "camera.h"
-#include "geometry.h"
 #include "obj_load.h"
 
 #include <string>
 #include <vector>
+
+#include "camera.h"
 
 struct BVHNode;
 struct CacheFriendlyBVHNode;

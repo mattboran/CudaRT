@@ -1,4 +1,5 @@
 #include "geometry.h"
+#include "renderer.h"
 #include <cfloat>
 #include <math.h>
 
@@ -66,31 +67,12 @@ __host__ __device__ Vector3Df Triangle::getNormal(const RayHit& rh) const {
 	return _n1*w + _n2*u + _n3*v;
 }
 
-__host__ Vector3Df Triangle::getRandomPointOn() const {
-	float u = (rand() / (RAND_MAX + 1.f));
-	float v = (rand() / (RAND_MAX + 1.f));
+__host__ __device__ Vector3Df Triangle::getRandomPointOn(Sampler* p_sampler) const {
+	float u = p_sampler->getNextFloat();
+	float v = p_sampler->getNextFloat();
 	if (u + v >= 1.0f) {
 		u = 1.0f - u;
 		v = 1.0f - v;
 	}
 	return Vector3Df(_v1 + _e1 * u + _e2 * v);
-}
-__device__ Vector3Df Triangle::getRandomPointOn(curandState *p_randstate) const {
-	float u = curand_uniform(p_randstate);
-	float v = curand_uniform(p_randstate);
-	if (u + v >= 1.0f) {
-		u = 1.0f - u;
-		v = 1.0f - v;
-	}
-	return Vector3Df(_v1 + _e1 * u + _e2 * v);
-}
-
-__device__ bool Triangle::isEmissive() const {
-	return _colorEmit.lengthsq() > 0.0f;
-}
-//__device__ bool Triangle::isSpecular() const {
-//	return _colorSpec.lengthsq() > 0.0f;
-//}
-__device__ bool Triangle::isDiffuse() const {
-	return _colorDiffuse.lengthsq() > 0.0f;
 }

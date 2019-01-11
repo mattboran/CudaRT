@@ -123,9 +123,6 @@ Triangle* Scene::loadTriangles() {
 			if (p_current->_colorEmit.lengthsq() > 0.0f) {
 				lightsList.push_back(*p_current);
 			}
-			p_current->_bottom = min3(_v1, _v2, _v3);
-			p_current->_top = max3(_v1, _v2, _v3);
-			p_current->_center = (p_current->_bottom + p_current->_top) * 0.5f;
 
 			p_current++;
 		}
