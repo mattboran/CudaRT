@@ -9,6 +9,9 @@
 #include <algorithm>
 #include <iostream>
 
+// #define USE_MIDPOINT
+#define USE_SAH
+
 using namespace geom;
 using namespace std;
 
@@ -32,13 +35,19 @@ struct BVHBuildNode {
     BVHBuildNode *children[2];
     uint splitAxis, firstTriOffset, numTriangles;
     BVHBuildNode() { children[0] = children[1] = NULL; }
+	~BVHBuildNode() { if(children[0]) delete children[0]; if (children[1]) delete children[1]; }
     void initLeaf(uint first, uint n, const Vector3Df& _min, const Vector3Df& _max);
     void initInner(uint axis, BVHBuildNode* c0, BVHBuildNode* c1);
 };
 
+// Vector math functions that are used in making BVH - possibly put these in geometry.h/cu
+Vector3Df offset(const Vector3Df& min, const Vector3Df& max, const Vector3Df& p);
+float surfaceArea(const Vector3Df& min, const Vector3Df& max);
 int maximumExtent(const Vector3Df& min, const Vector3Df& max);
-Vector3Df min2(Vector3Df& a, Vector3Df& b);
-Vector3Df max2(Vector3Df& a, Vector3Df& b);
+Vector3Df min2(const Vector3Df& a, const Vector3Df& b);
+Vector3Df max2(const Vector3Df& a, const Vector3Df& b);
+
+// Local functions
 void createTriangleBboxes(Scene* p_scene);
 void cleanupBboxes();
 void constructBVH(Scene* p_scene);
@@ -47,6 +56,7 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
 
 vector<TriangleBBox> trianglesInfo;
 vector<Triangle> orderedTriangles;
+const int maxTrisInNode = 3;
 
 ostream& operator<< (ostream &out, const Vector3Df &v) {
     out << "("<<v.x<<", "<<v.y<<", "<<v.z<<")";
@@ -62,7 +72,7 @@ void constructBVH(Scene* p_scene) {
     createTriangleBboxes(p_scene);
     uint totalNodes = 0;
     BVHBuildNode* p_root = recursiveBuild(p_scene->getTriPtr(), trianglesInfo, 0, trianglesInfo.size(), &totalNodes, orderedTriangles);
-    cout << "Total Nodes: " << totalNodes << endl << "Created BVH using mid point heuristic " << endl;
+    cout << "Total BVH Nodes: " << totalNodes << endl;// << "Created BVH using mid point heuristic " << endl
 }
 
 void createTriangleBboxes(Scene* p_scene)  {
@@ -102,7 +112,6 @@ void BVHBuildNode::initInner(uint axis, BVHBuildNode* c0, BVHBuildNode* c1) {
 
 BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& trianglesInfo, uint start, uint end, uint* totalNodes, vector<Triangle> orderedTriangles) {
     (*totalNodes)++;
-    stopper++;
     BVHBuildNode* node = new BVHBuildNode;
     Vector3Df workingMin(FLT_MAX, FLT_MAX, FLT_MAX);
     Vector3Df workingMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
@@ -111,9 +120,9 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
         workingMax = max2(workingMax, trianglesInfo[i].max);
     }
     uint numTriangles = end - start;
-    if (numTriangles == 1) {
+    if (numTriangles <= maxTrisInNode) {
         uint firstTriOffset = orderedTriangles.size();
-        for (uint i = start; i < end; ++i) {
+        for (uint i = start; i < end; i++) {
             uint triId = trianglesInfo[i].triId;
             orderedTriangles.push_back(p_triangles[triId]);
         }
@@ -121,7 +130,7 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
     }
     else  {
         Vector3Df centroidMin, centroidMax;
-        for (uint i = start; i < end; ++i) {
+        for (uint i = start; i < end; i++) {
             centroidMin = min2(centroidMin, trianglesInfo[i].center);
             centroidMax = max2(centroidMax, trianglesInfo[i].center);
         }
@@ -129,7 +138,7 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
         uint mid = (start + end) / 2;
         if (centroidMax._v[dim] == centroidMin._v[dim]) {
             uint firstTriOffset = orderedTriangles.size();
-            for (uint i = start; i < end; ++i) {
+            for (uint i = start; i < end; i++) {
                 uint triId = trianglesInfo[i].triId;
                 orderedTriangles.push_back(p_triangles[triId]);
             }
@@ -137,7 +146,8 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
             return node;
         }
         // Partition primitives based on SAH
-        // Temporary partition based on midpoint
+#ifdef USE_MIDPOINT
+		// Partition based on centroid midpoint
 		while (true) {
 			float pmid = .5f * (centroidMin._v[dim] + centroidMax._v[dim]);
 			TriangleBBox* p_mid = std::partition(&trianglesInfo[start], &trianglesInfo[end-1] + 1,
@@ -148,6 +158,7 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
 			if (mid != start && mid != end) {
 				break;
 			}
+			// And then fall through to partition primitives into equally sized subsets if that failed
 			mid = (start + end) / 2;
 			std::nth_element(&trianglesInfo[start], &trianglesInfo[mid], &trianglesInfo[end-1] + 1,
 				[dim](const TriangleBBox& a, const TriangleBBox& b) {
@@ -155,11 +166,106 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
 				});
 			break;
 		}
+#elif defined(USE_SAH)
+		if (numTriangles <= 4) {
+			// Partition primitives into equally sized subsets
+			mid = (start + end) / 2;
+			std::nth_element(&trianglesInfo[start], &trianglesInfo[mid], &trianglesInfo[end-1] + 1,
+				[dim](const TriangleBBox& a, const TriangleBBox& b) {
+					return a.center._v[dim] < b.center._v[dim];
+				});
+		} else {
+			// Allocate BucketInfo for SAH partition buckets
+			constexpr int numBuckets = 8;
+			struct BucketInfo {
+				int count = 0;
+				Vector3Df minBound, maxBound;
+			};
+			BucketInfo buckets[numBuckets];
+			// Initialize BucketInfo for SAH partition buckets by determining the bucket
+			// that its centroid lies in and updating the bucket's bounds to include the Triangle bounds
+			for (int i = start; i < end; i++) {
+				int b = numBuckets * offset(centroidMin, centroidMax, trianglesInfo[i].center)._v[dim];
+				if (b == numBuckets) { b = numBuckets - 1; }
+				buckets[b].count++;
+				buckets[b].minBound = min2(buckets[b].minBound, trianglesInfo[i].min);
+				buckets[b].maxBound = max2(buckets[b].maxBound, trianglesInfo[i].max);
+			}
+			// Compute costs of splitting after each bucket
+			float cost[numBuckets-1];
+			for (int i = 0; i < numBuckets-1; i++) {
+				Vector3Df b0min,b0max, b1min, b1max;
+				int count0 = 0, count1 = 0;
+				for (int j = 0; j <= i; j++) {
+					b0min = min2(b0min, buckets[j].minBound);
+					b0max = max2(b0max, buckets[j].maxBound);
+					count0 += buckets[j].count;
+				}
+				for (int j = i+1; j < numBuckets; j++) {
+					b1min = min2(b1min, buckets[j].minBound);
+					b1max = max2(b1max, buckets[j].maxBound);
+					count1 += buckets[j].count;
+				}
+				cost[i] = 0.125f+ (count0 * surfaceArea(b0min, b0max) +
+						   count1 * surfaceArea(b1min, b1max)) / surfaceArea(workingMin, workingMax);
+			}
+			// Find bucket to split after that minimizes SAH
+			float* p_minCost = std::min_element(&cost[0], &cost[numBuckets-1]);
+			float minCost = *p_minCost;
+			int minCostSplitBucket = p_minCost - cost;
+			// Either create leaf or split triangles at selected SAH bucket
+			float leafCost = numTriangles;
+			if (numTriangles > maxTrisInNode || minCost < leafCost) {
+				while (true) {
+					TriangleBBox *p_mid = std::partition(&trianglesInfo[start], &trianglesInfo[end-1]+1,
+						//[numBuckets, dim, minCostSplitBucket, centroidMin, centroidMax]
+						[=](const TriangleBBox &t) {
+							int b = numBuckets * offset(centroidMin, centroidMax, t.center)._v[dim];
+							if (b == numBuckets) b = numBuckets - 1;
+							return b <= minCostSplitBucket;
+						});
+					mid = p_mid - &trianglesInfo[0];
+					if (mid != start && mid != end) {
+						break;
+					}
+					// And then fall through to partition primitives into equally sized subsets if that failed
+					mid = (start + end) / 2;
+					std::nth_element(&trianglesInfo[start], &trianglesInfo[mid], &trianglesInfo[end-1] + 1,
+						[dim](const TriangleBBox& a, const TriangleBBox& b) {
+							return a.center._v[dim] < b.center._v[dim];
+						});
+					break;
+				}
+			} else {
+				// Create leaf
+				uint firstTriOffset = orderedTriangles.size();
+	            for (uint i = start; i < end; i++) {
+	                uint triId = trianglesInfo[i].triId;
+	                orderedTriangles.push_back(p_triangles[triId]);
+	            }
+	            node->initLeaf(firstTriOffset, numTriangles, workingMin, workingMax);
+			}
+		}
+#endif
         node->initInner(dim,
                         recursiveBuild(p_triangles, trianglesInfo, mid, end, totalNodes, orderedTriangles),
 						recursiveBuild(p_triangles, trianglesInfo, start, mid, totalNodes, orderedTriangles));
     }
     return node;
+}
+
+// TODO: Consider moving this into geometry.h
+Vector3Df offset(const Vector3Df& min, const Vector3Df& max, const Vector3Df& p) {
+	Vector3Df retVal = p - min;
+	if (max.x > min.x) retVal.x /= (max.x - min.x);
+	if (max.y > min.y) retVal.y /= (max.y - min.y);
+	if (max.z > min.z) retVal.z /= (max.z - min.z);
+	return retVal;
+}
+
+float surfaceArea(const Vector3Df& min, const Vector3Df& max) {
+	Vector3Df diag = max - min;
+	return diag.x * diag.y * diag.z;
 }
 
 int maximumExtent(const Vector3Df& min, const Vector3Df& max) {
@@ -172,14 +278,14 @@ int maximumExtent(const Vector3Df& min, const Vector3Df& max) {
     return 2;
 }
 
-Vector3Df min2(Vector3Df& a, Vector3Df& b) {
+Vector3Df min2(const Vector3Df& a, const Vector3Df& b) {
     float x = a.x < b.x ? a.x : b.x;
     float y = a.y < b.y ? a.y : b.y;
     float z = a.z < b.z ? a.z : b.z;
     return Vector3Df(x, y, z);
 }
 
-Vector3Df max2(Vector3Df& a, Vector3Df& b) {
+Vector3Df max2(const Vector3Df& a, const Vector3Df& b) {
     float x = a.x > b.x ? a.x : b.x;
     float y = a.y > b.y ? a.y : b.y;
     float z = a.z > b.z ? a.z : b.z;
