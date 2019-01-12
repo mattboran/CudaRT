@@ -52,21 +52,20 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
 
     Vector3Df color(0.f, 0.f, 0.f);
     Vector3Df mask(1.f, 1.f, 1.f);
-    RayHit rayHit;
     SurfaceInteraction interaction;
     Triangle* p_triangles = p_trianglesData->p_triangles;
     Triangle* p_hitTriangle = NULL;
     int numTriangles = p_trianglesData->numTriangles;
     for (unsigned bounces = 0; bounces < 6; bounces++) {
-        if (!intersectTriangles(p_triangles, numTriangles, rayHit, ray)) {
+        if (!intersectTriangles(p_triangles, numTriangles, interaction, ray)) {
             break;
         }
-        p_hitTriangle = rayHit.p_hitTriangle;
+        p_hitTriangle = interaction.p_hitTriangle;
         if (bounces == 0) {
         	color += mask * p_hitTriangle->_colorEmit;
         }
         interaction.position = ray.origin + ray.dir * ray.tMax;
-        interaction.normal = p_hitTriangle->getNormal(rayHit);
+        interaction.normal = p_hitTriangle->getNormal(interaction.u, interaction.v);
         interaction.outputDirection = normalize(ray.dir);
         interaction.p_hitTriangle = p_hitTriangle;
 
@@ -96,7 +95,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
     return color;
 }
 
-__host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriangles, RayHit &hitData, Ray& ray) {
+__host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriangles, SurfaceInteraction &interaction, Ray& ray) {
 	const float tInitial = ray.tMax;
 	float t;
 	float u, v;
@@ -105,9 +104,9 @@ __host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriang
 		t = p_current->intersect(ray, u, v);
 		if (t < ray.tMax && t > ray.tMin) {
 			ray.tMax = t;
-			hitData.p_hitTriangle = p_current;
-			hitData.u = u;
-			hitData.v = v;
+			interaction.p_hitTriangle = p_current;
+			interaction.u = u;
+			interaction.v = v;
 		}
 		p_current++;
 	}
@@ -181,15 +180,14 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, Triangle
 	}
 	//if specular, return directLighting
 	Ray ray(interaction.position,  normalize(p_light->getRandomPointOn(p_sampler) - interaction.position));
-	RayHit rayHit;
 	SurfaceInteraction lightInteraction;
 	// Sample the light
 	Triangle* p_triangles = p_trianglesData->p_triangles;
-	bool intersectsLight = intersectTriangles(p_triangles, p_trianglesData->numTriangles, rayHit, ray);
-	if (intersectsLight && sameTriangle(rayHit.p_hitTriangle, p_light)) {
+	bool intersectsLight = intersectTriangles(p_triangles, p_trianglesData->numTriangles, lightInteraction, ray);
+	if (intersectsLight && sameTriangle(lightInteraction.p_hitTriangle, p_light)) {
 		float surfaceArea = p_light->_surfaceArea;
 		float distanceSquared = ray.tMax*ray.tMax;
-		float incidenceAngle = fabs(dot(p_light->getNormal(rayHit), -ray.dir));
+		float incidenceAngle = fabs(dot(p_light->getNormal(lightInteraction.u, lightInteraction.v), -ray.dir));
 		float weightFactor = surfaceArea/distanceSquared * incidenceAngle;
 		directLighting += p_light->_colorEmit * weightFactor;
 	}

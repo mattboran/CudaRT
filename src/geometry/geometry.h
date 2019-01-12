@@ -20,10 +20,8 @@ struct Ray {
 	float tMax = FLT_MAX;
 
 	__host__ __device__ Ray(Vector3Df o, Vector3Df d) : origin(o), dir(normalize(d)) { }
-	__host__ __device__ Vector3Df pointAlong(float t) { return Vector3Df(origin + dir*t); }
 };
 
-struct RayHit;
 
 struct Triangle {
 	// Triangle ID
@@ -43,17 +41,12 @@ struct Triangle {
 	__device__ __host__ Triangle() {}
 	__device__ __host__ Triangle(const Triangle &t);
 	__host__ __device__ float intersect(const Ray &r, float &_u, float &_v) const;
-	__host__ __device__ Vector3Df getNormal(const  RayHit& rh) const;
+	__host__ __device__ Vector3Df getNormal(const float u, const float v) const;
 	__host__ __device__ Vector3Df getRandomPointOn(Sampler* p_sampler) const;
 	// Raytracing intersection pre-computed cache:
 //		float _d, _d1, _d2, _d3;
 //		Vector3Df _e1, _e2, _e3;
 } __attribute__ ((aligned (128))) ;
-
-struct RayHit {
-	Triangle* p_hitTriangle = NULL;
-	float u, v, t;
-}__attribute__((aligned (32)));
 
 struct SurfaceInteraction {
 	Triangle* p_hitTriangle = NULL;
