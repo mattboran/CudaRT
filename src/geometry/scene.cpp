@@ -33,6 +33,12 @@ float Scene::getLightsSurfaceArea() {
 	return surfaceArea;
 }
 
+void Scene::copyBvh(BVHBuildNode* src, unsigned int n) {
+	p_bvh = (BVHBuildNode*)malloc(sizeof(BVHBuildNode) * n);
+	std::copy(&src[0], &src[n-1], p_bvh);
+	numBvhNodes = n;
+}
+
 Triangle* Scene::loadTriangles() {
 	Triangle* p_tris = (Triangle*)malloc(sizeof(Triangle) * getNumTriangles());
 	Triangle* p_current = p_tris;

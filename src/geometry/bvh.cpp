@@ -58,9 +58,12 @@ ostream& operator<< (ostream &out, const TriangleBBox &b){
 void constructBVH(Scene* p_scene) {
     createTriangleBboxes(p_scene);
     uint totalNodes = 0;
-    p_scene->setBvhPtr(recursiveBuild(p_scene->getTriPtr(), trianglesInfo, 0, trianglesInfo.size(), &totalNodes, orderedTriangles));
-    cout << "Total BVH Nodes: " << totalNodes << endl;// << "Created BVH using mid point heuristic " << endl
-    p_scene->setNumBvhNodes(totalNodes);
+    BVHBuildNode* p_bvh = recursiveBuild(p_scene->getTriPtr(), trianglesInfo, 0, trianglesInfo.size(), &totalNodes, orderedTriangles);
+    p_scene->copyBvh(p_bvh, totalNodes);
+    cout << "Total BVH Nodes: " << totalNodes << endl;
+    for (int i = 0; i < totalNodes; ++i) {
+    	std::cout << "numTriangles in node " << i << " is " << p_bvh[i].numTriangles << std::endl;
+    }
     // Copy triangles to scene
     Triangle* p_dest = p_scene->getTriPtr();
     std::copy(orderedTriangles.begin(), orderedTriangles.end(), p_dest);
@@ -119,6 +122,7 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
             uint triId = trianglesInfo[i].triId;
             orderedTriangles.push_back(p_triangles[triId]);
         }
+        cout << "Created leaf: numTriangles is " << numTriangles << endl;
         node->initLeaf(firstTriOffset, numTriangles, workingMin, workingMax);
     }
     else  {

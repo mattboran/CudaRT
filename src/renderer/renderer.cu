@@ -115,7 +115,10 @@ __host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriang
 	return ray.tMax < tInitial;
 }
 
-//__host__ __device__ bool traver
+__host__ __device__ bool intersectBVH(BVHBuildNode* p_bvh, int numBvhNodes, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray) {
+//	if (rayIntersectsBox())
+	return false;
+}
 
 __host__ __device__ bool rayIntersectsBox(const Ray& ray, const Vector3Df& min, const Vector3Df& max) {
 	float t0 = -FLT_MAX, t1 = FLT_MAX;

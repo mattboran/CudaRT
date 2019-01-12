@@ -6,6 +6,7 @@
 
 #include "obj_load.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -16,7 +17,7 @@ struct CacheFriendlyBVHNode;
 
 class Scene {
 public:
-	~Scene() { free(p_bvh); free(p_triangles); };
+	~Scene() { free(p_triangles); };
 	Scene(std::string filename);
 
 	// Get methods
@@ -37,8 +38,7 @@ public:
 
 	// Set methods
 	void setCamera(const Camera& cam) { camera = Camera(cam); }
-	void setBvhPtr(BVHBuildNode* p) { p_bvh = p; }
-	void setNumBvhNodes(unsigned int n) { numBvhNodes = n; }
+	void copyBvh(BVHBuildNode* src, unsigned int n);
 
 private:
 	// Geometry - todo: phase these out if possible
