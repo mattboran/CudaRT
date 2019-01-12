@@ -16,7 +16,7 @@ struct CacheFriendlyBVHNode;
 
 class Scene {
 public:
-	~Scene() {};
+	~Scene() { free(p_bvh); free(p_triangles); };
 	Scene(std::string filename);
 
 	// Get methods
@@ -24,14 +24,13 @@ public:
 	int getNumTriangles() { return getNumVertices() / 3; }
 	int getNumLights() { return lightsList.size(); }
 	unsigned getNumVertices() { return meshLoader.LoadedVertices.size(); }
-	unsigned getNumBvhNodes() { return numBvhNodes; }
+	unsigned int getNumBvhNodes() { return numBvhNodes; }
 	float getLightsSurfaceArea();
 	Triangle* getTriPtr() { return p_triangles; }
 	Triangle* getLightsPtr() { return &lightsList[0]; }
 	objl::Vertex* getVertexPtr() { return p_vertices; }
 	unsigned* getVertexIndicesPtr() { return vertexIndices; }
 	BVHBuildNode* getBvhPtr() { return p_bvh; }
-	unsigned int getNumBVHNodes() { return numBvhNodes; }
 
 	objl::Mesh getMesh(int i) { return meshLoader.LoadedMeshes[i]; }
 	Camera* getCameraPtr() { return &camera; }

@@ -7,8 +7,10 @@
 
 #include "renderer.h"
 #include "cuda_error_check.h"
-
 #include <curand_kernel.h>
+#include <iostream>
+
+using std::cout;
 
 #define BLOCK_WIDTH 16u
 
@@ -31,9 +33,11 @@ __host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, int _width, int _h
 	gridBlocks = width / BLOCK_WIDTH * height / BLOCK_WIDTH;
 
 	int pixels = width * height;
-	unsigned numTris = p_scene->getNumTriangles();
-	unsigned numLights = p_scene->getNumLights();
+	unsigned int numTris = p_scene->getNumTriangles();
+	unsigned int numBvhNodes = p_scene->getNumBvhNodes();
+	unsigned int numLights = p_scene->getNumLights();
 	size_t trianglesBytes = sizeof(Triangle) * numTris;
+	size_t bvhBytes = sizeof(BVHBuildNode) * numBvhNodes;
 	size_t lightsBytes = sizeof(Triangle) * numLights;
 	size_t curandBytes = sizeof(curandState) * threadsPerBlock * gridBlocks;
 
@@ -41,6 +45,7 @@ __host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, int _width, int _h
 	d_imgBytesPtr = NULL;
 	d_camPtr = NULL;
 	d_triPtr = NULL;
+	d_bvhPtr = NULL;
 	d_lightsPtr = NULL;
 	d_trianglesData = NULL;
 	d_lightsData = NULL;
@@ -50,6 +55,7 @@ __host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, int _width, int _h
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_imgBytesPtr, sizeof(uchar4) * pixels));
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_camPtr, sizeof(Camera)));
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_triPtr, trianglesBytes));
+	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_bvhPtr, bvhBytes));
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_lightsPtr, lightsBytes));
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_trianglesData, sizeof(TrianglesData) + trianglesBytes));
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_lightsData, sizeof(LightsData) + lightsBytes));
@@ -65,6 +71,7 @@ __host__ ParallelRenderer::~ParallelRenderer() {
 	cudaFree(d_imgVectorPtr);
 	cudaFree(d_camPtr);
 	cudaFree(d_triPtr);
+	cudaFree(d_bvhPtr);
 	cudaFree(d_lightsPtr);
 	cudaFree(d_trianglesData);
 	cudaFree(d_lightsData);
@@ -75,22 +82,27 @@ __host__ void ParallelRenderer::copyMemoryToCuda() {
 	Scene* scenePtr = getScenePtr();
 	int numTris = scenePtr->getNumTriangles();
 	int numLights = scenePtr->getNumLights();
+	int numBvhNodes = scenePtr->getNumBvhNodes();
 	float lightsSurfaceArea = scenePtr->getLightsSurfaceArea();
 	size_t trianglesBytes = sizeof(Triangle) * numTris;
+	size_t bvhBytes = sizeof(BVHBuildNode) * numBvhNodes;
 	size_t lightsBytes = sizeof(Triangle) * numLights;
+	size_t trianglesDataBytes = sizeof(TrianglesData) + trianglesBytes;
 
 	Camera* h_camPtr = scenePtr->getCameraPtr();
 	Triangle* h_triPtr = scenePtr->getTriPtr();
+	BVHBuildNode* h_bvhPtr = scenePtr->getBvhPtr();
 	Triangle* h_lightsPtr = scenePtr->getLightsPtr();
-	TrianglesData* h_trianglesData = (TrianglesData*)malloc(sizeof(TrianglesData) + trianglesBytes);
+	TrianglesData* h_trianglesData = (TrianglesData*)malloc(sizeof(TrianglesData) + trianglesBytes + bvhBytes);
 	LightsData* h_lightsData = (LightsData*)malloc(sizeof(LightsData) + lightsBytes);
 
 	CUDA_CHECK_RETURN(cudaMemcpy(d_camPtr, h_camPtr, sizeof(Camera), cudaMemcpyHostToDevice));
-	CUDA_CHECK_RETURN(cudaMemcpy(d_triPtr, h_triPtr, sizeof(Triangle) * numTris, cudaMemcpyHostToDevice));
+	CUDA_CHECK_RETURN(cudaMemcpy(d_triPtr, h_triPtr, trianglesBytes, cudaMemcpyHostToDevice));
+	CUDA_CHECK_RETURN(cudaMemcpy(d_bvhPtr, h_bvhPtr, bvhBytes, cudaMemcpyHostToDevice));
 	CUDA_CHECK_RETURN(cudaMemcpy(d_lightsPtr, h_lightsPtr, sizeof(Triangle) * numLights, cudaMemcpyHostToDevice));
 
-	createTrianglesData(h_trianglesData, d_triPtr);
-	CUDA_CHECK_RETURN(cudaMemcpy(d_trianglesData, h_trianglesData, sizeof(TrianglesData) + trianglesBytes, cudaMemcpyHostToDevice));
+	createTrianglesData(h_trianglesData, d_triPtr, d_bvhPtr);
+	CUDA_CHECK_RETURN(cudaMemcpy(d_trianglesData, h_trianglesData, trianglesDataBytes, cudaMemcpyHostToDevice));
 
 	createLightsData(h_lightsData, d_lightsPtr);
 	CUDA_CHECK_RETURN(cudaMemcpy(d_lightsData, h_lightsData, sizeof(LightsData) + lightsBytes, cudaMemcpyHostToDevice));

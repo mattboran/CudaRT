@@ -58,11 +58,14 @@ ostream& operator<< (ostream &out, const TriangleBBox &b){
 void constructBVH(Scene* p_scene) {
     createTriangleBboxes(p_scene);
     uint totalNodes = 0;
-    BVHBuildNode* p_root = recursiveBuild(p_scene->getTriPtr(), trianglesInfo, 0, trianglesInfo.size(), &totalNodes, orderedTriangles);
+    p_scene->setBvhPtr(recursiveBuild(p_scene->getTriPtr(), trianglesInfo, 0, trianglesInfo.size(), &totalNodes, orderedTriangles));
     cout << "Total BVH Nodes: " << totalNodes << endl;// << "Created BVH using mid point heuristic " << endl
+    p_scene->setNumBvhNodes(totalNodes);
     // Copy triangles to scene
     Triangle* p_dest = p_scene->getTriPtr();
     std::copy(orderedTriangles.begin(), orderedTriangles.end(), p_dest);
+    // Set BVH variables in scene
+//    p_scene->setBvhPtr(p_root);
 }
 
 void createTriangleBboxes(Scene* p_scene)  {

@@ -22,8 +22,9 @@ struct LightsData {
 
 struct TrianglesData {
 	Triangle* p_triangles;
-
+	BVHBuildNode* p_bvh;
 	unsigned numTriangles;
+	unsigned numBVHNodes;
 };
 
 struct SettingsData {
@@ -71,7 +72,7 @@ public:
 	__host__ bool getUseBVH() { return useBVH; }
 	__host__ int getSamplesRendered() { return samplesRendered; }
 	__host__ void createSettingsData(SettingsData* p_settingsData);
-	__host__ void createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles);
+	__host__ void createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles, BVHBuildNode* p_bvh);
 	__host__ void createLightsData(LightsData* p_lightsData, Triangle* p_triangles);
 };
 
@@ -90,6 +91,7 @@ private:
 	TrianglesData* d_trianglesData;
 	SettingsData d_settingsData;
 	Triangle* d_triPtr;
+	BVHBuildNode* d_bvhPtr;
 	Triangle* d_lightsPtr;
 	Camera* d_camPtr;
 	curandState* d_curandStatePtr;

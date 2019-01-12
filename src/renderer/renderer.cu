@@ -36,9 +36,11 @@ __host__ void Renderer::createSettingsData(SettingsData* p_settingsData){
 	p_settingsData->useBVH = getUseBVH();
 }
 
-__host__ void Renderer::createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles) {
+__host__ void Renderer::createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles, BVHBuildNode* p_bvh) {
 	p_trianglesData->p_triangles = p_triangles;
+	p_trianglesData->p_bvh = p_bvh;
 	p_trianglesData->numTriangles = p_scene->getNumTriangles();
+	p_trianglesData->numBVHNodes = p_scene->getNumBvhNodes();
 }
 
 __host__ void Renderer::createLightsData(LightsData* p_lightsData, Triangle* p_triangles) {
