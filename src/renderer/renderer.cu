@@ -59,7 +59,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
     Triangle* p_hitTriangle = NULL;
     int numTriangles = p_trianglesData->numTriangles;
     for (unsigned bounces = 0; bounces < 6; bounces++) {
-        t = intersectAllTriangles(p_triangles, numTriangles, rayHit, ray);
+        t = intersectTriangles(p_triangles, numTriangles, rayHit, ray);
         if (t >= FLT_MAX) {
             break;
         }
@@ -98,7 +98,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
     return color;
 }
 
-__host__ __device__ float intersectAllTriangles(Triangle* p_triangles, int numTriangles, RayHit &hitData, Ray& ray) {
+__host__ __device__ float intersectTriangles(Triangle* p_triangles, int numTriangles, RayHit &hitData, Ray& ray) {
 	float t = ray.tMax;
 	float tprime = ray.tMax;
 	float u, v;
@@ -115,6 +115,50 @@ __host__ __device__ float intersectAllTriangles(Triangle* p_triangles, int numTr
 	}
 	ray.tMax = t;
 	return t;
+}
+
+//__host__ __device__ bool traver
+
+__host__ __device__ bool rayIntersectsBox(const Ray& ray, const Vector3Df& min, const Vector3Df& max) {
+	float t0 = -FLT_MAX, t1 = FLT_MAX;
+
+	float invRayDir = 1.f/ray.dir.x;
+	float tNear = (min.x - ray.origin.x) * invRayDir;
+	float tFar = (max.x - ray.origin.x) * invRayDir;
+	if (tNear > tFar) {
+		float tmp = tNear;
+		tNear = tFar;
+		tFar = tmp;
+	}
+	t0 = tNear > t0 ? tNear : t0;
+	t1 = tFar < t1 ? tFar : t1;
+	if (t0 > t1) return false;
+
+	invRayDir = 1.f/ray.dir.y;
+	tNear = (min.y - ray.origin.y) * invRayDir;
+	tFar = (max.y - ray.origin.y) * invRayDir;
+	if (tNear > tFar) {
+		float tmp = tNear;
+		tNear = tFar;
+		tFar = tmp;
+	}
+	t0 = tNear > t0 ? tNear : t0;
+	t1 = tFar < t1 ? tFar : t1;
+	if (t0 > t1) return false;
+
+	invRayDir = 1.f/ray.dir.z;
+	tNear = (min.z - ray.origin.z) * invRayDir;
+	tFar = (max.z - ray.origin.z) * invRayDir;
+	if (tNear > tFar) {
+		float tmp = tNear;
+		tNear = tFar;
+		tFar = tmp;
+	}
+	t0 = tNear > t0 ? tNear : t0;
+	t1 = tFar < t1 ? tFar : t1;
+	if (t0 > t1) return false;
+
+	return true;
 }
 
 __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction, const RayHit& rayHit, Sampler* p_sampler) {
@@ -141,9 +185,10 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, Triangle
 	//if specular, return directLighting
 	Ray ray(interaction.position,  normalize(p_light->getRandomPointOn(p_sampler) - interaction.position));
 	RayHit rayHit;
+	SurfaceInteraction lightInteraction;
 	// Sample the light
 	Triangle* p_triangles = p_trianglesData->p_triangles;
-	float t = intersectAllTriangles(p_triangles, p_trianglesData->numTriangles, rayHit, ray);
+	float t = intersectTriangles(p_triangles, p_trianglesData->numTriangles, rayHit, ray);
 	if (t < FLT_MAX && sameTriangle(rayHit.p_hitTriangle, p_light)) {
 		float surfaceArea = p_light->_surfaceArea;
 		float distanceSquared = t*t;
@@ -153,48 +198,6 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, Triangle
 	}
 	return directLighting;
 }
-
-// __host__ __device__ bool rayIntersectsBox(const Ray& ray, BVHNode* bbox) {
-// 	float t0 = -FLT_MAX, t1 = FLT_MAX;
-//
-// 	float invRayDir = 1.f/ray.dir.x;
-// 	float tNear = (bbox->min.x - ray.origin.x) * invRayDir;
-// 	float tFar = (bbox->max.x - ray.origin.x) * invRayDir;
-// 	if (tNear > tFar) {
-// 		float tmp = tNear;
-// 		tNear = tFar;
-// 		tFar = tmp;
-// 	}
-// 	t0 = tNear > t0 ? tNear : t0;
-// 	t1 = tFar < t1 ? tFar : t1;
-// 	if (t0 > t1) return false;
-//
-// 	invRayDir = 1.f/ray.dir.y;
-// 	tNear = (bbox->min.y - ray.origin.y) * invRayDir;
-// 	tFar = (bbox->max.y - ray.origin.y) * invRayDir;
-// 	if (tNear > tFar) {
-// 		float tmp = tNear;
-// 		tNear = tFar;
-// 		tFar = tmp;
-// 	}
-// 	t0 = tNear > t0 ? tNear : t0;
-// 	t1 = tFar < t1 ? tFar : t1;
-// 	if (t0 > t1) return false;
-//
-// 	invRayDir = 1.f/ray.dir.z;
-// 	tNear = (bbox->min.z - ray.origin.z) * invRayDir;
-// 	tFar = (bbox->max.z - ray.origin.z) * invRayDir;
-// 	if (tNear > tFar) {
-// 		float tmp = tNear;
-// 		tNear = tFar;
-// 		tFar = tmp;
-// 	}
-// 	t0 = tNear > t0 ? tNear : t0;
-// 	t1 = tFar < t1 ? tFar : t1;
-// 	if (t0 > t1) return false;
-//
-// 	return true;
-// }
 
 __host__ __device__ void gammaCorrectPixel(uchar4 &p) {
 	float invGamma = 1.f/2.2f;

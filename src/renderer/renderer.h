@@ -39,9 +39,10 @@ struct Sampler {
 	__device__ Sampler(curandState* p_curand) : p_curandState(p_curand) {}
 	__host__ __device__ float getNextFloat();
 };
-// __host__ __device__ bool rayIntersectsBox(const geom::Ray& ray, BVHNode* bbox) ;
+
 __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, TrianglesData* p_trianglesData, LightsData *p_lightsData, Sampler* p_sampler);
-__host__ __device__ float intersectAllTriangles(Triangle* p_triangles, int numTriangles, RayHit &hitData, Ray& ray);
+__host__ __device__ float intersectTriangles(Triangle* p_triangles, int numTriangles, RayHit &hitData, Ray& ray);
+__host__ __device__ bool rayIntersectsBox(const Ray& ray, const Vector3Df& min, const Vector3Df& max);
 __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction, const RayHit& rayHit, Sampler* p_sampler);
 __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, const SurfaceInteraction &interaction, Sampler* p_sampler);
 __host__ __device__ void gammaCorrectPixel(uchar4 &p);

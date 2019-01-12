@@ -48,7 +48,6 @@ Vector3Df max2(const Vector3Df& a, const Vector3Df& b);
 
 // Local functions
 void createTriangleBboxes(Scene* p_scene);
-void cleanupBboxes();
 void constructBVH(Scene* p_scene);
 BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& trianglesInfo,
      uint start, uint end, uint* totalNodes, vector<Triangle> orderedTriangles);
@@ -72,6 +71,9 @@ void constructBVH(Scene* p_scene) {
     uint totalNodes = 0;
     BVHBuildNode* p_root = recursiveBuild(p_scene->getTriPtr(), trianglesInfo, 0, trianglesInfo.size(), &totalNodes, orderedTriangles);
     cout << "Total BVH Nodes: " << totalNodes << endl;// << "Created BVH using mid point heuristic " << endl
+    // Copy triangles to scene
+    Triangle* p_dest = p_scene->getTriPtr();
+    std::copy(orderedTriangles.begin(), orderedTriangles.end(), p_dest);
 }
 
 void createTriangleBboxes(Scene* p_scene)  {

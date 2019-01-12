@@ -35,6 +35,7 @@ public:
 
 	// Set methods
 	void setCamera(const Camera& cam);
+	void replaceTriangles(std::vector<Triangle>& v_newTriangles);
 private:
 	// Geometry - todo: phase these out if possible
 	Triangle* p_triangles = NULL;
