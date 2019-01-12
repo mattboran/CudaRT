@@ -1,6 +1,7 @@
 // Implementation for Scene functions. This file is responsible for setting up the scene for rendering
 
 #include "bvh.h"
+#include "linalg.h"
 #include "scene.h"
 
 #include <algorithm>
@@ -22,10 +23,6 @@ Scene::Scene(std::string filename) {
 	vertexIndices = &meshLoader.LoadedIndices[0];
 	vertexPtr = &meshLoader.LoadedVertices[0];
 	constructBVH(this);
-}
-
-Scene::Scene(vector<std::string>& filenames) {
-	std::cerr << "Multiple .objs not implemented yet!" << std::endl;
 }
 
 // Get methods

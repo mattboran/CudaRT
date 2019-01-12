@@ -16,7 +16,6 @@ class Scene {
 public:
 	~Scene() {};
 	Scene(std::string filename);
-	Scene(std::vector<std::string>& filenames);
 
 	// Get methods
 	int getNumMeshes();
