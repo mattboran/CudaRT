@@ -53,7 +53,6 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
     Vector3Df color(0.f, 0.f, 0.f);
     Vector3Df mask(1.f, 1.f, 1.f);
     RayHit rayHit;
-    float t = 0.0f;
     SurfaceInteraction interaction;
     Triangle* p_triangles = p_trianglesData->p_triangles;
     Triangle* p_hitTriangle = NULL;
@@ -87,7 +86,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
 			}
 			color += mask * directLighting;
 		}
-        mask *= sampleDiffuseBSDF(&interaction, rayHit, p_sampler) / interaction.pdf;
+        mask *= sampleDiffuseBSDF(&interaction, p_hitTriangle, p_sampler) / interaction.pdf;
 
         ray.origin = interaction.position;
         ray.dir = interaction.inputDirection;
@@ -98,8 +97,8 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
 }
 
 __host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriangles, RayHit &hitData, Ray& ray) {
-	float tInitial = ray.tMax;
-	float t = ray.tMax;
+	const float tInitial = ray.tMax;
+	float t;
 	float u, v;
 	Triangle* p_current = p_triangles;
 	while(numTriangles--) {
@@ -159,7 +158,7 @@ __host__ __device__ bool rayIntersectsBox(const Ray& ray, const Vector3Df& min, 
 	return true;
 }
 
-__host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction, const RayHit& rayHit, Sampler* p_sampler) {
+__host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Sampler* p_sampler) {
    float r1 = 2 * M_PI * p_sampler->getNextFloat();
    float r2 = p_sampler->getNextFloat();
    float r2sq = sqrtf(r2);
@@ -172,7 +171,7 @@ __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interactio
    p_interaction->inputDirection = normalize(u * cosf(r1) * r2sq + v * sinf(r1) * r2sq + w * sqrtf(1.f - r2));
    p_interaction->pdf = 0.5f;
    float cosineWeight = dot(p_interaction->inputDirection, p_interaction->normal);
-   return rayHit.p_hitTriangle->_colorDiffuse * cosineWeight;
+   return p_hitTriangle->_colorDiffuse * cosineWeight;
 }
 
 __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, const SurfaceInteraction &interaction, Sampler* p_sampler) {
