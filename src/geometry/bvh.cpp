@@ -28,17 +28,6 @@ struct TriangleBBox {
     }
 };
 
-struct BVHBuildNode {
-    Vector3Df min;
-    Vector3Df max;
-    BVHBuildNode *children[2];
-    uint splitAxis, firstTriOffset, numTriangles;
-    BVHBuildNode() { children[0] = children[1] = NULL; }
-	~BVHBuildNode() { if(children[0]) delete children[0]; if (children[1]) delete children[1]; }
-    void initLeaf(uint first, uint n, const Vector3Df& _min, const Vector3Df& _max);
-    void initInner(uint axis, BVHBuildNode* c0, BVHBuildNode* c1);
-};
-
 // Vector math functions that are used in making BVH - possibly put these in geometry.h/cu
 Vector3Df offset(const Vector3Df& min, const Vector3Df& max, const Vector3Df& p);
 float surfaceArea(const Vector3Df& min, const Vector3Df& max);

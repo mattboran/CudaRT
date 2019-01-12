@@ -8,8 +8,7 @@
 #ifndef RENDERER_H_
 #define RENDERER_H_
 
-// #include "geometry.h"
-// #include "bvh.h"
+ #include "bvh.h"
 #include "scene.h"
 
 #include <cuda.h>
@@ -23,6 +22,7 @@ struct LightsData {
 
 struct TrianglesData {
 	Triangle* p_triangles;
+
 	unsigned numTriangles;
 };
 

@@ -2,14 +2,16 @@
 #ifndef SCENE_H
 #define SCENE_H
 
+#include "camera.h"
+
 #include "obj_load.h"
 
 #include <string>
 #include <vector>
 
-#include "camera.h"
 
 struct BVHNode;
+struct BVHBuildNode;
 struct CacheFriendlyBVHNode;
 
 class Scene {
@@ -18,24 +20,27 @@ public:
 	Scene(std::string filename);
 
 	// Get methods
-	int getNumMeshes();
-	int getNumTriangles();
-	int getNumLights();
-	unsigned getNumVertices();
+	int getNumMeshes() { return meshLoader.LoadedMeshes.size(); }
+	int getNumTriangles() { return getNumVertices() / 3; }
+	int getNumLights() { return lightsList.size(); }
+	unsigned getNumVertices() { return meshLoader.LoadedVertices.size(); }
+	unsigned getNumBvhNodes() { return numBvhNodes; }
 	float getLightsSurfaceArea();
-	Triangle* getTriPtr();
-	Triangle* getLightsPtr();
-	objl::Vertex* getVertexPtr();
-	unsigned* getVertexIndicesPtr();
+	Triangle* getTriPtr() { return p_triangles; }
+	Triangle* getLightsPtr() { return &lightsList[0]; }
+	objl::Vertex* getVertexPtr() { return p_vertices; }
+	unsigned* getVertexIndicesPtr() { return vertexIndices; }
+	BVHBuildNode* getBvhPtr() { return p_bvh; }
+	unsigned int getNumBVHNodes() { return numBvhNodes; }
 
-	unsigned getNumBVHNodes();
-
-	objl::Mesh getMesh(int i);
-	Camera* getCameraPtr();
+	objl::Mesh getMesh(int i) { return meshLoader.LoadedMeshes[i]; }
+	Camera* getCameraPtr() { return &camera; }
 
 	// Set methods
-	void setCamera(const Camera& cam);
-	void replaceTriangles(std::vector<Triangle>& v_newTriangles);
+	void setCamera(const Camera& cam) { camera = Camera(cam); }
+	void setBvhPtr(BVHBuildNode* p) { p_bvh = p; }
+	void setNumBvhNodes(unsigned int n) { numBvhNodes = n; }
+
 private:
 	// Geometry - todo: phase these out if possible
 	Triangle* p_triangles = NULL;
@@ -43,7 +48,9 @@ private:
 	objl::Loader meshLoader;
 	Camera camera;
 	unsigned *vertexIndices;
-	objl::Vertex *vertexPtr;
+	objl::Vertex *p_vertices;
+	BVHBuildNode* p_bvh;
+	unsigned int numBvhNodes;
 
 	Triangle* loadTriangles();
 };

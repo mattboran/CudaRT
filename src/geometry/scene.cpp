@@ -21,29 +21,8 @@ Scene::Scene(std::string filename) {
 	}
 	p_triangles = loadTriangles();
 	vertexIndices = &meshLoader.LoadedIndices[0];
-	vertexPtr = &meshLoader.LoadedVertices[0];
+	p_vertices = &meshLoader.LoadedVertices[0];
 	constructBVH(this);
-}
-
-// Get methods
-int Scene::getNumMeshes() {
-	return meshLoader.LoadedMeshes.size();
-}
-
-objl::Mesh Scene::getMesh(int i) {
-	return meshLoader.LoadedMeshes[i];
-}
-
-int Scene::getNumTriangles() {
-	return meshLoader.LoadedVertices.size() / 3;
-}
-
-int Scene::getNumLights() {
-	return lightsList.size();
-}
-
-unsigned Scene::getNumVertices() {
-	return meshLoader.LoadedVertices.size();
 }
 
 float Scene::getLightsSurfaceArea() {
@@ -52,30 +31,6 @@ float Scene::getLightsSurfaceArea() {
 		surfaceArea += light._surfaceArea;
 	}
 	return surfaceArea;
-}
-Triangle* Scene::getTriPtr() {
-	return p_triangles;
-}
-
-Triangle* Scene::getLightsPtr(){
-	return &lightsList[0];
-}
-
-objl::Vertex* Scene::getVertexPtr() {
-	return vertexPtr;
-}
-
-unsigned* Scene::getVertexIndicesPtr(){
-	return vertexIndices;
-}
-
-Camera* Scene::getCameraPtr() {
-	return &camera;
-}
-
-
-void Scene::setCamera(const Camera& cam) {
-	camera = Camera(cam);
 }
 
 Triangle* Scene::loadTriangles() {

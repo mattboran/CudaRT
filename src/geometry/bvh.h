@@ -15,23 +15,34 @@
 
 void constructBVH(Scene* p_scene);
 
-struct BVHNode {
-	BVHNode(Vector3Df &a, Vector3Df &b) : min(a), max(b) {}
-	Vector3Df min;
-	Vector3Df max;
-	virtual bool isLeaf() = 0;
-	virtual ~BVHNode();
+struct BVHBuildNode {
+    Vector3Df min;
+    Vector3Df max;
+    BVHBuildNode *children[2];
+    uint splitAxis, firstTriOffset, numTriangles;
+    BVHBuildNode() { children[0] = children[1] = NULL; }
+	~BVHBuildNode() { if(children[0]) delete children[0]; if (children[1]) delete children[1]; }
+    void initLeaf(uint first, uint n, const Vector3Df& _min, const Vector3Df& _max);
+    void initInner(uint axis, BVHBuildNode* c0, BVHBuildNode* c1);
 };
 
-struct BVHInner : BVHNode {
-	BVHNode* p_left;
-	BVHNode* p_right;
-	virtual bool isLeaf() { return false; }
-};
-
-struct BVHLeaf : BVHNode {
-	std::vector<Triangle*> v_triangles;
-	virtual bool isLeaf() { return true; }
-};
+//struct BVHNode {
+//	BVHNode(Vector3Df &a, Vector3Df &b) : min(a), max(b) {}
+//	Vector3Df min;
+//	Vector3Df max;
+//	virtual bool isLeaf() = 0;
+//	virtual ~BVHNode();
+//};
+//
+//struct BVHInner : BVHNode {
+//	BVHNode* p_left;
+//	BVHNode* p_right;
+//	virtual bool isLeaf() { return false; }
+//};
+//
+//struct BVHLeaf : BVHNode {
+//	std::vector<Triangle> v_triangles;
+//	virtual bool isLeaf() { return true; }
+//};
 
 #endif /* BVH_H_ */
