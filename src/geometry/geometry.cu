@@ -3,11 +3,10 @@
 #include <cfloat>
 #include <math.h>
 
-using namespace geom;
 using std::max;
 using std::min;
 
-extern Vector3Df min3(const Vector3Df& a, const Vector3Df& b,
+Vector3Df min3(const Vector3Df& a, const Vector3Df& b,
 		const Vector3Df& c) {
 	float x = min(a.x, min(b.x, c.x));
 	float y = min(a.y, min(b.y, c.y));
@@ -15,7 +14,7 @@ extern Vector3Df min3(const Vector3Df& a, const Vector3Df& b,
 	return Vector3Df(x, y, z);
 }
 
-extern Vector3Df max3(const Vector3Df& a, const Vector3Df& b,
+Vector3Df max3(const Vector3Df& a, const Vector3Df& b,
 		const Vector3Df& c) {
 	float x = max(a.x, max(b.x, c.x));
 	float y = max(a.y, max(b.y, c.y));

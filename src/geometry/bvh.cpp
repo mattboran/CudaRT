@@ -12,7 +12,6 @@
 // #define USE_MIDPOINT
 #define USE_SAH
 
-using namespace geom;
 using namespace std;
 
 typedef unsigned int uint;

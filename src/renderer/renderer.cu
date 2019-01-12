@@ -14,8 +14,6 @@
 #include <float.h>
 #include <math.h>
 
-using namespace geom;
-
 __host__ __device__ float Sampler::getNextFloat() {
 	#ifdef __CUDA_ARCH__
 		return curand_uniform(p_curandState);

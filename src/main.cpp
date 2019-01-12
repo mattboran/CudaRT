@@ -12,7 +12,6 @@
 #include <vector>
 
 using namespace std;
-using namespace geom;
 
 int main(int argc, char* argv[]) {
 	string outFile;

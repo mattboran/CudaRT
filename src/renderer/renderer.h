@@ -16,13 +16,13 @@
 #include <curand_kernel.h>
 
 struct LightsData {
-	geom::Triangle* lightsPtr;
+	Triangle* lightsPtr;
 	unsigned numLights;
 	float totalSurfaceArea;
 };
 
 struct TrianglesData {
-	geom::Triangle* p_triangles;
+	Triangle* p_triangles;
 	unsigned numTriangles;
 };
 
@@ -41,9 +41,9 @@ struct Sampler {
 };
 // __host__ __device__ bool rayIntersectsBox(const geom::Ray& ray, BVHNode* bbox) ;
 __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, TrianglesData* p_trianglesData, LightsData *p_lightsData, Sampler* p_sampler);
-__host__ __device__ float intersectAllTriangles(geom::Triangle* p_triangles, int numTriangles, geom::RayHit &hitData, geom::Ray& ray);
-__host__ __device__ Vector3Df sampleDiffuseBSDF(geom::SurfaceInteraction* p_interaction, const geom::RayHit& rayHit, Sampler* p_sampler);
-__host__ __device__ Vector3Df estimateDirectLighting(geom::Triangle* p_light, TrianglesData* p_trianglesData, const geom::SurfaceInteraction &interaction, Sampler* p_sampler);
+__host__ __device__ float intersectAllTriangles(Triangle* p_triangles, int numTriangles, RayHit &hitData, Ray& ray);
+__host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction, const RayHit& rayHit, Sampler* p_sampler);
+__host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, const SurfaceInteraction &interaction, Sampler* p_sampler);
 __host__ __device__ void gammaCorrectPixel(uchar4 &p);
 
 class Renderer {
@@ -70,8 +70,8 @@ public:
 	__host__ bool getUseBVH() { return useBVH; }
 	__host__ int getSamplesRendered() { return samplesRendered; }
 	__host__ void createSettingsData(SettingsData* p_settingsData);
-	__host__ void createTrianglesData(TrianglesData* p_trianglesData, geom::Triangle* p_triangles);
-	__host__ void createLightsData(LightsData* p_lightsData, geom::Triangle* p_triangles);
+	__host__ void createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles);
+	__host__ void createLightsData(LightsData* p_lightsData, Triangle* p_triangles);
 };
 
 class ParallelRenderer : public Renderer {
@@ -88,8 +88,8 @@ private:
 	LightsData* d_lightsData;
 	TrianglesData* d_trianglesData;
 	SettingsData d_settingsData;
-	geom::Triangle* d_triPtr;
-	geom::Triangle* d_lightsPtr;
+	Triangle* d_triPtr;
+	Triangle* d_lightsPtr;
 	Camera* d_camPtr;
 	curandState* d_curandStatePtr;
 	// TODO: Consider storing block, grid instead
@@ -125,7 +125,7 @@ __host__ __device__ inline uchar4 vector3ToUchar4(const Vector3Df& v) {
 	return retVal;
 }
 
-__host__ __device__ inline bool sameTriangle(geom::Triangle* p_a, geom::Triangle* p_b) {
+__host__ __device__ inline bool sameTriangle(Triangle* p_a, Triangle* p_b) {
 	return p_a->_triId == p_b->_triId;
 }
 

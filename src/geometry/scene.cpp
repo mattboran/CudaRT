@@ -7,7 +7,7 @@
 #include <iostream>
 #include <cfloat>
 #include <math.h>
-using namespace geom;
+
 using std::vector;
 
 

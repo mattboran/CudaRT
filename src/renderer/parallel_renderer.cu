@@ -12,8 +12,6 @@
 
 #define BLOCK_WIDTH 16u
 
-using namespace geom;
-
 // Kernels
 __global__ void initializeCurandKernel(curandState* p_curandState);
 __global__ void renderKernel(SettingsData settings,

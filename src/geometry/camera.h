@@ -14,7 +14,7 @@ public:
 
 	__host__ void rebase();
 
-	__host__ __device__ geom::Ray computeCameraRay(int i, int j, Sampler* p_sampler) const;
+	__host__ __device__ Ray computeCameraRay(int i, int j, Sampler* p_sampler) const;
 private:
 	Vector3Df eye;
 	Vector3Df dir;

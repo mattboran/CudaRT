@@ -30,7 +30,7 @@ struct BVHInner : BVHNode {
 };
 
 struct BVHLeaf : BVHNode {
-	std::vector<geom::Triangle*> v_triangles;
+	std::vector<Triangle*> v_triangles;
 	virtual bool isLeaf() { return true; }
 };
 

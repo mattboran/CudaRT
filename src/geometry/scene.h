@@ -24,8 +24,8 @@ public:
 	int getNumLights();
 	unsigned getNumVertices();
 	float getLightsSurfaceArea();
-	geom::Triangle* getTriPtr();
-	geom::Triangle* getLightsPtr();
+	Triangle* getTriPtr();
+	Triangle* getLightsPtr();
 	objl::Vertex* getVertexPtr();
 	unsigned* getVertexIndicesPtr();
 
@@ -38,14 +38,14 @@ public:
 	void setCamera(const Camera& cam);
 private:
 	// Geometry - todo: phase these out if possible
-	geom::Triangle* p_triangles = NULL;
-	std::vector<geom::Triangle> lightsList;
+	Triangle* p_triangles = NULL;
+	std::vector<Triangle> lightsList;
 	objl::Loader meshLoader;
 	Camera camera;
 	unsigned *vertexIndices;
 	objl::Vertex *vertexPtr;
 
-	geom::Triangle* loadTriangles();
+	Triangle* loadTriangles();
 };
 
 
