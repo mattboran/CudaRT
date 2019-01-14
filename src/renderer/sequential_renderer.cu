@@ -50,10 +50,10 @@ __host__ void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 	delete p_sampler;
 }
 
-__host__ void SequentialRenderer::copyImageBytes() {
+__host__ void SequentialRenderer::copyImageBytes(uchar4* p_img) {
 	int pixels = width * height;
 	size_t imgBytes = sizeof(uchar4) * pixels;
-	memcpy(h_imgPtr, h_imgBytesPtr, imgBytes);
+	memcpy(h_imgPtr, p_img, imgBytes);
 	for (unsigned i = 0; i < pixels; i++) {
 		gammaCorrectPixel(h_imgPtr[i]);
 	}

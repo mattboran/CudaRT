@@ -239,7 +239,7 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, Triangle
 
 __host__ __device__ void gammaCorrectPixel(uchar4 &p) {
 	float invGamma = 1.f/2.2f;
-	float3 fp = make_float3(0.0f, 0.0f, 0.0f);
+	float3 fp;
 	fp.x = pow((float)p.x * 1.f/255.f, invGamma);
 	fp.y = pow((float)p.y * 1.f/255.f, invGamma);
 	fp.z = pow((float)p.z * 1.f/255.f, invGamma);

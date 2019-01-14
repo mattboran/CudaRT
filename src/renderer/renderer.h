@@ -59,7 +59,7 @@ public:
 	uchar4* h_imgPtr;
 	virtual ~Renderer() { delete[] h_imgPtr;	}
 	__host__ virtual void renderOneSamplePerPixel(uchar4* p_img) = 0;
-	__host__ virtual void copyImageBytes() = 0;
+	__host__ virtual void copyImageBytes(uchar4* p_img) = 0;
 	__host__ virtual uchar4* getImgBytesPointer() = 0;
 	__host__ Scene* getScenePtr() { return p_scene; }
 	__host__ int getWidth() { return width; }
@@ -77,7 +77,7 @@ public:
 	__host__ ParallelRenderer() : Renderer() {}
 	__host__ ParallelRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH);
 	__host__ void renderOneSamplePerPixel(uchar4* p_img);
-	__host__ void copyImageBytes();
+	__host__ void copyImageBytes(uchar4* p_img);
 	__host__ uchar4* getImgBytesPointer() { return d_imgBytesPtr; }
 	~ParallelRenderer();
 private:
@@ -103,7 +103,7 @@ public:
 	SequentialRenderer() : Renderer() {}
 	SequentialRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH);
 	__host__ void renderOneSamplePerPixel(uchar4* p_img);
-	__host__ void copyImageBytes();
+	__host__ void copyImageBytes(uchar4* p_img);
 	__host__ uchar4* getImgBytesPointer() { return h_imgBytesPtr; }
 	~SequentialRenderer();
 private:

@@ -132,10 +132,10 @@ __host__ void ParallelRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 			samplesRendered);
 }
 
-__host__ void ParallelRenderer::copyImageBytes() {
+__host__ void ParallelRenderer::copyImageBytes(uchar4* p_img) {
 	int pixels = width * height;
 	size_t imgBytes = sizeof(uchar4) * pixels;
-	CUDA_CHECK_RETURN(cudaMemcpy(h_imgPtr, d_imgBytesPtr, imgBytes, cudaMemcpyDeviceToHost));
+	CUDA_CHECK_RETURN(cudaMemcpy(h_imgPtr, p_img, imgBytes, cudaMemcpyDeviceToHost));
 	for (unsigned i = 0; i < pixels; i++) {
 		gammaCorrectPixel(h_imgPtr[i]);
 	}
