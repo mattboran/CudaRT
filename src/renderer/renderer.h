@@ -22,7 +22,7 @@ struct LightsData {
 
 struct TrianglesData {
 	Triangle* p_triangles;
-	BVHBuildNode* p_bvh;
+	LinearBVHNode* p_bvh;
 	unsigned numTriangles;
 	unsigned numBVHNodes;
 };
@@ -42,10 +42,6 @@ struct Sampler {
 };
 
 __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, TrianglesData* p_trianglesData, LightsData *p_lightsData, Sampler* p_sampler);
-__host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriangles, SurfaceInteraction &interaction, Ray& ray);
-__host__ __device__ bool rayIntersectsBox(const Ray& ray, const Vector3Df& min, const Vector3Df& max);
-__host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Sampler* p_sampler);
-__host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, const SurfaceInteraction &interaction, Sampler* p_sampler);
 __host__ __device__ void gammaCorrectPixel(uchar4 &p);
 
 class Renderer {
@@ -72,7 +68,7 @@ public:
 	__host__ bool getUseBVH() { return useBVH; }
 	__host__ int getSamplesRendered() { return samplesRendered; }
 	__host__ void createSettingsData(SettingsData* p_settingsData);
-	__host__ void createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles, BVHBuildNode* p_bvh);
+	__host__ void createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles, LinearBVHNode* p_bvh);
 	__host__ void createLightsData(LightsData* p_lightsData, Triangle* p_triangles);
 };
 
@@ -91,7 +87,7 @@ private:
 	TrianglesData* d_trianglesData;
 	SettingsData d_settingsData;
 	Triangle* d_triPtr;
-	BVHBuildNode* d_bvhPtr;
+	LinearBVHNode* d_bvhPtr;
 	Triangle* d_lightsPtr;
 	Camera* d_camPtr;
 	curandState* d_curandStatePtr;
@@ -121,9 +117,9 @@ private:
 
 __host__ __device__ inline uchar4 vector3ToUchar4(const Vector3Df& v) {
 	uchar4 retVal;
-	retVal.x = (unsigned char)(clamp(v.x, 0.0f, 1.0f)*(255.f));
-	retVal.y = (unsigned char)(clamp(v.y, 0.0f, 1.0f)*(255.f));
-	retVal.z = (unsigned char)(clamp(v.z, 0.0f, 1.0f)*(255.f));
+	retVal.x = (unsigned char)((v.x > 1.0f ? 1.0f: v.x) *(255.f));
+	retVal.y = (unsigned char)((v.y > 1.0f ? 1.0f: v.y)*(255.f));
+	retVal.z = (unsigned char)((v.z > 1.0f ? 1.0f: v.z)*(255.f));
 	retVal.w = 255u;
 	return retVal;
 }

@@ -14,6 +14,13 @@
 #include <float.h>
 #include <math.h>
 
+
+__host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriangles, SurfaceInteraction &interaction, Ray& ray);
+__host__ __device__ bool rayIntersectsBox(Ray& ray, const Vector3Df& min, const Vector3Df& max);
+__host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Sampler* p_sampler);
+__host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, const SurfaceInteraction &interaction, Sampler* p_sampler);
+__host__ __device__ bool intersectBVH(LinearBVHNode* p_bvh, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray);
+
 __host__ __device__ float Sampler::getNextFloat() {
 	#ifdef __CUDA_ARCH__
 		return curand_uniform(p_curandState);
@@ -25,7 +32,7 @@ __host__ __device__ float Sampler::getNextFloat() {
 __host__ Renderer::Renderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH) :
 	p_scene(_scenePtr), width(_width), height(_height), samples(_samples), useBVH(_useBVH)
 {
-	h_imgPtr = new uchar4[width*height];
+	h_imgPtr = new uchar4[width*height]();
 }
 
 
@@ -36,7 +43,7 @@ __host__ void Renderer::createSettingsData(SettingsData* p_settingsData){
 	p_settingsData->useBVH = getUseBVH();
 }
 
-__host__ void Renderer::createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles, BVHBuildNode* p_bvh) {
+__host__ void Renderer::createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles, LinearBVHNode* p_bvh) {
 	p_trianglesData->p_triangles = p_triangles;
 	p_trianglesData->p_bvh = p_bvh;
 	p_trianglesData->numTriangles = p_scene->getNumTriangles();
@@ -57,11 +64,15 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
     SurfaceInteraction interaction;
     Triangle* p_triangles = p_trianglesData->p_triangles;
     Triangle* p_hitTriangle = NULL;
+    LinearBVHNode* p_bvh = p_trianglesData->p_bvh;
     int numTriangles = p_trianglesData->numTriangles;
     for (unsigned bounces = 0; bounces < 6; bounces++) {
         if (!intersectTriangles(p_triangles, numTriangles, interaction, ray)) {
             break;
         }
+//    	if (!intersectBVH(p_bvh, p_triangles, interaction, ray)) {
+//    		break;
+//    	}
         p_hitTriangle = interaction.p_hitTriangle;
         if (bounces == 0) {
         	color += mask * p_hitTriangle->_colorEmit;
@@ -73,6 +84,8 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
 
         //IF DIFFUSE
 		{
+			mask *= sampleDiffuseBSDF(&interaction, p_hitTriangle, p_sampler) / interaction.pdf;
+
 			float randomNumber = p_sampler->getNextFloat() * ((float)p_lightsData->numLights - 1.0f + 0.9999999f);
 			int selectedLightIdx = (int)truncf(randomNumber);
 			Triangle* p_light = &p_lightsData->lightsPtr[selectedLightIdx];
@@ -87,7 +100,6 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
 			}
 			color += mask * directLighting;
 		}
-        mask *= sampleDiffuseBSDF(&interaction, p_hitTriangle, p_sampler) / interaction.pdf;
 
         ray.origin = interaction.position;
         ray.dir = interaction.inputDirection;
@@ -115,12 +127,35 @@ __host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriang
 	return ray.tMax < tInitial;
 }
 
-__host__ __device__ bool intersectBVH(BVHBuildNode* p_bvh, int numBvhNodes, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray) {
-//	if (rayIntersectsBox())
-	return false;
+// Check optimization on p 284 and 128-129
+__host__ __device__ bool intersectBVH(LinearBVHNode* p_bvh, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray) {
+
+	bool hit = false;
+	int toVisitOffset = 0, currentNodeIndex = 0;
+	int stack[16];
+	while(true) {
+		const LinearBVHNode* p_node = &p_bvh[currentNodeIndex];
+		if (rayIntersectsBox(ray, p_node->min, p_node->max)) {
+			if (p_node->numTriangles > 0) {
+				if (intersectTriangles(&p_triangles[p_node->trianglesOffset], p_node->numTriangles, interaction, ray)) {
+					hit = true;
+				}
+				if (toVisitOffset == 0) break;
+				currentNodeIndex = stack[--toVisitOffset];
+			} else {
+				stack[toVisitOffset++] = ++currentNodeIndex;
+				stack[toVisitOffset++] = p_node->secondChildOffset;
+			}
+		} else {
+			if (toVisitOffset == 0) break;
+			currentNodeIndex = stack[--toVisitOffset];
+		}
+	}
+	return hit;
 }
 
-__host__ __device__ bool rayIntersectsBox(const Ray& ray, const Vector3Df& min, const Vector3Df& max) {
+// Note: potential optimization here on page 128-129 (bounds.intersectP())
+__host__ __device__ bool rayIntersectsBox(Ray& ray, const Vector3Df& min, const Vector3Df& max) {
 	float t0 = -FLT_MAX, t1 = FLT_MAX;
 
 	float invRayDir = 1.f/ray.dir.x;
@@ -159,6 +194,7 @@ __host__ __device__ bool rayIntersectsBox(const Ray& ray, const Vector3Df& min, 
 	t1 = tFar < t1 ? tFar : t1;
 	if (t0 > t1) return false;
 
+//	ray.tMax = t1;
 	return true;
 }
 
@@ -188,7 +224,9 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, Triangle
 	SurfaceInteraction lightInteraction;
 	// Sample the light
 	Triangle* p_triangles = p_trianglesData->p_triangles;
+	LinearBVHNode* p_bvh = p_trianglesData->p_bvh;
 	bool intersectsLight = intersectTriangles(p_triangles, p_trianglesData->numTriangles, lightInteraction, ray);
+//	bool intersectsLight = intersectBVH(p_bvh, p_triangles, lightInteraction, ray);
 	if (intersectsLight && sameTriangle(lightInteraction.p_hitTriangle, p_light)) {
 		float surfaceArea = p_light->_surfaceArea;
 		float distanceSquared = ray.tMax*ray.tMax;
@@ -201,7 +239,7 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, Triangle
 
 __host__ __device__ void gammaCorrectPixel(uchar4 &p) {
 	float invGamma = 1.f/2.2f;
-	float3 fp;
+	float3 fp = make_float3(0.0f, 0.0f, 0.0f);
 	fp.x = pow((float)p.x * 1.f/255.f, invGamma);
 	fp.y = pow((float)p.y * 1.f/255.f, invGamma);
 	fp.z = pow((float)p.z * 1.f/255.f, invGamma);

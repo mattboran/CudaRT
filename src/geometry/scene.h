@@ -10,14 +10,13 @@
 #include <string>
 #include <vector>
 
+#include "bvh.h"
 
-struct BVHNode;
-struct BVHBuildNode;
-struct CacheFriendlyBVHNode;
+struct LinearBVHNode;
 
 class Scene {
 public:
-	~Scene() { free(p_triangles); };
+	~Scene() { free(p_triangles); delete (p_bvh); };
 	Scene(std::string filename);
 
 	// Get methods
@@ -31,14 +30,17 @@ public:
 	Triangle* getLightsPtr() { return &lightsList[0]; }
 	objl::Vertex* getVertexPtr() { return p_vertices; }
 	unsigned* getVertexIndicesPtr() { return vertexIndices; }
-	BVHBuildNode* getBvhPtr() { return p_bvh; }
+	LinearBVHNode* getBvhPtr() { return p_bvh; }
 
 	objl::Mesh getMesh(int i) { return meshLoader.LoadedMeshes[i]; }
 	Camera* getCameraPtr() { return &camera; }
 
 	// Set methods
 	void setCamera(const Camera& cam) { camera = Camera(cam); }
-	void copyBvh(BVHBuildNode* src, unsigned int n);
+//	void setBvhPtr(BVHBuildNode* p) { p_bvh = p; }
+//	void setNumBvhNodes(const unsigned int n) { numBvhNodes = n; }
+
+	void allocateBvhArray(const unsigned int n) { p_bvh = new LinearBVHNode[n]; numBvhNodes = n; }
 
 private:
 	// Geometry - todo: phase these out if possible
@@ -46,9 +48,9 @@ private:
 	std::vector<Triangle> lightsList;
 	objl::Loader meshLoader;
 	Camera camera;
-	unsigned *vertexIndices;
-	objl::Vertex *p_vertices;
-	BVHBuildNode* p_bvh;
+	unsigned* vertexIndices;
+	objl::Vertex* p_vertices;
+	LinearBVHNode* p_bvh = NULL;
 	unsigned int numBvhNodes;
 
 	Triangle* loadTriangles();

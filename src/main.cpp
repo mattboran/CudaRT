@@ -6,12 +6,14 @@
 #include "renderer.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cuda.h>
 #include <iostream>
 #include <string>
 #include <vector>
 
 using namespace std;
+using namespace std::chrono;
 
 int main(int argc, char* argv[]) {
 	string outFile;
@@ -148,12 +150,17 @@ int main(int argc, char* argv[]) {
 		p_launcher = new TerminalLauncher(p_renderer, outFile.c_str());
 	}
 
+	auto start = high_resolution_clock::now();
 	p_launcher->render();
+	auto stop = high_resolution_clock::now();
+	auto duration = duration_cast<microseconds>(stop - start);
+
 	p_launcher->saveToImage();
 	delete p_renderer;
 	delete p_launcher;
 
 	cout << "Rendered to " << outFile << " for " << p_renderer->getSamplesRendered() << " samples per pixel. " << endl;
+	cout << "Elapsed time in seconds = " << duration.count()/1000000.0f << endl;
 
 	return(0);
 }

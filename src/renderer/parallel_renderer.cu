@@ -37,7 +37,7 @@ __host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, int _width, int _h
 	unsigned int numBvhNodes = p_scene->getNumBvhNodes();
 	unsigned int numLights = p_scene->getNumLights();
 	size_t trianglesBytes = sizeof(Triangle) * numTris;
-	size_t bvhBytes = sizeof(BVHBuildNode) * numBvhNodes;
+	size_t bvhBytes = sizeof(LinearBVHNode) * numBvhNodes;
 	size_t lightsBytes = sizeof(Triangle) * numLights;
 	size_t curandBytes = sizeof(curandState) * threadsPerBlock * gridBlocks;
 
@@ -85,13 +85,13 @@ __host__ void ParallelRenderer::copyMemoryToCuda() {
 	int numBvhNodes = scenePtr->getNumBvhNodes();
 	float lightsSurfaceArea = scenePtr->getLightsSurfaceArea();
 	size_t trianglesBytes = sizeof(Triangle) * numTris;
-	size_t bvhBytes = sizeof(BVHBuildNode) * numBvhNodes;
+	size_t bvhBytes = sizeof(LinearBVHNode) * numBvhNodes;
 	size_t lightsBytes = sizeof(Triangle) * numLights;
 	size_t trianglesDataBytes = sizeof(TrianglesData) + trianglesBytes;
 
 	Camera* h_camPtr = scenePtr->getCameraPtr();
 	Triangle* h_triPtr = scenePtr->getTriPtr();
-	BVHBuildNode* h_bvhPtr = scenePtr->getBvhPtr();
+	LinearBVHNode* h_bvhPtr = scenePtr->getBvhPtr();
 	Triangle* h_lightsPtr = scenePtr->getLightsPtr();
 	TrianglesData* h_trianglesData = (TrianglesData*)malloc(sizeof(TrianglesData) + trianglesBytes + bvhBytes);
 	LightsData* h_lightsData = (LightsData*)malloc(sizeof(LightsData) + lightsBytes);

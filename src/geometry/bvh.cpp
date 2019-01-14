@@ -5,12 +5,13 @@
 */
 
 #include "bvh.h"
+#include "scene.h"
 
 #include <algorithm>
 #include <iostream>
 
-// #define USE_MIDPOINT
-#define USE_SAH
+ #define USE_MIDPOINT
+//#define USE_SAH
 
 using namespace std;
 
@@ -28,6 +29,17 @@ struct TriangleBBox {
     }
 };
 
+struct BVHBuildNode {
+    Vector3Df min;
+    Vector3Df max;
+    BVHBuildNode* children[2];
+    uint splitAxis=0, firstTriOffset=0, numTriangles = 0;
+    BVHBuildNode() { children[0] = children[1] = NULL; }
+	~BVHBuildNode() { if(children[0]) delete children[0]; if (children[1]) delete children[1]; }
+    void initLeaf(uint first, uint n, const Vector3Df& _min, const Vector3Df& _max);
+    void initInner(uint axis, BVHBuildNode* c0, BVHBuildNode* c1);
+};
+
 // Vector math functions that are used in making BVH - possibly put these in geometry.h/cu
 Vector3Df offset(const Vector3Df& min, const Vector3Df& max, const Vector3Df& p);
 float surfaceArea(const Vector3Df& min, const Vector3Df& max);
@@ -39,7 +51,8 @@ Vector3Df max2(const Vector3Df& a, const Vector3Df& b);
 void createTriangleBboxes(Scene* p_scene);
 void constructBVH(Scene* p_scene);
 BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& trianglesInfo,
-     uint start, uint end, uint* totalNodes, vector<Triangle> orderedTriangles);
+     uint start, uint end, uint* totalNodes, vector<Triangle>& orderedTriangles);
+int flattenBVHTree(LinearBVHNode* const p_linearNodes, BVHBuildNode* p_node, int* offset);
 
 vector<TriangleBBox> trianglesInfo;
 vector<Triangle> orderedTriangles;
@@ -55,20 +68,31 @@ ostream& operator<< (ostream &out, const TriangleBBox &b){
     return out;
 }
 
+ostream& operator<< (ostream &out, const BVHBuildNode &b) {
+	out << "BVH Build node. " << b.numTriangles << " triangles in this node. First offset = " << b.firstTriOffset;
+	if (b.children[0] || b.children[1]) {
+		out << " Inner node!\n";
+	} else {
+		out << " Leaf node!\n";
+	}
+	return out;
+}
+
 void constructBVH(Scene* p_scene) {
     createTriangleBboxes(p_scene);
     uint totalNodes = 0;
     BVHBuildNode* p_bvh = recursiveBuild(p_scene->getTriPtr(), trianglesInfo, 0, trianglesInfo.size(), &totalNodes, orderedTriangles);
-    p_scene->copyBvh(p_bvh, totalNodes);
     cout << "Total BVH Nodes: " << totalNodes << endl;
-    for (int i = 0; i < totalNodes; ++i) {
-    	std::cout << "numTriangles in node " << i << " is " << p_bvh[i].numTriangles << std::endl;
-    }
-    // Copy triangles to scene
+    p_scene->allocateBvhArray(totalNodes);
+    LinearBVHNode* p_linearBvh = p_scene->getBvhPtr();
+    int offset = 0;
+    flattenBVHTree(p_linearBvh, p_bvh, &offset);
+//    for (int i = 0; i < totalNodes; i++) {
+//    	cout << "LBVHNode " << i << " has numTriangles " << p_linearBvh[i].numTriangles << " and offset " << p_linearBvh[i].secondChildOffset << endl;
+//    }
     Triangle* p_dest = p_scene->getTriPtr();
     std::copy(orderedTriangles.begin(), orderedTriangles.end(), p_dest);
-    // Set BVH variables in scene
-//    p_scene->setBvhPtr(p_root);
+
 }
 
 void createTriangleBboxes(Scene* p_scene)  {
@@ -106,9 +130,9 @@ void BVHBuildNode::initInner(uint axis, BVHBuildNode* c0, BVHBuildNode* c1) {
     numTriangles = 0;
 }
 
-BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& trianglesInfo, uint start, uint end, uint* totalNodes, vector<Triangle> orderedTriangles) {
+BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& trianglesInfo, uint start, uint end, uint* totalNodes, vector<Triangle>& orderedTriangles) {
     (*totalNodes)++;
-    BVHBuildNode* node = new BVHBuildNode;
+    BVHBuildNode* p_node = new BVHBuildNode;
     Vector3Df workingMin(FLT_MAX, FLT_MAX, FLT_MAX);
     Vector3Df workingMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
     for (uint i = start; i < end; i++) {
@@ -122,8 +146,7 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
             uint triId = trianglesInfo[i].triId;
             orderedTriangles.push_back(p_triangles[triId]);
         }
-        cout << "Created leaf: numTriangles is " << numTriangles << endl;
-        node->initLeaf(firstTriOffset, numTriangles, workingMin, workingMax);
+        p_node->initLeaf(firstTriOffset, numTriangles, workingMin, workingMax);
     }
     else  {
         Vector3Df centroidMin, centroidMax;
@@ -139,8 +162,8 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
                 uint triId = trianglesInfo[i].triId;
                 orderedTriangles.push_back(p_triangles[triId]);
             }
-            node->initLeaf(firstTriOffset, numTriangles, workingMin, workingMax);
-            return node;
+            p_node->initLeaf(firstTriOffset, numTriangles, workingMin, workingMax);
+            return p_node;
         }
         // Partition primitives based on SAH
 #ifdef USE_MIDPOINT
@@ -203,7 +226,7 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
 					b1max = max2(b1max, buckets[j].maxBound);
 					count1 += buckets[j].count;
 				}
-				cost[i] = 0.125f+ (count0 * surfaceArea(b0min, b0max) +
+				cost[i] = 1.f + (count0 * surfaceArea(b0min, b0max) +
 						   count1 * surfaceArea(b1min, b1max)) / surfaceArea(workingMin, workingMax);
 			}
 			// Find bucket to split after that minimizes SAH
@@ -215,8 +238,8 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
 			if (numTriangles > maxTrisInNode || minCost < leafCost) {
 				while (true) {
 					TriangleBBox *p_mid = std::partition(&trianglesInfo[start], &trianglesInfo[end-1]+1,
-						//[numBuckets, dim, minCostSplitBucket, centroidMin, centroidMax]
-						[=](const TriangleBBox &t) {
+						[numBuckets, dim, minCostSplitBucket, centroidMin, centroidMax]
+						(const TriangleBBox &t) {
 							int b = numBuckets * offset(centroidMin, centroidMax, t.center)._v[dim];
 							if (b == numBuckets) b = numBuckets - 1;
 							return b <= minCostSplitBucket;
@@ -240,15 +263,30 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
 	                uint triId = trianglesInfo[i].triId;
 	                orderedTriangles.push_back(p_triangles[triId]);
 	            }
-	            node->initLeaf(firstTriOffset, numTriangles, workingMin, workingMax);
+	            p_node->initLeaf(firstTriOffset, numTriangles, workingMin, workingMax);
 			}
 		}
 #endif
-        node->initInner(dim,
+        p_node->initInner(dim,
                         recursiveBuild(p_triangles, trianglesInfo, mid, end, totalNodes, orderedTriangles),
 						recursiveBuild(p_triangles, trianglesInfo, start, mid, totalNodes, orderedTriangles));
     }
-    return node;
+    return p_node;
+}
+
+int flattenBVHTree(LinearBVHNode* const p_linearNodes, BVHBuildNode* p_node, int* offset) {
+	LinearBVHNode* p_linearNode = &p_linearNodes[*offset];
+	p_linearNode->min = p_node->min;
+	p_linearNode->max = p_node->max;
+	int myOffset = (*offset)++;
+	if (p_node->numTriangles > 0) {
+		p_linearNode->trianglesOffset = p_node->firstTriOffset;
+		p_linearNode->numTriangles = p_node->numTriangles;
+	} else {
+		flattenBVHTree(p_linearNodes, p_node->children[0], offset);
+		p_linearNode->secondChildOffset = flattenBVHTree(p_linearNodes, p_node->children[1], offset);
+	}
+	return myOffset;
 }
 
 // TODO: Consider moving this into geometry.h

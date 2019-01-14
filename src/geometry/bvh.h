@@ -7,24 +7,23 @@
 
 #ifndef BVH_H_
 #define BVH_H_
+#include "linalg.h"
 
-#include "geometry.h"
-#include "scene.h"
 
-#include <vector>
+class Scene;
 
 void constructBVH(Scene* p_scene);
 
-struct BVHBuildNode {
-    Vector3Df min;
-    Vector3Df max;
-    BVHBuildNode *children[2];
-    uint splitAxis, firstTriOffset, numTriangles;
-    BVHBuildNode() { children[0] = children[1] = NULL; }
-	~BVHBuildNode() { if(children[0]) delete children[0]; if (children[1]) delete children[1]; }
-    void initLeaf(uint first, uint n, const Vector3Df& _min, const Vector3Df& _max);
-    void initInner(uint axis, BVHBuildNode* c0, BVHBuildNode* c1);
+struct LinearBVHNode {
+	Vector3Df min;
+	Vector3Df max;
+	union {
+		int trianglesOffset;
+		int secondChildOffset;
+	};
+	unsigned int numTriangles = 0;
 };
+
 
 //struct BVHNode {
 //	BVHNode(Vector3Df &a, Vector3Df &b) : min(a), max(b) {}
