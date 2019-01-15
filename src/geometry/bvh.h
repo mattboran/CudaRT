@@ -21,7 +21,9 @@ struct LinearBVHNode {
 		int trianglesOffset;
 		int secondChildOffset;
 	};
-	unsigned int numTriangles = 0;
+	int16_t numTriangles = 0;
+	uint8_t axis;
+	int8_t pad = 0;
 };
 
 

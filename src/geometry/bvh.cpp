@@ -10,8 +10,8 @@
 #include <algorithm>
 #include <iostream>
 
- #define USE_MIDPOINT
-//#define USE_SAH
+// #define USE_MIDPOINT
+#define USE_SAH
 
 using namespace std;
 

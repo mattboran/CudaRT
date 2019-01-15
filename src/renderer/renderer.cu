@@ -14,6 +14,7 @@
 #include <float.h>
 #include <math.h>
 
+#define USE_BVH
 
 __host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriangles, SurfaceInteraction &interaction, Ray& ray);
 __host__ __device__ bool rayIntersectsBox(Ray& ray, const Vector3Df& min, const Vector3Df& max);
@@ -67,12 +68,15 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
     LinearBVHNode* p_bvh = p_trianglesData->p_bvh;
     int numTriangles = p_trianglesData->numTriangles;
     for (unsigned bounces = 0; bounces < 6; bounces++) {
+#ifdef USE_BVH
+    	if (!intersectBVH(p_bvh, p_triangles, interaction, ray)) {
+    		break;
+    	}
+#else
         if (!intersectTriangles(p_triangles, numTriangles, interaction, ray)) {
             break;
         }
-//    	if (!intersectBVH(p_bvh, p_triangles, interaction, ray)) {
-//    		break;
-//    	}
+#endif
         p_hitTriangle = interaction.p_hitTriangle;
         if (bounces == 0) {
         	color += mask * p_hitTriangle->_colorEmit;
@@ -225,8 +229,11 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, Triangle
 	// Sample the light
 	Triangle* p_triangles = p_trianglesData->p_triangles;
 	LinearBVHNode* p_bvh = p_trianglesData->p_bvh;
+#ifdef USE_BVH
+	bool intersectsLight = intersectBVH(p_bvh, p_triangles, lightInteraction, ray);
+#else
 	bool intersectsLight = intersectTriangles(p_triangles, p_trianglesData->numTriangles, lightInteraction, ray);
-//	bool intersectsLight = intersectBVH(p_bvh, p_triangles, lightInteraction, ray);
+#endif
 	if (intersectsLight && sameTriangle(lightInteraction.p_hitTriangle, p_light)) {
 		float surfaceArea = p_light->_surfaceArea;
 		float distanceSquared = ray.tMax*ray.tMax;
