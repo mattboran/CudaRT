@@ -282,6 +282,7 @@ int flattenBVHTree(LinearBVHNode* const p_linearNodes, BVHBuildNode* p_node, int
 	if (p_node->numTriangles > 0) {
 		p_linearNode->trianglesOffset = p_node->firstTriOffset;
 		p_linearNode->numTriangles = p_node->numTriangles;
+		p_linearNode->axis = p_node->splitAxis;
 	} else {
 		flattenBVHTree(p_linearNodes, p_node->children[0], offset);
 		p_linearNode->secondChildOffset = flattenBVHTree(p_linearNodes, p_node->children[1], offset);

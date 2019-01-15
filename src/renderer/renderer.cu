@@ -135,6 +135,8 @@ __host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriang
 __host__ __device__ bool intersectBVH(LinearBVHNode* p_bvh, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray) {
 
 	bool hit = false;
+	Vector3Df invDir = Vector3Df(1/ray.dir.x, 1/ray.dir.y, 1/ray.dir.z);
+	int dirIsNeg[3] = { invDir.x < 0, invDir.y < 0, invDir.z < 0 };
 	int toVisitOffset = 0, currentNodeIndex = 0;
 	int stack[16];
 	while(true) {
@@ -147,8 +149,13 @@ __host__ __device__ bool intersectBVH(LinearBVHNode* p_bvh, Triangle* p_triangle
 				if (toVisitOffset == 0) break;
 				currentNodeIndex = stack[--toVisitOffset];
 			} else {
-				stack[toVisitOffset++] = ++currentNodeIndex;
-				stack[toVisitOffset++] = p_node->secondChildOffset;
+				if (dirIsNeg[p_node->axis]) {
+					stack[toVisitOffset++] = currentNodeIndex + 1;
+					currentNodeIndex = p_node->secondChildOffset;
+				} else {
+					stack[toVisitOffset++] = p_node->secondChildOffset;
+					currentNodeIndex = currentNodeIndex + 1;
+				}
 			}
 		} else {
 			if (toVisitOffset == 0) break;
