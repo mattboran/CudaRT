@@ -4,8 +4,8 @@
 #include <iterator>
 #include <string.h>
 
-SequentialRenderer::SequentialRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH) :
-  Renderer(_scenePtr, _width, _height, _samples, _useBVH)
+SequentialRenderer::SequentialRenderer(Scene* _scenePtr, int _width, int _height, int _samples) :
+  Renderer(_scenePtr, _width, _height, _samples)
 {
     unsigned int numTriangles = p_scene->getNumTriangles();
     unsigned int numLights = p_scene->getNumLights();

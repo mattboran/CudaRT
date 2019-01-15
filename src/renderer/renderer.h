@@ -31,7 +31,6 @@ struct SettingsData {
 	int width;
 	int height;
 	int samples;
-	bool useBVH;
 };
 
 struct Sampler {
@@ -47,12 +46,11 @@ __host__ __device__ void gammaCorrectPixel(uchar4 &p);
 class Renderer {
 protected:
 	__host__ Renderer() {}
-	__host__ Renderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH);
+	__host__ Renderer(Scene* _scenePtr, int _width, int _height, int _samples);
 	Scene* p_scene;
 	int width;
 	int height;
 	int samples;
-	int useBVH;
 	int samplesRendered = 0;
 public:
 	bool useCuda = false;
@@ -65,7 +63,6 @@ public:
 	__host__ int getWidth() { return width; }
 	__host__ int getHeight() { return height; }
 	__host__ int getSamples() { return samples; }
-	__host__ bool getUseBVH() { return useBVH; }
 	__host__ int getSamplesRendered() { return samplesRendered; }
 	__host__ void createSettingsData(SettingsData* p_settingsData);
 	__host__ void createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles, LinearBVHNode* p_bvh);
@@ -75,7 +72,7 @@ public:
 class ParallelRenderer : public Renderer {
 public:
 	__host__ ParallelRenderer() : Renderer() {}
-	__host__ ParallelRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH);
+	__host__ ParallelRenderer(Scene* _scenePtr, int _width, int _height, int _samples);
 	__host__ void renderOneSamplePerPixel(uchar4* p_img);
 	__host__ void copyImageBytes(uchar4* p_img);
 	__host__ uchar4* getImgBytesPointer() { return d_imgBytesPtr; }
@@ -101,7 +98,7 @@ private:
 class SequentialRenderer : public Renderer {
 public:
 	SequentialRenderer() : Renderer() {}
-	SequentialRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH);
+	SequentialRenderer(Scene* _scenePtr, int _width, int _height, int _samples);
 	__host__ void renderOneSamplePerPixel(uchar4* p_img);
 	__host__ void copyImageBytes(uchar4* p_img);
 	__host__ uchar4* getImgBytesPointer() { return h_imgBytesPtr; }
@@ -117,7 +114,7 @@ private:
 
 __host__ __device__ inline uchar4 vector3ToUchar4(const Vector3Df& v) {
 	uchar4 retVal;
-	retVal.x = (unsigned char)((v.x > 1.0f ? 1.0f: v.x) *(255.f));
+	retVal.x = (unsigned char)((v.x > 1.0f ? 1.0f: v.x)*(255.f));
 	retVal.y = (unsigned char)((v.y > 1.0f ? 1.0f: v.y)*(255.f));
 	retVal.z = (unsigned char)((v.z > 1.0f ? 1.0f: v.z)*(255.f));
 	retVal.w = 255u;

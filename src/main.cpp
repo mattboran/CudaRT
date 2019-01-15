@@ -140,9 +140,9 @@ int main(int argc, char* argv[]) {
 	scene.setCamera(camera);
 	cudaGetDeviceCount(&cudaCapableDevices);
 	if (useSequential || cudaCapableDevices == 0) {
-		p_renderer = new SequentialRenderer(&scene, width, height, samples, useBVH);
+		p_renderer = new SequentialRenderer(&scene, width, height, samples);
 	} else {
-		p_renderer = new ParallelRenderer(&scene, width, height, samples, useBVH);
+		p_renderer = new ParallelRenderer(&scene, width, height, samples);
 	}
 	if (renderToScreen) {
 		p_launcher = new WindowedLauncher(p_renderer, outFile.c_str());

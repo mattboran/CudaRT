@@ -30,8 +30,8 @@ __host__ __device__ float Sampler::getNextFloat() {
 	#endif
 }
 
-__host__ Renderer::Renderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH) :
-	p_scene(_scenePtr), width(_width), height(_height), samples(_samples), useBVH(_useBVH)
+__host__ Renderer::Renderer(Scene* _scenePtr, int _width, int _height, int _samples) :
+	p_scene(_scenePtr), width(_width), height(_height), samples(_samples)
 {
 	h_imgPtr = new uchar4[width*height]();
 }
@@ -41,7 +41,6 @@ __host__ void Renderer::createSettingsData(SettingsData* p_settingsData){
 	p_settingsData->width = getWidth();
 	p_settingsData->height = getHeight();
 	p_settingsData->samples = getSamples();
-	p_settingsData->useBVH = getUseBVH();
 }
 
 __host__ void Renderer::createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles, LinearBVHNode* p_bvh) {
@@ -66,14 +65,13 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
     Triangle* p_triangles = p_trianglesData->p_triangles;
     Triangle* p_hitTriangle = NULL;
     LinearBVHNode* p_bvh = p_trianglesData->p_bvh;
-    int numTriangles = p_trianglesData->numTriangles;
     for (unsigned bounces = 0; bounces < 6; bounces++) {
 #ifdef USE_BVH
     	if (!intersectBVH(p_bvh, p_triangles, interaction, ray)) {
     		break;
     	}
 #else
-        if (!intersectTriangles(p_triangles, numTriangles, interaction, ray)) {
+        if (!intersectTriangles(p_triangles, p_trianglesData->numTriangles, interaction, ray)) {
             break;
         }
 #endif

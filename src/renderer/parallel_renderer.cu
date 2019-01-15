@@ -25,8 +25,8 @@ __global__ void renderKernel(SettingsData settings,
 		curandState *p_curandState,
 		int sampleNumber);
 
-__host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, int _width, int _height, int _samples, bool _useBVH) :
-	Renderer(_scenePtr, _width, _height, _samples, _useBVH) {
+__host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, int _width, int _height, int _samples) :
+	Renderer(_scenePtr, _width, _height, _samples) {
 	// CUDA settings
 	useCuda = true;
 	threadsPerBlock = BLOCK_WIDTH * BLOCK_WIDTH;
