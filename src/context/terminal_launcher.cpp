@@ -13,5 +13,5 @@ void TerminalLauncher::render() {
 	for (int s = 0; s < samples; s++) {
 		p_renderer->renderOneSamplePerPixel(p_img);
 	}
-	p_renderer->copyImageBytes();
+	p_renderer->copyImageBytes(p_img);
 }

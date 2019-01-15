@@ -1,20 +1,19 @@
 // This file is responsible for parsing command line arguments,
 // getting the scene set up, and launching the pathtrace kernel
 
-#include "pathtrace.h"
 #include "scene.h"
-#include "sequential.h"
 #include "launcher.h"
 #include "renderer.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cuda.h>
 #include <iostream>
 #include <string>
 #include <vector>
 
 using namespace std;
-using namespace geom;
+using namespace std::chrono;
 
 int main(int argc, char* argv[]) {
 	string outFile;
@@ -69,12 +68,6 @@ int main(int argc, char* argv[]) {
 	if ((find(args.begin(), args.end(), "-w") < args.end() - 1)) {
 		try {
 			width = stoi(*(find(args.begin(), args.end(), "-w") + 1));
-			if (!useSequential) {
-				if (width % (Parallel::blockWidth * Parallel::blockWidth) != 0) {
-					cout << "Width should be a multiple of " << Parallel::blockWidth \
-							<< ". You may see something weird happen because of this!" << endl;
-				}
-			}
 		} catch (invalid_argument& e) {
 			cerr << "Invalid argument to -w!" << endl;
 		}
@@ -84,12 +77,6 @@ int main(int argc, char* argv[]) {
 	if ((find(args.begin(), args.end(), "-h") < args.end() - 1)) {
 		try {
 			height = stoi(*(find(args.begin(), args.end(), "-h") + 1));
-			if (!useSequential){
-				if (height % (Parallel::blockWidth * Parallel::blockWidth) != 0) {
-					cout << "Height should be a multiple of " << Parallel::blockWidth \
-							<< ". You may see something weird happen because of this!" << endl;
-				}
-			}
 		} catch (invalid_argument& e) {
 			cerr << "Invalid argument to -h!" << endl;
 		}
@@ -147,16 +134,15 @@ int main(int argc, char* argv[]) {
 	Vector3Df camUp(0.0f, 1.0f, 0.0f);
 	Vector3Df camRt(-1.0f, 0.0f, 0.0f);
 	Camera camera = Camera(camPos * scale, camTarget * scale, camUp, camRt, 90.0f, width, height);
-	Clock timer = Clock();
 	Renderer* p_renderer;
 	Launcher* p_launcher;
 
 	scene.setCamera(camera);
 	cudaGetDeviceCount(&cudaCapableDevices);
 	if (useSequential || cudaCapableDevices == 0) {
-		p_renderer = new SequentialRenderer(&scene, width, height, samples, useBVH);
+		p_renderer = new SequentialRenderer(&scene, width, height, samples);
 	} else {
-		p_renderer = new ParallelRenderer(&scene, width, height, samples, useBVH);
+		p_renderer = new ParallelRenderer(&scene, width, height, samples);
 	}
 	if (renderToScreen) {
 		p_launcher = new WindowedLauncher(p_renderer, outFile.c_str());
@@ -164,13 +150,17 @@ int main(int argc, char* argv[]) {
 		p_launcher = new TerminalLauncher(p_renderer, outFile.c_str());
 	}
 
+	auto start = high_resolution_clock::now();
 	p_launcher->render();
+	auto stop = high_resolution_clock::now();
+	auto duration = duration_cast<microseconds>(stop - start);
+
 	p_launcher->saveToImage();
 	delete p_renderer;
 	delete p_launcher;
 
-	cout << "Rendered " << p_renderer->getSamplesRendered() << " samples per pixel. " << endl;
-	cout << "Total time from start to output to " << outFile << ":\t\t" << timer.readS() << " seconds " << endl;
+	cout << "Rendered to " << outFile << " for " << p_renderer->getSamplesRendered() << " samples per pixel. " << endl;
+	cout << "Elapsed time in seconds = " << duration.count()/1000000.0f << endl;
 
 	return(0);
 }

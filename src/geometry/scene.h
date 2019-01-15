@@ -2,70 +2,58 @@
 #ifndef SCENE_H
 #define SCENE_H
 
-#include "bvh.h"
 #include "camera.h"
-#include "geometry.h"
+
 #include "obj_load.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
-struct BVHNode;
-struct CacheFriendlyBVHNode;
+#include "bvh.h"
+
+struct LinearBVHNode;
 
 class Scene {
 public:
-	~Scene();
+	~Scene() { free(p_triangles); delete (p_bvh); };
 	Scene(std::string filename);
-	Scene(std::vector<std::string>& filenames);
 
 	// Get methods
-	int getNumMeshes();
-	int getNumTriangles();
-	int getNumLights();
-	unsigned getNumVertices();
+	int getNumMeshes() { return meshLoader.LoadedMeshes.size(); }
+	int getNumTriangles() { return getNumVertices() / 3; }
+	int getNumLights() { return lightsList.size(); }
+	unsigned getNumVertices() { return meshLoader.LoadedVertices.size(); }
+	unsigned int getNumBvhNodes() { return numBvhNodes; }
 	float getLightsSurfaceArea();
-	geom::Triangle* getTriPtr();
-	geom::Triangle* getLightsPtr();
-	objl::Vertex* getVertexPtr();
-	unsigned* getVertexIndicesPtr();
+	Triangle* getTriPtr() { return p_triangles; }
+	Triangle* getLightsPtr() { return &lightsList[0]; }
+	objl::Vertex* getVertexPtr() { return p_vertices; }
+	unsigned* getVertexIndicesPtr() { return vertexIndices; }
+	LinearBVHNode* getBvhPtr() { return p_bvh; }
 
-	BVHNode* getSceneBVHPtr();
-	CacheFriendlyBVHNode* getSceneCFBVHPtr();
-	std::vector<CacheFriendlyBVHNode> cfBVHNodeVector;
-	unsigned *getTriIndexBVHPtr();
-	unsigned *getBVHIndexPtr();
-	unsigned getNumBVHNodes();
-
-	objl::Mesh getMesh(int i);
-	Camera* getCameraPtr();
+	objl::Mesh getMesh(int i) { return meshLoader.LoadedMeshes[i]; }
+	Camera* getCameraPtr() { return &camera; }
 
 	// Set methods
-	void setCamera(const Camera& cam);
-	void setBVHPtr(BVHNode* bvhPtr);
-	void setCacheFriendlyVBHPtr(CacheFriendlyBVHNode* bvhPtr);
-	void setNumBVHNodes(unsigned i);
-	void allocateCFBVHNodeArray(unsigned nodes);
-	void allocateBVHNodeIndexArray(unsigned nodes);
-private:
-	// BVH Variables
-	BVHNode* sceneBVH;
-	CacheFriendlyBVHNode* sceneCFBVH;
-	unsigned numBVHNodes;
-	// Corresponds with the sceneCFBVH: an index into trianglesPtr
-	unsigned* triIndexBVHPtr;
-	// Indices into sceneCFBVHPtr
-	unsigned* bvhIndexPtr;
+	void setCamera(const Camera& cam) { camera = Camera(cam); }
+//	void setBvhPtr(BVHBuildNode* p) { p_bvh = p; }
+//	void setNumBvhNodes(const unsigned int n) { numBvhNodes = n; }
 
+	void allocateBvhArray(const unsigned int n) { p_bvh = new LinearBVHNode[n]; numBvhNodes = n; }
+
+private:
 	// Geometry - todo: phase these out if possible
-	geom::Triangle* trianglesPtr = NULL;
-	std::vector<geom::Triangle> lightsList;
+	Triangle* p_triangles = NULL;
+	std::vector<Triangle> lightsList;
 	objl::Loader meshLoader;
 	Camera camera;
-	unsigned *vertexIndices;
-	objl::Vertex *vertexPtr;
+	unsigned* vertexIndices;
+	objl::Vertex* p_vertices;
+	LinearBVHNode* p_bvh = NULL;
+	unsigned int numBvhNodes;
 
-	geom::Triangle* loadTriangles();
+	Triangle* loadTriangles();
 };
 
 
