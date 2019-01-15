@@ -6,14 +6,20 @@
 #include "renderer.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cuda.h>
+#include <fstream>
 #include <iostream>
+#include "picojson.h"
+#include <streambuf>
 #include <string>
 #include <vector>
 
 using namespace std;
 using namespace std::chrono;
+
+Camera loadCameraFromJson(string path);
 
 int main(int argc, char* argv[]) {
 	string outFile;
@@ -21,7 +27,7 @@ int main(int argc, char* argv[]) {
 	int width = 640;
 	int height = 480;
 	string objPath = "../meshes/cornell.obj";
-	bool useBVH = false;
+	bool useCameraJson = false;
 	bool useSequential = false;
 	bool renderToScreen = false;
 	int numStreams = 1;
@@ -38,7 +44,7 @@ int main(int argc, char* argv[]) {
 				"-w \t<width>\tdefault:480px\n" \
 				"-h \t<height>\tdefault:320px\n" \
 				"-f \t<path to .obj to render>\tdefault:./meshes/cornell.obj\n" \
-				"-b \t<flag to use bounding volume heirarchy (GPU only)>\tdefault: false\n" \
+				"-c \t<flag to use camera/camera.json>\tdefault: false\n" \
 				"--cpu \t<flag to run sequential code on CPU only>\tdefault: false\n" \
 				"--X \t<flag to render to screen>\tdefault: false\n" \
 				"Note: BVH has bugs in both CUDA and CPU version. CPU version is worse.\n"\
@@ -82,9 +88,9 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	// UseBVH Flag
-	if ((find(args.begin(), args.end(), "-b") < args.end())) {
-		useBVH = true;
+	// useCameraJson Flag
+	if ((find(args.begin(), args.end(), "-c") < args.end())) {
+		useCameraJson = true;
 	}
 
 	// Sequential flag
@@ -128,12 +134,18 @@ int main(int argc, char* argv[]) {
 	// TODO: Load this from .obj using cam meshes
 	// alternatively, use a camera.json file
 	//
-	float scale = 0.1f;
-	Vector3Df camPos(14.0f, 5.0f, 0.0f);
-	Vector3Df camTarget(0.0f, 5.0f, 0.0f);
-	Vector3Df camUp(0.0f, 1.0f, 0.0f);
-	Vector3Df camRt(-1.0f, 0.0f, 0.0f);
-	Camera camera = Camera(camPos * scale, camTarget * scale, camUp, camRt, 90.0f, width, height);
+	Camera camera;
+	if (useCameraJson) {
+		camera = loadCameraFromJson("../camera/camera.json");
+		return 0;
+	} else {
+		float scale = 0.1f;
+		Vector3Df camPos(14.0f, 5.0f, 0.0f);
+		Vector3Df camTarget(0.0f, 5.0f, 0.0f);
+		Vector3Df camUp(0.0f, 1.0f, 0.0f);
+		Vector3Df camRt(-1.0f, 0.0f, 0.0f);
+		camera = Camera(camPos * scale, camTarget * scale, camUp, camRt, 90.0f, width, height);
+	}
 	Renderer* p_renderer;
 	Launcher* p_launcher;
 
@@ -163,4 +175,25 @@ int main(int argc, char* argv[]) {
 	cout << "Elapsed time in seconds = " << duration.count()/1000000.0f << endl;
 
 	return(0);
+}
+
+Camera loadCameraFromJson(string path) {
+	ifstream t(path);
+	string json((std::istreambuf_iterator<char>(t)),
+	                 std::istreambuf_iterator<char>());
+	picojson::value v;
+	std::string err = picojson::parse(v, json);
+	if (! err.empty()) {
+	  std:cerr << err << std::endl;
+	}
+	const picojson::value::object& obj = v.get<picojson::object>();
+	for (picojson::value::object::const_iterator i = obj.begin();
+	     i != obj.end();
+	     ++i) {
+	  std::cout << i->first << " : " << i->second.to_str() << std::endl;
+	}
+	string name = v.get("name").get<string>();
+	array<float> eye = v.get("eye").get<array<float>>();
+	cout<< "eye x y z = " << eye[0] << " " << eye[1] << " " << eye[2];
+	return Camera();
 }
