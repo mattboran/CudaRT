@@ -3,13 +3,12 @@
 
 #include "geometry.h"
 
-#include <curand.h>
-
 struct Sampler;
 class Camera
 {
 public:
 	__host__ Camera() {}
+	__host__ Camera(std::string filename, int width, int height);
 	__host__ Camera(Vector3Df pos, Vector3Df target, Vector3Df upv, Vector3Df rt, float _fov, int x, int y);
 
 	__host__ void rebase();

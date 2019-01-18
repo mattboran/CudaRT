@@ -9,17 +9,12 @@
 #include <array>
 #include <chrono>
 #include <cuda.h>
-#include <fstream>
 #include <iostream>
-#include "picojson.h"
-#include <streambuf>
 #include <string>
 #include <vector>
 
 using namespace std;
 using namespace std::chrono;
-
-Camera loadCameraFromJson(string path);
 
 int main(int argc, char* argv[]) {
 	string outFile;
@@ -136,8 +131,8 @@ int main(int argc, char* argv[]) {
 	//
 	Camera camera;
 	if (useCameraJson) {
-		camera = loadCameraFromJson("../camera/camera.json");
-		return 0;
+		cout << "Using camera.json" << endl;
+		camera = Camera("../camera/camera.json", width, height);
 	} else {
 		float scale = 0.1f;
 		Vector3Df camPos(14.0f, 5.0f, 0.0f);
@@ -175,25 +170,4 @@ int main(int argc, char* argv[]) {
 	cout << "Elapsed time in seconds = " << duration.count()/1000000.0f << endl;
 
 	return(0);
-}
-
-Camera loadCameraFromJson(string path) {
-	ifstream t(path);
-	string json((std::istreambuf_iterator<char>(t)),
-	                 std::istreambuf_iterator<char>());
-	picojson::value v;
-	std::string err = picojson::parse(v, json);
-	if (! err.empty()) {
-	  std:cerr << err << std::endl;
-	}
-	const picojson::value::object& obj = v.get<picojson::object>();
-	for (picojson::value::object::const_iterator i = obj.begin();
-	     i != obj.end();
-	     ++i) {
-	  std::cout << i->first << " : " << i->second.to_str() << std::endl;
-	}
-	string name = v.get("name").get<string>();
-	array<float> eye = v.get("eye").get<array<float>>();
-	cout<< "eye x y z = " << eye[0] << " " << eye[1] << " " << eye[2];
-	return Camera();
 }

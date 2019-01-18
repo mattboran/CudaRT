@@ -1,6 +1,1 @@
-{"rightDirection": [1.0, 0.0, 0.0],
- "eye": [1.7564082611788496, 0.5242315305249388, 0.0],
- "name": "main",
- "fieldOfView": 90.00003857181119,
- "upDirection": [0.0, 1.0, 0.0],
- "viewDirection": [0.0, 0.0, -1.0]}
+{"rightDirection": [1.0, 0.0, 0.0], "eye": [1.7564082611788496, 0.9466298764018194, 0.0], "name": "main", "fieldOfView": 90.00003857181119, "upDirection": [0.0, 1.0, 0.0], "viewDirection": [0.0, 0.0, -1.0]}

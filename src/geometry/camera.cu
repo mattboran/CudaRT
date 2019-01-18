@@ -1,12 +1,59 @@
 #include "camera.h"
 #include "renderer.h"
 
+#include <fstream>
+#include <iostream>
+#include "picojson.h"
 #include <stdlib.h>
+#include <streambuf>
 
+using namespace std;
+
+ostream& operator<< (ostream &out, const Vector3Df &v) {
+    out << "("<<v.x<<", "<<v.y<<", "<<v.z<<")";
+    return out;
+}
+
+__host__ Vector3Df vectorFromArray(picojson::array arr) {
+	Vector3Df retVal;
+	int idx = 0;
+	for (picojson::array::iterator it = arr.begin(); it != arr.end(); it++)
+	{
+		float val = it->get<double>();
+		retVal._v[idx] = val;
+		idx++;
+	}
+	return retVal;
+}
 
 __host__ Camera::Camera(Vector3Df pos, Vector3Df target, Vector3Df upv, Vector3Df rt, float _fov, int x, int y) :
 		eye(pos), dir(target), up(upv), right(rt), fov(tanf(_fov/2.0f * M_PI/180.0f)), xpixels(x), ypixels(y)
 {
+	aspect = (float)xpixels / (float)ypixels;
+	rebase();
+}
+
+__host__ Camera::Camera(string filename, int width, int height) :
+	xpixels(width), ypixels(height) {
+	ifstream t(filename);
+	string json((istreambuf_iterator<char>(t)),
+			istreambuf_iterator<char>());
+	picojson::value v;
+	string err = picojson::parse(v, json);
+	if (!err.empty()) {
+		std::cerr << err << std::endl;
+	}
+	const picojson::value::object& obj = v.get<picojson::object>();
+	float f = v.get("fieldOfView").get<double>();
+	picojson::array e = v.get("eye").get<picojson::array>();
+	picojson::array d = v.get("viewDirection").get<picojson::array>();
+	picojson::array u = v.get("upDirection").get<picojson::array>();
+	picojson::array rt = v.get("rightDirection").get<picojson::array>();
+	fov = tanf(f/2.0f * M_PI/180.0f);
+	eye = vectorFromArray(e);
+	dir = eye - vectorFromArray(d);
+	up = vectorFromArray(u);
+	right = -vectorFromArray(rt);
 	aspect = (float)xpixels / (float)ypixels;
 	rebase();
 }
@@ -49,4 +96,10 @@ __host__ void Camera::rebase()
 	dir = normalize(dir - eye);
 	right = normalize(cross(dir,up));
 	up = cross(right, dir);
+	cout << "Fov: " << fov << "\n";
+	cout << "Eye: " << eye << "\n";
+	cout << "Dir: " << dir << "\n";
+	cout << "Up: " << up << "\n";
+	cout << "Right: " << right << "\n";
+	cout << "Aspect: " << aspect << "\n";
 }

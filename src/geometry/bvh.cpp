@@ -40,12 +40,14 @@ struct BVHBuildNode {
     void initInner(uint axis, BVHBuildNode* c0, BVHBuildNode* c1);
 };
 
+
 // Vector math functions that are used in making BVH - possibly put these in geometry.h/cu
 Vector3Df offset(const Vector3Df& min, const Vector3Df& max, const Vector3Df& p);
 float surfaceArea(const Vector3Df& min, const Vector3Df& max);
 int maximumExtent(const Vector3Df& min, const Vector3Df& max);
 Vector3Df min2(const Vector3Df& a, const Vector3Df& b);
 Vector3Df max2(const Vector3Df& a, const Vector3Df& b);
+
 
 // Local functions
 void createTriangleBboxes(Scene* p_scene);
@@ -54,29 +56,11 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
      uint start, uint end, uint* totalNodes, vector<Triangle>& orderedTriangles);
 int flattenBVHTree(LinearBVHNode* const p_linearNodes, BVHBuildNode* p_node, int* offset);
 
+
 vector<TriangleBBox> trianglesInfo;
 vector<Triangle> orderedTriangles;
 const int maxTrisInNode = 3;
 
-ostream& operator<< (ostream &out, const Vector3Df &v) {
-    out << "("<<v.x<<", "<<v.y<<", "<<v.z<<")";
-    return out;
-}
-
-ostream& operator<< (ostream &out, const TriangleBBox &b){
-    out << "BBox #" << b.triId << ": Min: " << b.min << " Max: " << b.max << " Center: " << b.center << endl;
-    return out;
-}
-
-ostream& operator<< (ostream &out, const BVHBuildNode &b) {
-	out << "BVH Build node. " << b.numTriangles << " triangles in this node. First offset = " << b.firstTriOffset;
-	if (b.children[0] || b.children[1]) {
-		out << " Inner node!\n";
-	} else {
-		out << " Leaf node!\n";
-	}
-	return out;
-}
 
 void constructBVH(Scene* p_scene) {
     createTriangleBboxes(p_scene);
