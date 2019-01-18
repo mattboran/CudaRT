@@ -25,7 +25,6 @@ int main(int argc, char* argv[]) {
 	bool useCameraJson = false;
 	bool useSequential = false;
 	bool renderToScreen = false;
-	int numStreams = 1;
 	int cudaCapableDevices = 0;
 
 	//
@@ -129,22 +128,23 @@ int main(int argc, char* argv[]) {
 	// TODO: Load this from .obj using cam meshes
 	// alternatively, use a camera.json file
 	//
-	Camera camera;
+	Camera* p_camera;
 	if (useCameraJson) {
 		cout << "Using camera.json" << endl;
-		camera = Camera("../camera/camera.json", width, height);
+		p_camera = new Camera("../camera/camera.json", width, height);
 	} else {
 		float scale = 0.1f;
 		Vector3Df camPos(14.0f, 5.0f, 0.0f);
 		Vector3Df camTarget(0.0f, 5.0f, 0.0f);
 		Vector3Df camUp(0.0f, 1.0f, 0.0f);
 		Vector3Df camRt(-1.0f, 0.0f, 0.0f);
-		camera = Camera(camPos * scale, camTarget * scale, camUp, camRt, 90.0f, width, height);
+		p_camera = new Camera(camPos * scale, camTarget * scale, camUp, camRt, 90.0f, width, height);
 	}
+	scene.setCameraPtr(p_camera);
+
 	Renderer* p_renderer;
 	Launcher* p_launcher;
 
-	scene.setCamera(camera);
 	cudaGetDeviceCount(&cudaCapableDevices);
 	if (useSequential || cudaCapableDevices == 0) {
 		p_renderer = new SequentialRenderer(&scene, width, height, samples);
@@ -163,8 +163,6 @@ int main(int argc, char* argv[]) {
 	auto duration = duration_cast<microseconds>(stop - start);
 
 	p_launcher->saveToImage();
-	delete p_renderer;
-	delete p_launcher;
 
 	cout << "Rendered to " << outFile << " for " << p_renderer->getSamplesRendered() << " samples per pixel. " << endl;
 	cout << "Elapsed time in seconds = " << duration.count()/1000000.0f << endl;

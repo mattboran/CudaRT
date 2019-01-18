@@ -33,10 +33,10 @@ public:
 	LinearBVHNode* getBvhPtr() { return p_bvh; }
 
 	objl::Mesh getMesh(int i) { return meshLoader.LoadedMeshes[i]; }
-	Camera* getCameraPtr() { return &camera; }
+	Camera* getCameraPtr() { return p_camera; }
 
 	// Set methods
-	void setCamera(const Camera& cam) { camera = Camera(cam); }
+	void setCameraPtr(Camera* p) { p_camera = p; }
 
 	void allocateBvhArray(const unsigned int n) { p_bvh = new LinearBVHNode[n](); numBvhNodes = n; }
 
@@ -45,7 +45,7 @@ private:
 	Triangle* p_triangles = NULL;
 	std::vector<Triangle> lightsList;
 	objl::Loader meshLoader;
-	Camera camera;
+	Camera* p_camera;
 	unsigned* vertexIndices;
 	objl::Vertex* p_vertices;
 	LinearBVHNode* p_bvh = NULL;
