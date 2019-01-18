@@ -5,7 +5,7 @@ project(CudaRT
 	LANGUAGES CXX CUDA)
 
 
-set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc")
+#set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc")
 set(OpenGL_GL_PREFERENCE "GLVND")
 set(glfw_DIR "/usr/lib/x86_64-linux-gnu/cmake/glfw3")
 
@@ -26,7 +26,7 @@ add_library(contextlib STATIC
 	${CONTEXT}/terminal_launcher.cpp
 	${CONTEXT}/window.cpp
 	${CONTEXT}/windowed_launcher.cpp)
-target_include_directories(contextlib PUBLIC include /usr/include /usr/local/cuda/include)
+target_include_directories(contextlib PUBLIC src/include /usr/include /usr/local/cuda/include)
 target_compile_features(contextlib PUBLIC cxx_std_11)
 set_target_properties(contextlib PROPERTIES CUDA_SEPARABLE_COMPILATION ON) 
 set_target_properties(contextlib PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -37,7 +37,7 @@ add_library(rendererlib STATIC
 	${RENDERER}/renderer.cu
 	${RENDERER}/sequential_renderer.cu)
 
-target_include_directories(rendererlib PUBLIC include /usr/include /usr/local/cuda/include)
+target_include_directories(rendererlib PUBLIC src/include /usr/include /usr/local/cuda/include)
 target_compile_features(rendererlib PUBLIC cxx_std_11)
 set_target_properties(rendererlib PROPERTIES CUDA_SEPARABLE_COMPILATION ON) 
 set_target_properties(rendererlib PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -48,12 +48,12 @@ add_library(geometrylib STATIC
 	${GEOMETRY}/camera.cu
 	${GEOMETRY}/geometry.cu)
 
-target_include_directories(geometrylib PUBLIC include /usr/include /usr/local/cuda/include)
+target_include_directories(geometrylib PUBLIC src/include /usr/include /usr/local/cuda/include)
 target_compile_features(geometrylib PUBLIC cxx_std_11)
 set_target_properties(geometrylib PROPERTIES CUDA_SEPARABLE_COMPILATION ON) 
 set_target_properties(geometrylib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-add_executable(build/CudaRT src/main.cpp)
+add_executable(CudaRT src/main.cpp)
 set_property(TARGET CudaRT PROPERTY CUDA_STANDARD 11)
 set_target_properties( CudaRT 
 			PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
