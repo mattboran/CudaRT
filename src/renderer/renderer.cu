@@ -34,6 +34,7 @@ __host__ Renderer::Renderer(Scene* _scenePtr, int _width, int _height, int _samp
 	p_scene(_scenePtr), width(_width), height(_height), samples(_samples)
 {
 	h_imgPtr = new uchar4[width*height]();
+	samplesRendered = 0;
 }
 
 
@@ -61,7 +62,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
 
     Vector3Df color(0.f, 0.f, 0.f);
     Vector3Df mask(1.f, 1.f, 1.f);
-    SurfaceInteraction interaction;
+    SurfaceInteraction interaction = SurfaceInteraction();
     Triangle* p_triangles = p_trianglesData->p_triangles;
     Triangle* p_hitTriangle = NULL;
     LinearBVHNode* p_bvh = p_trianglesData->p_bvh;
@@ -230,7 +231,7 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, Triangle
 	}
 	//if specular, return directLighting
 	Ray ray(interaction.position,  normalize(p_light->getRandomPointOn(p_sampler) - interaction.position));
-	SurfaceInteraction lightInteraction;
+	SurfaceInteraction lightInteraction = SurfaceInteraction();
 	// Sample the light
 	Triangle* p_triangles = p_trianglesData->p_triangles;
 	LinearBVHNode* p_bvh = p_trianglesData->p_bvh;
@@ -251,7 +252,7 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, Triangle
 
 __host__ __device__ void gammaCorrectPixel(uchar4 &p) {
 	float invGamma = 1.f/2.2f;
-	float3 fp;
+	float3 fp = make_float3(0,0,0);
 	fp.x = pow((float)p.x * 1.f/255.f, invGamma);
 	fp.y = pow((float)p.y * 1.f/255.f, invGamma);
 	fp.z = pow((float)p.z * 1.f/255.f, invGamma);

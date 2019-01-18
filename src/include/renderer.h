@@ -13,6 +13,7 @@
 
 #include <cuda.h>
 #include <curand_kernel.h>
+#include <cuda_runtime.h>
 
 struct LightsData {
 	Triangle* lightsPtr;
@@ -51,7 +52,7 @@ protected:
 	int width;
 	int height;
 	int samples;
-	int samplesRendered = 0;
+	int samplesRendered;
 public:
 	bool useCuda = false;
 	uchar4* h_imgPtr;

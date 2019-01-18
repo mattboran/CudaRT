@@ -16,7 +16,7 @@ struct LinearBVHNode;
 
 class Scene {
 public:
-	~Scene() { free(p_triangles); delete (p_bvh); };
+	~Scene() { };
 	Scene(std::string filename);
 
 	// Get methods
@@ -37,10 +37,8 @@ public:
 
 	// Set methods
 	void setCamera(const Camera& cam) { camera = Camera(cam); }
-//	void setBvhPtr(BVHBuildNode* p) { p_bvh = p; }
-//	void setNumBvhNodes(const unsigned int n) { numBvhNodes = n; }
 
-	void allocateBvhArray(const unsigned int n) { p_bvh = new LinearBVHNode[n]; numBvhNodes = n; }
+	void allocateBvhArray(const unsigned int n) { p_bvh = new LinearBVHNode[n](); numBvhNodes = n; }
 
 private:
 	// Geometry - todo: phase these out if possible
