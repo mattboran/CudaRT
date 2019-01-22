@@ -60,8 +60,8 @@ __host__ void Renderer::createLightsData(LightsData* p_lightsData, Triangle* p_t
 __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, TrianglesData* p_trianglesData, LightsData *p_lightsData, Sampler* p_sampler) {
 	Ray ray = p_camera->computeCameraRay(x, y, p_sampler);
 
-    Vector3Df color(0.f, 0.f, 0.f);
-    Vector3Df mask(1.f, 1.f, 1.f);
+    Vector3Df color = Vector3Df(0.f, 0.f, 0.f);
+    Vector3Df mask = Vector3Df(1.f, 1.f, 1.f);
     SurfaceInteraction interaction = SurfaceInteraction();
     Triangle* p_triangles = p_trianglesData->p_triangles;
     Triangle* p_hitTriangle = NULL;
@@ -87,7 +87,8 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
 
         //IF DIFFUSE
 		{
-			mask *= sampleDiffuseBSDF(&interaction, p_hitTriangle, p_sampler) / interaction.pdf;
+        	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, p_sampler);
+			mask = mask * diffuseSample / interaction.pdf;
 
 			float randomNumber = p_sampler->getNextFloat() * ((float)p_lightsData->numLights - 1.0f + 0.9999999f);
 			int selectedLightIdx = (int)truncf(randomNumber);

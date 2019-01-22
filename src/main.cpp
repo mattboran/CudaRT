@@ -2,6 +2,7 @@
 // getting the scene set up, and launching the pathtrace kernel
 
 #include "scene.h"
+#include "camera.h"
 #include "launcher.h"
 #include "renderer.h"
 
