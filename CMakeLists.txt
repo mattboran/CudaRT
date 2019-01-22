@@ -4,8 +4,6 @@ project(CudaRT
 	DESCRIPTION "CUDART"
 	LANGUAGES CXX CUDA)
 
-
-#set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc")
 set(OpenGL_GL_PREFERENCE "GLVND")
 set(glfw_DIR "/usr/lib/x86_64-linux-gnu/cmake/glfw3")
 
