@@ -9,11 +9,6 @@
 
 using namespace std;
 
-ostream& operator<< (ostream &out, const Vector3Df &v) {
-    out << "("<<v.x<<", "<<v.y<<", "<<v.z<<")";
-    return out;
-}
-
 __host__ Vector3Df vectorFromArray(picojson::array arr) {
 	Vector3Df retVal;
 	int idx = 0;
@@ -96,10 +91,4 @@ __host__ void Camera::rebase()
 	dir = normalize(dir - eye);
 	right = normalize(cross(dir,up));
 	up = cross(right, dir);
-	cout << "Fov: " << fov << "\n";
-	cout << "Eye: " << eye << "\n";
-	cout << "Dir: " << dir << "\n";
-	cout << "Up: " << up << "\n";
-	cout << "Right: " << right << "\n";
-	cout << "Aspect: " << aspect << "\n";
 }

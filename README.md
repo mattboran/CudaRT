@@ -38,3 +38,5 @@ Optional Parameters:
 `-h <height (pixels) of output>`
 
 `--cpu`:			flag to use sequential CPU version instead of parallel GPU version
+
+`--X`: 				flag to use OpenGL to render to window. Saves to output file on close.

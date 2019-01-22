@@ -132,7 +132,7 @@ int main(int argc, char* argv[]) {
 	Camera* p_camera;
 	if (useCameraJson) {
 		cout << "Using camera.json" << endl;
-		p_camera = new Camera("../camera/camera.json", width, height);
+		p_camera = new Camera("../settings/camera.json", width, height);
 	} else {
 		float scale = 0.1f;
 		Vector3Df camPos(14.0f, 5.0f, 0.0f);
