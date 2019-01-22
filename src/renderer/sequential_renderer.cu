@@ -43,8 +43,12 @@ __host__ void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
     for (unsigned x = 0; x < width; x++) {
         for (unsigned y = 0; y < height; y++) {
             int idx = y * width + x;
-            h_imgVectorPtr[idx] += samplePixel(x, y, p_camera, h_trianglesData, h_lightsData, p_sampler);
-            p_img[idx] = vector3ToUchar4(h_imgVectorPtr[idx]/samplesRendered);
+            std::cout<<"On sampleRendered = " << samplesRendered << "\n";
+            Vector3Df sample = samplePixel(x, y, p_camera, h_trianglesData, h_lightsData, p_sampler);
+            h_imgVectorPtr[idx] += sample;
+            std::cout<<"Got the sample: x: " << sample.x << " y: " << sample.y << " z: "<< sample.z<<"\n";
+            p_img[idx] = vector3ToUchar4(sample/samplesRendered);
+            std::cout<<"p_img[idx]= x: " << p_img[idx].x << " y: " << p_img[idx].y << " z: "<< p_img[idx].z<<"\n";
         }
     }
 	delete p_sampler;

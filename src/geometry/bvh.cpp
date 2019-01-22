@@ -188,7 +188,7 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
 			BucketInfo buckets[numBuckets];
 			// Initialize BucketInfo for SAH partition buckets by determining the bucket
 			// that its centroid lies in and updating the bucket's bounds to include the Triangle bounds
-			for (int i = start; i < end; i++) {
+			for (uint i = start; i < end; i++) {
 				int b = numBuckets * offset(centroidMin, centroidMax, trianglesInfo[i].center)._v[dim];
 				if (b == numBuckets) { b = numBuckets - 1; }
 				buckets[b].count++;
@@ -290,7 +290,6 @@ float surfaceArea(const Vector3Df& min, const Vector3Df& max) {
 
 int maximumExtent(const Vector3Df& min, const Vector3Df& max) {
     Vector3Df diag = max - min;
-    int retVal = 0;
     if (diag.x > diag.y && diag.x > diag.z)
         return 0;
     if (diag.y > diag.z)

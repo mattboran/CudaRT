@@ -9,9 +9,6 @@
 #include "cuda_gl_interop.h"
 #include <string>
 
-#pragma comment(lib, "opengl32.lib")
-#pragma comment(lib, "glu32.lib")
-
 class WindowManager {
 public:
 	WindowManager() {}

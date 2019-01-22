@@ -26,7 +26,7 @@ Scene::Scene(std::string filename) {
 }
 
 float Scene::getLightsSurfaceArea() {
-	float surfaceArea;
+	float surfaceArea = 0;
 	for (auto light: lightsList) {
 		surfaceArea += light._surfaceArea;
 	}
@@ -36,18 +36,13 @@ float Scene::getLightsSurfaceArea() {
 Triangle* Scene::loadTriangles() {
 	Triangle* p_tris = (Triangle*)malloc(sizeof(Triangle) * getNumTriangles());
 	Triangle* p_current = p_tris;
-
-	// Min and max for creating bounding boxes.
-	const Vector3Df vectorMin = Vector3Df(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-	const Vector3Df vectorMax = Vector3Df(FLT_MAX, FLT_MAX, FLT_MAX);
 	vector<objl::Mesh> meshes = meshLoader.LoadedMeshes;
 	unsigned triId = 0;
 	for (auto const& mesh: meshes) {
 		vector<objl::Vertex> vertices = mesh.Vertices;
 		vector<unsigned> indices = mesh.Indices;
 		objl::Material material = mesh.MeshMaterial;
-
-		for (int i = 0; i < vertices.size()/3; i++) {
+		for (unsigned int i = 0; i < vertices.size()/3; i++) {
 			p_current->_id1 = indices[i*3];
 			p_current->_id2 = indices[i*3 + 1];
 			p_current->_id3 = indices[i*3 + 2];
