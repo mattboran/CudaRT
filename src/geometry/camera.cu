@@ -53,7 +53,7 @@ __host__ Camera::Camera(string filename, int width, int height) :
 	eye = vectorFromArray(e);
 	dir = eye - vectorFromArray(d);
 	up = vectorFromArray(u);
-	right = -vectorFromArray(rt);
+	right = vectorFromArray(rt);
 	aspect = (float)xpixels / (float)ypixels;
 	rebase();
 }
