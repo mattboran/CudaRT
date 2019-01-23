@@ -77,6 +77,9 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
         }
 #endif
         p_hitTriangle = interaction.p_hitTriangle;
+#ifdef SHOW_NORMALS
+        return p_hitTriangle->getNormal(interaction.u, interaction.v);
+#endif
         if (bounces == 0) {
         	color += mask * p_hitTriangle->_colorEmit;
         }
@@ -95,13 +98,11 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
 			Triangle* p_light = &p_lightsData->lightsPtr[selectedLightIdx];
 			Vector3Df directLighting = estimateDirectLighting(p_light, p_trianglesData, interaction, p_sampler);
 
-			bool clampRadiance = true;
-			if (clampRadiance){
-				// This introduces bias!!!
-				directLighting.x = clamp(directLighting.x, 0.0f, 1.0f);
-				directLighting.y = clamp(directLighting.y, 0.0f, 1.0f);
-				directLighting.z = clamp(directLighting.z, 0.0f, 1.0f);
-			}
+#ifndef UNBIASED
+			directLighting.x = clamp(directLighting.x, 0.0f, 1.0f);
+			directLighting.y = clamp(directLighting.y, 0.0f, 1.0f);
+			directLighting.z = clamp(directLighting.z, 0.0f, 1.0f);
+#endif
 			color += mask * directLighting;
 		}
 
