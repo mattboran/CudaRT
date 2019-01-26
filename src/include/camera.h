@@ -9,7 +9,7 @@ class Camera {
 public:
 	__host__ Camera() {}
 	__host__ Camera(std::string filename, int width, int height);
-	__host__ Camera(Vector3Df pos, Vector3Df target, Vector3Df upv, Vector3Df rt, float _fov, int x, int y);
+	__host__ Camera(Vector3Df pos, Vector3Df target, Vector3Df upv, float _fov, int x, int y);
 
 	__host__ void rebase();
 
@@ -21,16 +21,5 @@ protected:
 	Vector3Df right;
 	float fov, aspect;
 	int xpixels, ypixels;
-};
-
-class LensedCamera : public Camera {
-public:
-	__host__ LensedCamera() : Camera() {}
-	__host__ LensedCamera(std::string filename, int width, int height) :
-			Camera(filename, width, height) {}
-	__host__ LensedCamera(Vector3Df pos, Vector3Df target, Vector3Df upv, Vector3Df rt, float _fov, int x, int y) :
-		Camera(pos, target, upv, rt, _fov, x, y) {}
-private:
-	float focalDistance, apertureWidth;
 };
 #endif

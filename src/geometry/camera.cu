@@ -21,11 +21,14 @@ __host__ Vector3Df vectorFromArray(picojson::array arr) {
 	return retVal;
 }
 
-__host__ Camera::Camera(Vector3Df pos, Vector3Df target, Vector3Df upv, Vector3Df rt, float _fov, int x, int y) :
-		eye(pos), dir(target), up(upv), right(rt), fov(tanf(_fov/2.0f * M_PI/180.0f)), xpixels(x), ypixels(y)
+__host__ Camera::Camera(Vector3Df pos, Vector3Df target, Vector3Df upv, float _fov, int x, int y) :
+		eye(pos), dir(target), up(upv), fov(tanf(_fov/2.0f * M_PI/180.0f)), xpixels(x), ypixels(y)
 {
 	aspect = (float)xpixels / (float)ypixels;
-	rebase();
+	up = normalize(up);
+	// todo: see if this is needed or correct
+	dir = normalize(dir - eye);
+	right = normalize(cross(dir,up));
 }
 
 __host__ Camera::Camera(string filename, int width, int height) :
@@ -43,14 +46,13 @@ __host__ Camera::Camera(string filename, int width, int height) :
 	picojson::array e = v.get("eye").get<picojson::array>();
 	picojson::array d = v.get("viewDirection").get<picojson::array>();
 	picojson::array u = v.get("upDirection").get<picojson::array>();
-	picojson::array rt = v.get("rightDirection").get<picojson::array>();
 	fov = tanf(f/2.0f * M_PI/180.0f);
 	eye = vectorFromArray(e);
 	dir = eye - vectorFromArray(d);
-	up = vectorFromArray(u);
-	right = vectorFromArray(rt);
+	dir = normalize(dir - eye);
+	up = normalize(vectorFromArray(u));
+	right = normalize(cross(dir,up));
 	aspect = (float)xpixels / (float)ypixels;
-	rebase();
 }
 
 // Compute tent filtered ray
@@ -86,9 +88,5 @@ __host__ __device__ Ray Camera::computeCameraRay(int i, int j, Sampler* p_sample
 
 __host__ void Camera::rebase()
 {
-	up = normalize(up);
-	// todo: see if this is needed or correct
-	dir = normalize(dir - eye);
-	right = normalize(cross(dir,up));
-	up = cross(right, dir);
+
 }
