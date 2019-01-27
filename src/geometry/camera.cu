@@ -97,7 +97,7 @@ __host__ __device__ Ray Camera::computeCameraRay(int i, int j, Sampler* p_sample
 	Vector3Df focalPoint = dir * focusDistance;
 
 	Vector3Df shift = up * (r1 * apertureWidth) + right * (r2 * apertureWidth);
-	return Ray(eye + shift, normalize(focalPoint - (eye + shift)));
+	return Ray(eye + shift, direction);
 }
 
 __host__ void Camera::rebase()
