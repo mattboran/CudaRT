@@ -26,7 +26,7 @@ __host__ Camera::Camera(Vector3Df pos, Vector3Df target, Vector3Df upv, float _f
 {
 	aspect = (float)xpixels / (float)ypixels;
 	up = normalize(up);
-	// todo: see if this is needed or correct
+	focusDistance = (dir-eye).length();
 	dir = normalize(dir - eye);
 	right = normalize(cross(dir,up));
 }
@@ -46,44 +46,58 @@ __host__ Camera::Camera(string filename, int width, int height) :
 	picojson::array e = v.get("eye").get<picojson::array>();
 	picojson::array d = v.get("viewDirection").get<picojson::array>();
 	picojson::array u = v.get("upDirection").get<picojson::array>();
-	fov = tanf(f/2.0f * M_PI/180.0f);
+	fov = tanf(f * M_PI/180.0f);
 	eye = vectorFromArray(e);
 	dir = eye - vectorFromArray(d);
+	focusDistance = (dir-eye).length();
 	dir = normalize(dir - eye);
 	up = normalize(vectorFromArray(u));
 	right = normalize(cross(dir,up));
 	aspect = (float)xpixels / (float)ypixels;
 }
 
-// Compute tent filtered ray
-__host__ __device__ Ray Camera::computeCameraRay(int i, int j, Sampler* p_sampler) const {
+__host__ __device__ void tentFilter(float &i, float &j, Sampler* p_sampler) {
 	float r1, r2;
 	r1 = 2.f * p_sampler->getNextFloat();
 	r2 = 2.f * p_sampler->getNextFloat();
 	float dx;
 	if (r1 < 1.f){
-		dx = sqrtf(r1) - 1.f;
+		i = sqrtf(r1) - 1.f;
 	}
 	else{
-		dx = 1.f - sqrtf(2.f - r1);
+		i = 1.f - sqrtf(2.f - r1);
 	}
 	float dy;
 	if (r2 < 1){
-		dy = sqrtf(r2) - 1.f;
+		j = sqrtf(r2) - 1.f;
 	}
 	else{
-		dy = 1.f - sqrtf(2.f - r2);
+		j = 1.f - sqrtf(2.f - r2);
 	}
+}
 
-	float normalized_i = 1.0f - (((float)i + dx) / (float)xpixels) - 0.5;
+//__host__ __device__ Vector3Df
+
+// Compute tent filtered ray
+__host__ __device__ Ray Camera::computeCameraRay(int i, int j, Sampler* p_sampler) const {
+	float dx, dy;
+	tentFilter(dx, dy, p_sampler);
+
+	float normalized_i = (((float)i + dx) / (float)xpixels) - 0.5;
 	float normalized_j = 1.0f - (((float)j + dy) / (float)ypixels) - 0.5f;
 
 	Vector3Df direction = dir;
-	direction += ((right * -1.0f) * fov * aspect * normalized_i);
+	direction += (right * fov * aspect * normalized_i);
 	direction += (up * fov * normalized_j);
 	direction = normalize(direction);
 
-	return Ray(eye, direction);
+	// DOF
+	float r1 = p_sampler->getNextFloat() - 0.5f;
+	float r2 = p_sampler->getNextFloat() - 0.5f;
+	Vector3Df focalPoint = dir * focusDistance;
+
+	Vector3Df shift = up * (r1 * apertureWidth) + right * (r2 * apertureWidth);
+	return Ray(eye + shift, normalize(focalPoint - (eye + shift)));
 }
 
 __host__ void Camera::rebase()

@@ -20,6 +20,8 @@ protected:
 	Vector3Df up;
 	Vector3Df right;
 	float fov, aspect;
+	float apertureWidth = 0.032f;
+	float focusDistance;
 	int xpixels, ypixels;
 };
 #endif
