@@ -7,10 +7,15 @@
 
 #include "renderer.h"
 #include "cuda_error_check.h"
+
+#include <cuda_runtime.h>
+#include <device_launch_parameters.h>
 #include <curand_kernel.h>
 #include <iostream>
 
 using std::cout;
+
+__constant__ Camera* dc_camera;
 
 #define BLOCK_WIDTH 16u
 

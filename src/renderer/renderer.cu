@@ -84,7 +84,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
         return p_hitTriangle->getNormal(interaction.u, interaction.v);
 #endif
         if (bounces == 0) {
-        	color += mask * p_hitTriangle->_colorEmit;
+        	color += mask * p_materials[p_hitTriangle->_materialId].ka;
         }
         interaction.position = ray.origin + ray.dir * ray.tMax;
         interaction.normal = p_hitTriangle->getNormal(interaction.u, interaction.v);

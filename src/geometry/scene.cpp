@@ -122,14 +122,11 @@ Triangle* Scene::loadTriangles() {
 
 			p_current->_materialId = it - materialsList.begin();
 			// Materials
-			p_current->_colorDiffuse = Vector3Df(material.Kd);
-			p_current->_colorSpec = Vector3Df(material.Ks);
-			p_current->_colorEmit = Vector3Df(material.Ka);
 
 			p_current->_surfaceArea = cross(p_current->_e1, p_current->_e2).length()/2.0f;
 			p_current->_triId = triId++;
 
-			if (p_current->_colorEmit.lengthsq() > 0.0f) {
+			if (m.bsdf == EMISSIVE) {
 				lightsList.push_back(*p_current);
 			}
 

@@ -27,10 +27,6 @@ struct Triangle {
 	// Triangle ID
 	unsigned _triId;
 	unsigned _materialId;
-	// RGB Color Vector3Df
-	Vector3Df _colorDiffuse;
-	Vector3Df _colorSpec;
-	Vector3Df _colorEmit;
 
 	// Vertex indices will be used for intersection soon (see github issues)
 	unsigned _id1, _id2, _id3;
