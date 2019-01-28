@@ -165,6 +165,11 @@ __global__ void renderKernel(SettingsData settings,
 		int sampleNumber) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
+	unsigned int numMaterials = p_tris->numMaterials;
+//	__shared__ Material d_materials[numMaterials];
+//	if (threadIdx.x + threadIdx.y == 0) {
+//
+//	}
 	int idx = y * settings.width + x;
 	curandState* p_threadCurand = &p_curandState[idx];
 	Sampler sampler(p_threadCurand);

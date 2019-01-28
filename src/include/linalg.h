@@ -36,6 +36,7 @@ struct Vector3Df
 	inline __host__ __device__ Vector3Df operator-() const { Vector3Df v; v.x = -x; v.y = -y; v.z = -z; return v; }
 	inline __host__ __device__ Vector3Df& operator/=(const float& a){ x /= a; y /= a; z /= a; return *this; }
 	inline __host__ __device__ bool operator!=(const Vector3Df& v){ return x != v.x || y != v.y || z != v.z; }
+	inline __host__ __device__ bool operator!=(const Vector3Df& v) const{ return x != v.x || y != v.y || z != v.z; }
 };
 
 inline __host__ __device__ Vector3Df normalize(const Vector3Df& v) { float norm = sqrtf(v.x * v.x + v.y*v.y + v.z*v.z); return Vector3Df(v.x/norm, v.y/norm, v.z/norm);}
