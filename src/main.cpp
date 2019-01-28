@@ -138,8 +138,7 @@ int main(int argc, char* argv[]) {
 		Vector3Df camPos(14.0f, 5.0f, 0.0f);
 		Vector3Df camTarget(0.0f, 5.0f, 0.0f);
 		Vector3Df camUp(0.0f, 1.0f, 0.0f);
-		Vector3Df camRt(-1.0f, 0.0f, 0.0f);
-		p_camera = new Camera(camPos * scale, camTarget * scale, camUp, camRt, 90.0f, width, height);
+		p_camera = new Camera(camPos * scale, camTarget * scale, camUp, 90.0f, width, height);
 	}
 	scene.setCameraPtr(p_camera);
 
