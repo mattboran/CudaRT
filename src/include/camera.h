@@ -10,9 +10,7 @@ public:
 	__host__ Camera() {}
 	__host__ Camera(std::string filename, int width, int height);
 	__host__ Camera(Vector3Df pos, Vector3Df target, Vector3Df upv, float _fov, int x, int y);
-
-	__host__ void rebase();
-
+	
 	__host__ __device__ Ray computeCameraRay(int i, int j, Sampler* p_sampler) const;
 protected:
 	Vector3Df eye;

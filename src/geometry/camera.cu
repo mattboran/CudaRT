@@ -76,8 +76,6 @@ __host__ __device__ void tentFilter(float &i, float &j, Sampler* p_sampler) {
 	}
 }
 
-//__host__ __device__ Vector3Df
-
 // Compute tent filtered ray
 __host__ __device__ Ray Camera::computeCameraRay(int i, int j, Sampler* p_sampler) const {
 	float dx, dy;
@@ -87,20 +85,21 @@ __host__ __device__ Ray Camera::computeCameraRay(int i, int j, Sampler* p_sample
 	float normalized_j = 1.0f - (((float)j + dy) / (float)ypixels) - 0.5f;
 
 	Vector3Df direction = dir;
+	float rightJitter = 1.0f;
+	float upJitter = 1.0f;
+	Vector3Df origin = eye;
 	direction += (right * fov * aspect * normalized_i);
 	direction += (up * fov * normalized_j);
-	direction = normalize(direction);
 
-	// DOF
-	float r1 = p_sampler->getNextFloat() - 0.5f;
-	float r2 = p_sampler->getNextFloat() - 0.5f;
-	Vector3Df focalPoint = dir * focusDistance;
+	if (apertureWidth > 0.0f) {
+		float r1 = p_sampler->getNextFloat() * 2 * M_PI;
+		float r2 = p_sampler->getNextFloat();
+		rightJitter = cosf(r1) * r2 * apertureWidth;
+		upJitter = sinf(r1)* r2 * apertureWidth;
+		origin += ((right * rightJitter) + (up * upJitter));
+		Vector3Df focalPoint = eye + direction * 3.0f;
+		direction = focalPoint - origin;
+	}
 
-	Vector3Df shift = up * (r1 * apertureWidth) + right * (r2 * apertureWidth);
-	return Ray(eye + shift, direction);
-}
-
-__host__ void Camera::rebase()
-{
-
+	return Ray(origin, normalize(direction));
 }
