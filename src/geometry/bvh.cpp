@@ -57,9 +57,9 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
 int flattenBVHTree(LinearBVHNode* const p_linearNodes, BVHBuildNode* p_node, int* offset);
 
 
-vector<TriangleBBox> trianglesInfo;
-vector<Triangle> orderedTriangles;
-const int maxTrisInNode = 3;
+static vector<TriangleBBox> trianglesInfo;
+static vector<Triangle> orderedTriangles;
+static const int maxTrisInNode = 3;
 
 
 void constructBVH(Scene* p_scene) {

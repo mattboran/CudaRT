@@ -3,6 +3,7 @@
 #define SCENE_H
 
 #include "camera.h"
+#include "material.h"
 
 #include "obj_load.h"
 
@@ -34,6 +35,7 @@ public:
 
 	objl::Mesh getMesh(int i) { return meshLoader.LoadedMeshes[i]; }
 	Camera* getCameraPtr() { return p_camera; }
+	Material* getMaterialsPtr() { return &materials[0]; }
 
 	// Set methods
 	void setCameraPtr(Camera* p) { p_camera = p; }
@@ -50,6 +52,8 @@ private:
 	objl::Vertex* p_vertices;
 	LinearBVHNode* p_bvh = NULL;
 	unsigned int numBvhNodes;
+
+	std::vector<Material> materials;
 
 	Triangle* loadTriangles();
 };

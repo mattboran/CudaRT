@@ -5,12 +5,20 @@
 #include "scene.h"
 
 #include <algorithm>
-#include <iostream>
 #include <cfloat>
+#include <iostream>
+#include <map>
 #include <math.h>
+#include <set>
 
 using std::vector;
+using std::map;
+using std::set;
 
+static set<Material> materialsSet;
+static map<std::string, unsigned int> materialsMap;
+
+unsigned int populateMaterialsMap(vector<objl::Mesh> meshes);
 
 // Constructors
 Scene::Scene(std::string filename) {
@@ -31,6 +39,31 @@ float Scene::getLightsSurfaceArea() {
 		surfaceArea += light._surfaceArea;
 	}
 	return surfaceArea;
+}
+
+unsigned int populateMaterialsMap(vector<objl::Mesh> meshes) {
+	for (auto const& mesh: meshes) {
+		// TODO: Move this to Material.h
+		Material material;
+		material.ka = mesh.MeshMaterial.Ka;
+		material.kd = mesh.MeshMaterial.Kd;
+		material.ks = mesh.MeshMaterial.Ks;
+		material.ns = mesh.MeshMaterial.Ns;
+		material.ni = mesh.MeshMaterial.Ni;
+		material.bsdf = DIFFUSE;
+		if (material.ks.lengthsq() > 0.0f) {
+			material.bsdf = SPECULAR;
+			if (material.ns > 0.0f) {
+				material.bsdf = COOKETORRENCE;
+			}
+		}
+		if (material.ni != 1.0f) {
+			material.bsdf = REFRACTIVE;
+		}
+		if (material.ka.lengthsq() > 0.0f) {
+			material.bsdf = EMISSIVE;
+		}
+	}
 }
 
 Triangle* Scene::loadTriangles() {

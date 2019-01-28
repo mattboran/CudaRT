@@ -26,6 +26,7 @@ struct Ray {
 struct Triangle {
 	// Triangle ID
 	unsigned _triId;
+	unsigned _materialId;
 	// RGB Color Vector3Df
 	Vector3Df _colorDiffuse;
 	Vector3Df _colorSpec;
