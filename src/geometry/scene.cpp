@@ -9,14 +9,9 @@
 #include <iostream>
 #include <map>
 #include <math.h>
-#include <set>
 
 using std::vector;
 using std::map;
-using std::set;
-
-static set<Material, materialComparator> materialsSet;
-static map<std::string, unsigned int> materialsMap;
 
 unsigned int populateMaterialsMap(vector<objl::Mesh> meshes);
 Material materialFromMtl(objl::Material m);
@@ -65,26 +60,38 @@ Material materialFromMtl(objl::Material m) {
 	return material;
 }
 
-unsigned int populateMaterialsMap(vector<objl::Mesh> meshes) {
+unsigned int populateMaterialsMap(vector<objl::Mesh> meshes, map<Material, unsigned int, materialComparator> &materialsMap) {
+	unsigned int idx = 0;
 	for (auto const& mesh: meshes) {
 		// TODO: Move this to Material.h
 		Material material = materialFromMtl(mesh.MeshMaterial);
-		materialsSet.insert(material);
+		if (materialsMap.count(material) == 0) {
+			materialsMap.insert(std::pair<Material, unsigned int>(material, idx));
+			idx++;
+		}
 	}
-	std::cout << "Got " << materialsSet.size() << " materials. \n";
-	return materialsSet.size();
+	return materialsMap.size();
 }
 
 Triangle* Scene::loadTriangles() {
 	Triangle* p_tris = (Triangle*)malloc(sizeof(Triangle) * getNumTriangles());
 	Triangle* p_current = p_tris;
 	vector<objl::Mesh> meshes = meshLoader.LoadedMeshes;
-	unsigned numMaterials = populateMaterialsMap(meshes);
+	map<Material, unsigned int, materialComparator> materialsMap;
+
+	// Allocate and populate materials array
+	numMaterials = populateMaterialsMap(meshes, materialsMap);
+	p_materials = new Material[numMaterials];
+	for (auto it = materialsMap.begin(); it != materialsMap.end(); it++) {
+		p_materials[it->second] = it->first;
+	}
+
 	unsigned triId = 0;
 	for (auto const& mesh: meshes) {
 		vector<objl::Vertex> vertices = mesh.Vertices;
 		vector<unsigned> indices = mesh.Indices;
 		objl::Material material = mesh.MeshMaterial;
+		Material m = materialFromMtl(material);
 		for (unsigned int i = 0; i < vertices.size()/3; i++) {
 			p_current->_id1 = indices[i*3];
 			p_current->_id2 = indices[i*3 + 1];
@@ -102,6 +109,8 @@ Triangle* Scene::loadTriangles() {
 			p_current->_e1 = _v2 - _v1;
 			p_current->_e2 = _v3 - _v1;
 
+			auto it = materialsMap.find(m);
+			p_current->_materialId = it->second;
 			// Materials
 			p_current->_colorDiffuse = Vector3Df(material.Kd);
 			p_current->_colorSpec = Vector3Df(material.Ks);

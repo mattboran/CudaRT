@@ -10,21 +10,24 @@ SequentialRenderer::SequentialRenderer(Scene* _scenePtr, int _width, int _height
     unsigned int numTriangles = p_scene->getNumTriangles();
     unsigned int numLights = p_scene->getNumLights();
     unsigned int numBvhNodes = p_scene->getNumBvhNodes();
+    unsigned int numMaterials = p_scene->getNumMaterials();
     Triangle* p_triangles = p_scene->getTriPtr();
     LinearBVHNode* p_bvh = p_scene->getBvhPtr();
     Triangle* p_lights = p_scene->getLightsPtr();
+    Material* p_materials = p_scene->getMaterialsPtr();
 
     size_t trianglesBytes = sizeof(Triangle) * numTriangles;
     size_t lightsBytes = sizeof(Triangle) * numLights;
     size_t bvhBytes = sizeof(LinearBVHNode) * numBvhNodes;
-    size_t trianglesDataBytes = sizeof(TrianglesData) + trianglesBytes + bvhBytes;
+    size_t materialsBytes = sizeof(Material) * numMaterials;
+    size_t trianglesDataBytes = sizeof(TrianglesData) + trianglesBytes + bvhBytes + materialsBytes;
     size_t lightsDataBytes = sizeof(LightsData) + lightsBytes;
     h_trianglesData = (TrianglesData*)malloc(trianglesDataBytes);
     h_lightsData = (LightsData*)malloc(lightsDataBytes);
     h_imgBytesPtr = new uchar4[width * height]();
     h_imgVectorPtr = new Vector3Df[width * height]();
 
-    createTrianglesData(h_trianglesData, p_triangles, p_bvh);
+    createTrianglesData(h_trianglesData, p_triangles, p_bvh, p_materials);
     createLightsData(h_lightsData, p_lights);
     createSettingsData(&h_settingsData);
 }

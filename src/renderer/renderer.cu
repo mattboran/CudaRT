@@ -44,11 +44,13 @@ __host__ void Renderer::createSettingsData(SettingsData* p_settingsData){
 	p_settingsData->samples = getSamples();
 }
 
-__host__ void Renderer::createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles, LinearBVHNode* p_bvh) {
+__host__ void Renderer::createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles, LinearBVHNode* p_bvh, Material* p_materials) {
 	p_trianglesData->p_triangles = p_triangles;
 	p_trianglesData->p_bvh = p_bvh;
+	p_trianglesData->p_materials = p_materials;
 	p_trianglesData->numTriangles = p_scene->getNumTriangles();
 	p_trianglesData->numBVHNodes = p_scene->getNumBvhNodes();
+	p_trianglesData->numMaterials = p_scene->getNumMaterials();
 }
 
 __host__ void Renderer::createLightsData(LightsData* p_lightsData, Triangle* p_triangles) {
