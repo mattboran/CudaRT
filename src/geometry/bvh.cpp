@@ -71,9 +71,6 @@ void constructBVH(Scene* p_scene) {
     LinearBVHNode* p_linearBvh = p_scene->getBvhPtr();
     int offset = 0;
     flattenBVHTree(p_linearBvh, p_bvh, &offset);
-//    for (int i = 0; i < totalNodes; i++) {
-//    	cout << "LBVHNode " << i << " has numTriangles " << p_linearBvh[i].numTriangles << " and offset " << p_linearBvh[i].secondChildOffset << endl;
-//    }
     Triangle* p_dest = p_scene->getTriPtr();
     std::copy(orderedTriangles.begin(), orderedTriangles.end(), p_dest);
 

@@ -15,10 +15,11 @@ using std::vector;
 using std::map;
 using std::set;
 
-static set<Material> materialsSet;
+static set<Material, materialComparator> materialsSet;
 static map<std::string, unsigned int> materialsMap;
 
 unsigned int populateMaterialsMap(vector<objl::Mesh> meshes);
+Material materialFromMtl(objl::Material m);
 
 // Constructors
 Scene::Scene(std::string filename) {
@@ -41,35 +42,44 @@ float Scene::getLightsSurfaceArea() {
 	return surfaceArea;
 }
 
+Material materialFromMtl(objl::Material m) {
+	Material material;
+	material.ka = m.Ka;
+	material.kd = m.Kd;
+	material.ks = m.Ks;
+	material.ns = m.Ns;
+	material.ni = m.Ni;
+	material.bsdf = DIFFUSE;
+	if (material.ks.lengthsq() > 0.0f) {
+		material.bsdf = SPECULAR;
+		if (material.ns > 0.0f) {
+			material.bsdf = COOKETORRENCE;
+		}
+	}
+	if (material.ni != 1.0f) {
+		material.bsdf = REFRACTIVE;
+	}
+	if (material.ka.lengthsq() > 0.0f) {
+		material.bsdf = EMISSIVE;
+	}
+	return material;
+}
+
 unsigned int populateMaterialsMap(vector<objl::Mesh> meshes) {
 	for (auto const& mesh: meshes) {
 		// TODO: Move this to Material.h
-		Material material;
-		material.ka = mesh.MeshMaterial.Ka;
-		material.kd = mesh.MeshMaterial.Kd;
-		material.ks = mesh.MeshMaterial.Ks;
-		material.ns = mesh.MeshMaterial.Ns;
-		material.ni = mesh.MeshMaterial.Ni;
-		material.bsdf = DIFFUSE;
-		if (material.ks.lengthsq() > 0.0f) {
-			material.bsdf = SPECULAR;
-			if (material.ns > 0.0f) {
-				material.bsdf = COOKETORRENCE;
-			}
-		}
-		if (material.ni != 1.0f) {
-			material.bsdf = REFRACTIVE;
-		}
-		if (material.ka.lengthsq() > 0.0f) {
-			material.bsdf = EMISSIVE;
-		}
+		Material material = materialFromMtl(mesh.MeshMaterial);
+		materialsSet.insert(material);
 	}
+	std::cout << "Got " << materialsSet.size() << " materials. \n";
+	return materialsSet.size();
 }
 
 Triangle* Scene::loadTriangles() {
 	Triangle* p_tris = (Triangle*)malloc(sizeof(Triangle) * getNumTriangles());
 	Triangle* p_current = p_tris;
 	vector<objl::Mesh> meshes = meshLoader.LoadedMeshes;
+	unsigned numMaterials = populateMaterialsMap(meshes);
 	unsigned triId = 0;
 	for (auto const& mesh: meshes) {
 		vector<objl::Vertex> vertices = mesh.Vertices;
