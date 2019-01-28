@@ -43,13 +43,13 @@ __host__ Camera::Camera(string filename, int width, int height) :
 	}
 	const picojson::value::object& obj = v.get<picojson::object>();
 	float f = v.get("fieldOfView").get<double>();
+	focusDistance = v.get("focusDistance").get<double>();
 	picojson::array e = v.get("eye").get<picojson::array>();
 	picojson::array d = v.get("viewDirection").get<picojson::array>();
 	picojson::array u = v.get("upDirection").get<picojson::array>();
 	fov = tanf(f * M_PI/180.0f);
 	eye = vectorFromArray(e);
 	dir = eye - vectorFromArray(d);
-	focusDistance = (dir-eye).length();
 	dir = normalize(dir - eye);
 	up = normalize(vectorFromArray(u));
 	right = normalize(cross(dir,up));
