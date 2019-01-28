@@ -52,8 +52,7 @@ __host__ Camera::Camera(string filename, int width, int height) :
 
 	fov = tanf(f/2.0f * M_PI/180.0f);
 	eye = vectorFromArray(e);
-	dir = eye - vectorFromArray(d);
-	dir = normalize(eye - dir);
+	dir = normalize(vectorFromArray(d));
 	up = normalize(vectorFromArray(u));
 	right = normalize(cross(dir,up));
 	apertureWidth = focalLength/fStop;
