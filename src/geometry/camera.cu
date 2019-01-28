@@ -43,16 +43,20 @@ __host__ Camera::Camera(string filename, int width, int height) :
 	}
 	const picojson::value::object& obj = v.get<picojson::object>();
 	float f = v.get("fieldOfView").get<double>();
-	focusDistance = v.get("focusDistance").get<double>();
+	float focalLength = v.get("focalLength").get<double>();
+	float fStop = v.get("fStop").get<double>();
 	picojson::array e = v.get("eye").get<picojson::array>();
 	picojson::array d = v.get("viewDirection").get<picojson::array>();
 	picojson::array u = v.get("upDirection").get<picojson::array>();
-	fov = tanf(f * M_PI/180.0f);
+	focusDistance = v.get("focusDistance").get<double>();
+
+	fov = tanf(f/2.0f * M_PI/180.0f);
 	eye = vectorFromArray(e);
 	dir = eye - vectorFromArray(d);
-	dir = normalize(dir - eye);
+	dir = normalize(eye - dir);
 	up = normalize(vectorFromArray(u));
 	right = normalize(cross(dir,up));
+	apertureWidth = focalLength/fStop;
 	aspect = (float)xpixels / (float)ypixels;
 }
 
@@ -82,7 +86,7 @@ __host__ __device__ Ray Camera::computeCameraRay(int i, int j, Sampler* p_sample
 	tentFilter(dx, dy, p_sampler);
 
 	float normalized_i = (((float)i + dx) / (float)xpixels) - 0.5;
-	float normalized_j = 1.0f - (((float)j + dy) / (float)ypixels) - 0.5f;
+	float normalized_j = 1.0f - (((float)j + dy) / (float)ypixels);
 
 	Vector3Df direction = dir;
 	float rightJitter = 1.0f;
@@ -97,7 +101,7 @@ __host__ __device__ Ray Camera::computeCameraRay(int i, int j, Sampler* p_sample
 		rightJitter = cosf(r1) * r2 * apertureWidth;
 		upJitter = sinf(r1)* r2 * apertureWidth;
 		origin += ((right * rightJitter) + (up * upJitter));
-		Vector3Df focalPoint = eye + direction * 3.0f;
+		Vector3Df focalPoint = eye + direction * focusDistance;
 		direction = focalPoint - origin;
 	}
 
