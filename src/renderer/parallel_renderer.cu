@@ -15,6 +15,7 @@
 
 using std::cout;
 
+#define USE_SHARED_MEMORY
 #define BLOCK_WIDTH 16u
 
 // Kernels
@@ -87,7 +88,6 @@ __host__ ParallelRenderer::~ParallelRenderer() {
 }
 
 __host__ void ParallelRenderer::copyMemoryToCuda() {
-	//Scene* p_scene = getScenePtr();
 	unsigned int numTris = p_scene->getNumTriangles();
 	unsigned int numLights = p_scene->getNumLights();
 	unsigned int numBvhNodes = p_scene->getNumBvhNodes();
@@ -167,8 +167,8 @@ __global__ void renderKernel(SettingsData settings,
 		LightsData* p_lights,
 		curandState *p_curandState,
 		int sampleNumber) {
-	int x = blockIdx.x * blockDim.x + threadIdx.x;
-	int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+#ifdef USE_SHARED_MEMORY
 	unsigned int numMaterials = p_tris->numMaterials;
 	extern __shared__ Material d_materials[];
 	if (threadIdx.x + threadIdx.y == 0) {
@@ -177,6 +177,11 @@ __global__ void renderKernel(SettingsData settings,
 		}
 	}
 	__syncthreads();
+#else
+	Material* d_materials = p_tris->p_materials;
+#endif
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
 	int idx = y * settings.width + x;
 	curandState* p_threadCurand = &p_curandState[idx];
 	Sampler sampler(p_threadCurand);
