@@ -13,6 +13,7 @@
 using std::vector;
 using std::map;
 
+#define LIGHTS_GAIN 3.0f
 
 unsigned int populateMaterialsMap(vector<objl::Mesh> meshes);
 Material materialFromMtl(objl::Material m);
@@ -58,6 +59,7 @@ Material materialFromMtl(objl::Material m) {
 		material.bsdf = REFRACTIVE;
 	}
 	if (material.ka.lengthsq() > 0.0f) {
+		material.ka *= LIGHTS_GAIN;
 		material.bsdf = EMISSIVE;
 	}
 	return material;
