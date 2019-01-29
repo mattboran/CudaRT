@@ -15,6 +15,16 @@
 #include <math.h>
 
 #define USE_BVH
+#define USE_SKYBOX
+
+#ifdef USE_SKYBOX
+#ifdef __CUDA_ARCH__
+__constant__ float skybox[] = { 0.0f, 0.025f, 0.05f };
+#else
+static const float skybox[] = { 0.0f, 0.25f, 0.05f };
+#endif
+#endif
+
 
 __host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriangles, SurfaceInteraction &interaction, Ray& ray);
 __host__ __device__ bool rayIntersectsBox(Ray& ray, const Vector3Df& min, const Vector3Df& max);
@@ -71,15 +81,13 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
     Material* p_previousMaterial = NULL;
     LinearBVHNode* p_bvh = p_trianglesData->p_bvh;
     for (unsigned bounces = 0; bounces < 6; bounces++) {
-#ifdef USE_BVH
     	if (!intersectBVH(p_bvh, p_triangles, interaction, ray)) {
+#ifdef USE_SKYBOX
+    		color += mask * Vector3Df(skybox[0], skybox[1], skybox[2]);
+#endif
     		break;
     	}
-#else
-        if (!intersectTriangles(p_triangles, p_trianglesData->numTriangles, interaction, ray)) {
-            break;
-        }
-#endif
+
         p_hitTriangle = interaction.p_hitTriangle;
 #ifdef SHOW_NORMALS
         return p_hitTriangle->getNormal(interaction.u, interaction.v);
@@ -98,7 +106,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
         	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, p_material, p_sampler);
 			mask = mask * diffuseSample / interaction.pdf;
 
-			float randomNumber = p_sampler->getNextFloat() * ((float)p_lightsData->numLights - 0.000001f);
+			float randomNumber = p_sampler->getNextFloat() * ((float)p_lightsData->numLights - .00001f);
 			int selectedLightIdx = (int)truncf(randomNumber);
 			Triangle* p_light = &p_lightsData->lightsPtr[selectedLightIdx];
 			Material* p_lightMaterial = &p_materials[p_light->_materialId];
