@@ -19,7 +19,7 @@
 __host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriangles, SurfaceInteraction &interaction, Ray& ray);
 __host__ __device__ bool rayIntersectsBox(Ray& ray, const Vector3Df& min, const Vector3Df& max);
 __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Material* p_material, Sampler* p_sampler);
-__host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Material* p_material, Sampler* p_sampler);
+__host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Material* p_material);
 __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, Material* p_material, const SurfaceInteraction &interaction, Sampler* p_sampler);
 __host__ __device__ bool intersectBVH(LinearBVHNode* p_bvh, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray);
 
@@ -68,6 +68,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
     SurfaceInteraction interaction = SurfaceInteraction();
     Triangle* p_triangles = p_trianglesData->p_triangles;
     Triangle* p_hitTriangle = NULL;
+    Material* p_previousMaterial = NULL;
     LinearBVHNode* p_bvh = p_trianglesData->p_bvh;
     for (unsigned bounces = 0; bounces < 6; bounces++) {
 #ifdef USE_BVH
@@ -83,15 +84,16 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
 #ifdef SHOW_NORMALS
         return p_hitTriangle->getNormal(interaction.u, interaction.v);
 #endif
-        if (bounces == 0) {
-        	color += mask * p_materials[p_hitTriangle->_materialId].ka;
+        Material* p_material = &p_materials[p_hitTriangle->_materialId];
+        if (bounces == 0 || p_previousMaterial->bsdf == SPECULAR) {
+        	color += mask * p_material->ka;
         }
         interaction.normal = p_hitTriangle->getNormal(interaction.u, interaction.v);
-        interaction.position = ray.origin + ray.dir * ray.tMax  + interaction.normal * EPSILON;
+        interaction.position = ray.origin + ray.dir * ray.tMax;
         interaction.outputDirection = normalize(ray.dir);
         interaction.p_hitTriangle = p_hitTriangle;
 
-        Material* p_material = &p_materials[p_hitTriangle->_materialId];
+        p_previousMaterial = p_material;
         if (p_material->bsdf == DIFFUSE) {
         	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, p_material, p_sampler);
 			mask = mask * diffuseSample / interaction.pdf;
@@ -111,11 +113,11 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
 		}
 
         if (p_material->bsdf == SPECULAR) {
-        	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, p_material, p_sampler);
-			mask = mask * diffuseSample / interaction.pdf;
+        	Vector3Df perfectSpecularSample = sampleSpecularBSDF(&interaction, p_hitTriangle, p_material);
+			mask = mask * perfectSpecularSample / interaction.pdf;
         }
 
-        ray.origin = interaction.position;
+        ray.origin = interaction.position + interaction.normal * EPSILON;
         ray.dir = interaction.inputDirection;
         ray.tMin = EPSILON;
         ray.tMax = FLT_MAX;
@@ -243,8 +245,13 @@ __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interactio
    return p_material->kd * cosineWeight;
 }
 
-__host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Material* p_material, Sampler* p_sampler) {
-
+__host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Material* p_material) {
+	Vector3Df normal = p_interaction->normal;
+	Vector3Df incedent = p_interaction->outputDirection;
+	Vector3Df reflected = incedent - normal * dot(incedent, normal) * 2.f;
+	p_interaction->inputDirection = reflected;
+	p_interaction->pdf = 1.0f;
+	return p_material->ks;
 }
 
 __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, Material* p_material, const SurfaceInteraction &interaction, Sampler* p_sampler) {
