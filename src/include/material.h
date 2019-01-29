@@ -4,7 +4,7 @@
 #include "linalg.h"
 
 enum refl_t {
-    DIFFUSE,
+    LAMBERT,
     SPECULAR,
     DIFFSPEC,
     MICROFACET,
@@ -13,7 +13,7 @@ enum refl_t {
 };
 
 struct Material {
-    refl_t bsdf = DIFFUSE;
+    refl_t bsdf = LAMBERT;
     Vector3Df kd = Vector3Df(1,1,1);
     Vector3Df ka = Vector3Df(0,0,0);
     Vector3Df ks = Vector3Df(0,0,0);

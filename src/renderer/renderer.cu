@@ -16,6 +16,7 @@
 
 #define USE_BVH
 #define USE_SKYBOX
+#define UNBIASED
 
 #ifdef USE_SKYBOX
 #ifdef __CUDA_ARCH__
@@ -78,8 +79,8 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
     SurfaceInteraction interaction = SurfaceInteraction();
     Triangle* p_triangles = p_trianglesData->p_triangles;
     Triangle* p_hitTriangle = NULL;
-    refl_t currentBsdf = DIFFUSE;
-    refl_t previousBsdf = DIFFUSE;
+    refl_t currentBsdf = LAMBERT;
+    refl_t previousBsdf = LAMBERT;
     LinearBVHNode* p_bvh = p_trianglesData->p_bvh;
     for (unsigned bounces = 0; bounces < 6; bounces++) {
     	if (!intersectBVH(p_bvh, p_triangles, interaction, ray)) {
@@ -110,16 +111,17 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
         if (currentBsdf == DIFFSPEC) {
 			// use Russian roulette to decide whether to evaluate diffuse or specular BSDF
         	float p = maxComponent(p_material->ks);
+//        	float f = fabs(dot(interaction.normal, interaction.outputDirection));
         	if (p_sampler->getNextFloat() < p) {
-        		currentBsdf = DIFFUSE;
-        	} else {
         		currentBsdf = SPECULAR;
+        	} else {
+        		currentBsdf = LAMBERT;
         	}
         	mask *= 1.0f / p;
         }
 
         // DIFFUSE BSDF
-        if (currentBsdf == DIFFUSE) {
+        if (currentBsdf == LAMBERT) {
         	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, p_material, p_sampler);
 			mask = mask * diffuseSample / interaction.pdf;
 

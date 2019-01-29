@@ -48,7 +48,7 @@ Material materialFromMtl(objl::Material m) {
 	material.ks = m.Ks;
 	material.ns = m.Ns;
 	material.ni = m.Ni;
-	material.bsdf = DIFFUSE;
+	material.bsdf = LAMBERT;
 	if (material.ks.lengthsq() > 0.0f) {
 		material.bsdf = SPECULAR;
 		if (material.kd.lengthsq() > 0.0f) {
