@@ -19,6 +19,7 @@
 __host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriangles, SurfaceInteraction &interaction, Ray& ray);
 __host__ __device__ bool rayIntersectsBox(Ray& ray, const Vector3Df& min, const Vector3Df& max);
 __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Material* p_material, Sampler* p_sampler);
+__host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Material* p_material, Sampler* p_sampler);
 __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, Material* p_material, const SurfaceInteraction &interaction, Sampler* p_sampler);
 __host__ __device__ bool intersectBVH(LinearBVHNode* p_bvh, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray);
 
@@ -91,7 +92,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
         interaction.p_hitTriangle = p_hitTriangle;
 
         Material* p_material = &p_materials[p_hitTriangle->_materialId];
-//        if (p_material->bsdf == DIFFUSE) {
+        if (p_material->bsdf == DIFFUSE) {
         	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, p_material, p_sampler);
 			mask = mask * diffuseSample / interaction.pdf;
 
@@ -107,17 +108,26 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
 			directLighting.z = clamp(directLighting.z, 0.0f, 1.0f);
 #endif
 			color += mask * directLighting;
-//		}
+		}
 
-//        if (p_material->bsdf == SPECULAR) {
-//        	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, p_material, p_sampler);
-//			mask = mask * diffuseSample / interaction.pdf;
-//        }
+        if (p_material->bsdf == SPECULAR) {
+        	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, p_material, p_sampler);
+			mask = mask * diffuseSample / interaction.pdf;
+        }
 
         ray.origin = interaction.position;
         ray.dir = interaction.inputDirection;
         ray.tMin = EPSILON;
         ray.tMax = FLT_MAX;
+
+        // Russian Roulette
+        if (bounces >= 3) {
+            float p = maxComponent(mask);
+            if (p_sampler->getNextFloat() > p) {
+                break;
+            }
+            mask *= 1.0f / p;
+        }
     }
     return color;
 }
@@ -231,6 +241,10 @@ __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interactio
    p_interaction->pdf = 0.5f;
    float cosineWeight = dot(p_interaction->inputDirection, p_interaction->normal);
    return p_material->kd * cosineWeight;
+}
+
+__host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Material* p_material, Sampler* p_sampler) {
+
 }
 
 __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, Material* p_material, const SurfaceInteraction &interaction, Sampler* p_sampler) {
