@@ -51,10 +51,10 @@ struct materialComparator {
 		if (lhs.kd.x < rhs.kd.x || lhs.kd.y < rhs.kd.y || lhs.kd.z < rhs.kd.z) {
 			return true;
 		}
-		if (lhs.kd.x < rhs.kd.x || lhs.kd.y < rhs.kd.y || lhs.kd.z < rhs.kd.z) {
+		if (lhs.ka.x < rhs.ka.x || lhs.ka.y < rhs.ka.y || lhs.ka.z < rhs.ka.z) {
 			return true;
 		}
-		if (lhs.kd.x < rhs.kd.x || lhs.kd.y < rhs.kd.y || lhs.kd.z < rhs.kd.z) {
+		if (lhs.ks.x < rhs.ks.x || lhs.ks.y < rhs.ks.y || lhs.ks.z < rhs.ks.z) {
 			return true;
 		}
 		if (lhs.ns < rhs.ns) {

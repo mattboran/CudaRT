@@ -77,10 +77,6 @@ unsigned int populateMaterialsMap(vector<objl::Mesh> meshes) {
 	return materialsMap.size();
 }
 
-unsigned int findMaterial(Material* p_materials, const Material& material) {
-
-}
-
 Triangle* Scene::loadTriangles() {
 	Triangle* p_tris = (Triangle*)malloc(sizeof(Triangle) * getNumTriangles());
 	Triangle* p_current = p_tris;
@@ -137,5 +133,11 @@ Triangle* Scene::loadTriangles() {
 			[](const Triangle &a, const Triangle &b) -> bool {
 		return a._surfaceArea > b._surfaceArea;
 	});
+	int count = 0;
+	for (int i = 0; i < numMaterials; i++ ) {
+		if (p_materials[i].bsdf == EMISSIVE)
+			count++;
+	}
+	std::cout << "Got " << count << " emissive materials.\n";
 	return p_tris;
 }
