@@ -21,7 +21,7 @@
 #ifdef __CUDA_ARCH__
 __constant__ float skybox[] = { 0.0f, 0.025f, 0.05f };
 #else
-static const float skybox[] = { 0.0f, 0.25f, 0.05f };
+static const float skybox[] = { 0.0f, 0.025f, 0.05f };
 #endif
 #endif
 
@@ -78,7 +78,8 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
     SurfaceInteraction interaction = SurfaceInteraction();
     Triangle* p_triangles = p_trianglesData->p_triangles;
     Triangle* p_hitTriangle = NULL;
-    Material* p_previousMaterial = NULL;
+    refl_t currentBsdf = DIFFUSE;
+    refl_t previousBsdf = DIFFUSE;
     LinearBVHNode* p_bvh = p_trianglesData->p_bvh;
     for (unsigned bounces = 0; bounces < 6; bounces++) {
     	if (!intersectBVH(p_bvh, p_triangles, interaction, ray)) {
@@ -93,16 +94,32 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
         return p_hitTriangle->getNormal(interaction.u, interaction.v);
 #endif
         Material* p_material = &p_materials[p_hitTriangle->_materialId];
-        if (bounces == 0 || p_previousMaterial->bsdf == SPECULAR) {
+        if (bounces == 0 || previousBsdf == SPECULAR) {
         	color += mask * p_material->ka;
         }
+
         interaction.normal = p_hitTriangle->getNormal(interaction.u, interaction.v);
         interaction.position = ray.origin + ray.dir * ray.tMax;
         interaction.outputDirection = normalize(ray.dir);
         interaction.p_hitTriangle = p_hitTriangle;
 
-        p_previousMaterial = p_material;
-        if (p_material->bsdf == DIFFUSE) {
+        // SHADING CALCULATIONS
+        currentBsdf = p_material->bsdf;
+
+        // DIFFUSE AND SPECULAR BSDF
+        if (currentBsdf == DIFFSPEC) {
+			// use Russian roulette to decide whether to evaluate diffuse or specular BSDF
+        	float p = maxComponent(p_material->ks);
+        	if (p_sampler->getNextFloat() < p) {
+        		currentBsdf = DIFFUSE;
+        	} else {
+        		currentBsdf = SPECULAR;
+        	}
+        	mask *= 1.0f / p;
+        }
+
+        // DIFFUSE BSDF
+        if (currentBsdf == DIFFUSE) {
         	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, p_material, p_sampler);
 			mask = mask * diffuseSample / interaction.pdf;
 
@@ -120,10 +137,13 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
 			color += mask * directLighting;
 		}
 
-        if (p_material->bsdf == SPECULAR) {
+        // PURE SPECULAR BSDF
+        if (currentBsdf == SPECULAR) {
         	Vector3Df perfectSpecularSample = sampleSpecularBSDF(&interaction, p_hitTriangle, p_material);
 			mask = mask * perfectSpecularSample / interaction.pdf;
         }
+
+        previousBsdf = currentBsdf;
 
         ray.origin = interaction.position + interaction.normal * EPSILON;
         ray.dir = interaction.inputDirection;

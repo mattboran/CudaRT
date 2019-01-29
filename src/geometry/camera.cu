@@ -66,14 +66,12 @@ __host__ __device__ void tentFilter(float &i, float &j, Sampler* p_sampler) {
 	float r1, r2;
 	r1 = 2.f * p_sampler->getNextFloat();
 	r2 = 2.f * p_sampler->getNextFloat();
-	float dx;
 	if (r1 < 1.f){
 		i = sqrtf(r1) - 1.f;
 	}
 	else{
 		i = 1.f - sqrtf(2.f - r1);
 	}
-	float dy;
 	if (r2 < 1){
 		j = sqrtf(r2) - 1.f;
 	}

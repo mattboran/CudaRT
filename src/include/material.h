@@ -6,7 +6,8 @@
 enum refl_t {
     DIFFUSE,
     SPECULAR,
-    COOKETORRENCE,
+    DIFFSPEC,
+    MICROFACET,
     REFRACTIVE,
     EMISSIVE
 };

@@ -51,8 +51,11 @@ Material materialFromMtl(objl::Material m) {
 	material.bsdf = DIFFUSE;
 	if (material.ks.lengthsq() > 0.0f) {
 		material.bsdf = SPECULAR;
+		if (material.kd.lengthsq() > 0.0f) {
+			material.bsdf = DIFFSPEC;
+		}
 		if (material.ns > 0.0f) {
-			material.bsdf = COOKETORRENCE;
+			material.bsdf = MICROFACET;
 		}
 	}
 	if (material.ni != 1.0f) {
