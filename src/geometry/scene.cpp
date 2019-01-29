@@ -1,7 +1,7 @@
 // Implementation for Scene functions. This file is responsible for setting up the scene for rendering
 
-#include "bvh.h"
 #include "linalg.h"
+#include "bvh.h"
 #include "scene.h"
 
 #include <algorithm>

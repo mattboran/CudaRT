@@ -85,18 +85,17 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
         if (bounces == 0) {
         	color += mask * p_materials[p_hitTriangle->_materialId].ka;
         }
-        interaction.position = ray.origin + ray.dir * ray.tMax;
         interaction.normal = p_hitTriangle->getNormal(interaction.u, interaction.v);
+        interaction.position = ray.origin + ray.dir * ray.tMax  + interaction.normal * EPSILON;
         interaction.outputDirection = normalize(ray.dir);
         interaction.p_hitTriangle = p_hitTriangle;
 
         Material* p_material = &p_materials[p_hitTriangle->_materialId];
-        //IF DIFFUSE
-		{
+//        if (p_material->bsdf == DIFFUSE) {
         	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, p_material, p_sampler);
 			mask = mask * diffuseSample / interaction.pdf;
 
-			float randomNumber = p_sampler->getNextFloat() * ((float)p_lightsData->numLights - 1.0f + 0.9999999f);
+			float randomNumber = p_sampler->getNextFloat() * ((float)p_lightsData->numLights - 0.000001f);
 			int selectedLightIdx = (int)truncf(randomNumber);
 			Triangle* p_light = &p_lightsData->lightsPtr[selectedLightIdx];
 			Material* p_lightMaterial = &p_materials[p_light->_materialId];
@@ -108,7 +107,12 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
 			directLighting.z = clamp(directLighting.z, 0.0f, 1.0f);
 #endif
 			color += mask * directLighting;
-		}
+//		}
+
+//        if (p_material->bsdf == SPECULAR) {
+//        	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, p_material, p_sampler);
+//			mask = mask * diffuseSample / interaction.pdf;
+//        }
 
         ray.origin = interaction.position;
         ray.dir = interaction.inputDirection;
@@ -210,7 +214,6 @@ __host__ __device__ bool rayIntersectsBox(Ray& ray, const Vector3Df& min, const 
 	t1 = tFar < t1 ? tFar : t1;
 	if (t0 > t1) return false;
 
-//	ray.tMax = t1;
 	return true;
 }
 
@@ -249,7 +252,10 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, Triangle
 	if (intersectsLight && sameTriangle(lightInteraction.p_hitTriangle, p_light)) {
 		float surfaceArea = p_light->_surfaceArea;
 		float distanceSquared = ray.tMax*ray.tMax;
-		float incidenceAngle = fabs(dot(p_light->getNormal(lightInteraction.u, lightInteraction.v), -ray.dir));
+		// For directional lights also consider light direction
+//		float incidenceAngle = fabs(dot(p_light->getNormal(lightInteraction.u, lightInteraction.v), -ray.dir));
+		// Otherwise direct lighting is based on the diffuse term and obey Lambert's cosine law
+		float incidenceAngle = fabs(dot(ray.dir, interaction.normal));
 		float weightFactor = surfaceArea/distanceSquared * incidenceAngle;
 		directLighting += p_material->ka * weightFactor;
 	}
