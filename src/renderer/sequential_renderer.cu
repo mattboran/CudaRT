@@ -42,11 +42,12 @@ SequentialRenderer::~SequentialRenderer() {
 __host__ void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 	samplesRendered++;
 	Camera* p_camera = p_scene->getCameraPtr();
+	Material* p_materials = p_scene->getMaterialsPtr();
 	Sampler* p_sampler = new Sampler();
     for (unsigned x = 0; x < width; x++) {
         for (unsigned y = 0; y < height; y++) {
             int idx = y * width + x;
-            Vector3Df sample = samplePixel(x, y, p_camera, h_trianglesData, h_lightsData, p_sampler);
+            Vector3Df sample = samplePixel(x, y, p_camera, h_trianglesData, h_lightsData, p_materials, p_sampler);
             h_imgVectorPtr[idx] += sample;
             p_img[idx] = vector3ToUchar4(h_imgVectorPtr[idx]/samplesRendered);
         }

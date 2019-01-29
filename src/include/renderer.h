@@ -43,7 +43,7 @@ struct Sampler {
 	__host__ __device__ float getNextFloat();
 };
 
-__host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, TrianglesData* p_trianglesData, LightsData *p_lightsData, Sampler* p_sampler);
+__host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, TrianglesData* p_trianglesData, LightsData *p_lightsData, Material* p_materials, Sampler* p_sampler);
 __host__ __device__ void gammaCorrectPixel(uchar4 &p);
 
 class Renderer {

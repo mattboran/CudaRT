@@ -15,8 +15,6 @@
 
 using std::cout;
 
-__constant__ Camera* dc_camera;
-
 #define BLOCK_WIDTH 16u
 
 // Kernels
@@ -135,7 +133,8 @@ __host__ void ParallelRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 	dim3 block = dim3(BLOCK_WIDTH, BLOCK_WIDTH, 1);
 	dim3 grid = dim3(width/BLOCK_WIDTH, height/BLOCK_WIDTH, 1);
 	samplesRendered++;
-	renderKernel<<<grid, block, 0>>>(d_settingsData,
+	size_t sharedMemory = sizeof(Material) * p_scene->getNumMaterials();
+	renderKernel<<<grid, block, sharedMemory>>>(d_settingsData,
 			d_imgVectorPtr,
 			p_img,
 			d_camPtr,
@@ -171,14 +170,17 @@ __global__ void renderKernel(SettingsData settings,
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
 	unsigned int numMaterials = p_tris->numMaterials;
-//	__shared__ Material d_materials[numMaterials];
-//	if (threadIdx.x + threadIdx.y == 0) {
-//
-//	}
+	extern __shared__ Material d_materials[];
+	if (threadIdx.x + threadIdx.y == 0) {
+		for (int i = 0; i < numMaterials; i++) {
+			d_materials[i] = p_tris->p_materials[i];
+		}
+	}
+	__syncthreads();
 	int idx = y * settings.width + x;
 	curandState* p_threadCurand = &p_curandState[idx];
 	Sampler sampler(p_threadCurand);
-	Vector3Df color = samplePixel(x, y, p_camera, p_tris, p_lights, &sampler);
+	Vector3Df color = samplePixel(x, y, p_camera, p_tris, p_lights, d_materials, &sampler);
 	p_imgBuffer[idx] += color;
 	p_outImg[idx] = vector3ToUchar4(p_imgBuffer[idx]/(float)sampleNumber);
 }
