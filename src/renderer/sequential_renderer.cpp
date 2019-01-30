@@ -1,8 +1,10 @@
 #include "renderer.h"
-
 #include <algorithm>
 #include <iterator>
 #include <string.h>
+#ifdef _OPENMP
+ #include <omp.h>
+#endif
 
 SequentialRenderer::SequentialRenderer(Scene* _scenePtr, int _width, int _height, int _samples) :
   Renderer(_scenePtr, _width, _height, _samples)
@@ -39,11 +41,12 @@ SequentialRenderer::~SequentialRenderer() {
     delete[] h_imgVectorPtr;
 }
 
-__host__ void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
+void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 	samplesRendered++;
 	Camera* p_camera = p_scene->getCameraPtr();
 	Material* p_materials = p_scene->getMaterialsPtr();
 	Sampler* p_sampler = new Sampler();
+    #pragma omp parallel for
     for (unsigned x = 0; x < width; x++) {
         for (unsigned y = 0; y < height; y++) {
             int idx = y * width + x;
@@ -55,7 +58,7 @@ __host__ void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 	delete p_sampler;
 }
 
-__host__ void SequentialRenderer::copyImageBytes(uchar4* p_img) {
+void SequentialRenderer::copyImageBytes(uchar4* p_img) {
 	int pixels = width * height;
 	size_t imgBytes = sizeof(uchar4) * pixels;
 	memcpy(h_imgPtr, p_img, imgBytes);
