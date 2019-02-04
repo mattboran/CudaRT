@@ -24,8 +24,10 @@ struct LightsData {
 struct TrianglesData {
 	Triangle* p_triangles;
 	LinearBVHNode* p_bvh;
+	Material* p_materials;
 	unsigned numTriangles;
 	unsigned numBVHNodes;
+	unsigned numMaterials;
 };
 
 struct SettingsData {
@@ -41,7 +43,7 @@ struct Sampler {
 	__host__ __device__ float getNextFloat();
 };
 
-__host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, TrianglesData* p_trianglesData, LightsData *p_lightsData, Sampler* p_sampler);
+__host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, TrianglesData* p_trianglesData, LightsData *p_lightsData, Material* p_materials, Sampler* p_sampler);
 __host__ __device__ void gammaCorrectPixel(uchar4 &p);
 
 class Renderer {
@@ -66,7 +68,7 @@ public:
 	__host__ int getSamples() { return samples; }
 	__host__ int getSamplesRendered() { return samplesRendered; }
 	__host__ void createSettingsData(SettingsData* p_settingsData);
-	__host__ void createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles, LinearBVHNode* p_bvh);
+	__host__ void createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles, LinearBVHNode* p_bvh, Material* p_materials);
 	__host__ void createLightsData(LightsData* p_lightsData, Triangle* p_triangles);
 };
 
@@ -87,6 +89,7 @@ private:
 	Triangle* d_triPtr;
 	LinearBVHNode* d_bvhPtr;
 	Triangle* d_lightsPtr;
+	Material* d_materials;
 	Camera* d_camPtr;
 	curandState* d_curandStatePtr;
 	// TODO: Consider storing block, grid instead

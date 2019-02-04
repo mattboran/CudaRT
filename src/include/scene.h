@@ -3,6 +3,7 @@
 #define SCENE_H
 
 #include "camera.h"
+#include "material.h"
 
 #include "obj_load.h"
 
@@ -23,8 +24,9 @@ public:
 	int getNumMeshes() { return meshLoader.LoadedMeshes.size(); }
 	int getNumTriangles() { return getNumVertices() / 3; }
 	int getNumLights() { return lightsList.size(); }
-	unsigned getNumVertices() { return meshLoader.LoadedVertices.size(); }
+	unsigned int getNumVertices() { return meshLoader.LoadedVertices.size(); }
 	unsigned int getNumBvhNodes() { return numBvhNodes; }
+	unsigned int getNumMaterials() { return numMaterials; }
 	float getLightsSurfaceArea();
 	Triangle* getTriPtr() { return p_triangles; }
 	Triangle* getLightsPtr() { return &lightsList[0]; }
@@ -34,6 +36,7 @@ public:
 
 	objl::Mesh getMesh(int i) { return meshLoader.LoadedMeshes[i]; }
 	Camera* getCameraPtr() { return p_camera; }
+	Material* getMaterialsPtr() { return p_materials; }
 
 	// Set methods
 	void setCameraPtr(Camera* p) { p_camera = p; }
@@ -42,14 +45,16 @@ public:
 
 private:
 	// Geometry - todo: phase these out if possible
-	Triangle* p_triangles = NULL;
+	Triangle* p_triangles;
 	std::vector<Triangle> lightsList;
 	objl::Loader meshLoader;
 	Camera* p_camera;
 	unsigned* vertexIndices;
 	objl::Vertex* p_vertices;
-	LinearBVHNode* p_bvh = NULL;
+	LinearBVHNode* p_bvh;
 	unsigned int numBvhNodes;
+	Material* p_materials;
+	unsigned int numMaterials;
 
 	Triangle* loadTriangles();
 };

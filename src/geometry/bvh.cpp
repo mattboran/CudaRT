@@ -57,9 +57,9 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
 int flattenBVHTree(LinearBVHNode* const p_linearNodes, BVHBuildNode* p_node, int* offset);
 
 
-vector<TriangleBBox> trianglesInfo;
-vector<Triangle> orderedTriangles;
-const int maxTrisInNode = 3;
+static vector<TriangleBBox> trianglesInfo;
+static vector<Triangle> orderedTriangles;
+static const int maxTrisInNode = 3;
 
 
 void constructBVH(Scene* p_scene) {
@@ -71,9 +71,6 @@ void constructBVH(Scene* p_scene) {
     LinearBVHNode* p_linearBvh = p_scene->getBvhPtr();
     int offset = 0;
     flattenBVHTree(p_linearBvh, p_bvh, &offset);
-//    for (int i = 0; i < totalNodes; i++) {
-//    	cout << "LBVHNode " << i << " has numTriangles " << p_linearBvh[i].numTriangles << " and offset " << p_linearBvh[i].secondChildOffset << endl;
-//    }
     Triangle* p_dest = p_scene->getTriPtr();
     std::copy(orderedTriangles.begin(), orderedTriangles.end(), p_dest);
 

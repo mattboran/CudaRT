@@ -166,9 +166,9 @@ namespace objl
 		// Specular Color
 		Vector3 Ks;
 		// Specular Exponent
-		float Ns;
+		float Ns = 0.0f;
 		// Optical Density
-		float Ni;
+		float Ni = 1.0f;
 		// Dissolve
 		float d;
 		// Illumination

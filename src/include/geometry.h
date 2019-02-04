@@ -26,10 +26,7 @@ struct Ray {
 struct Triangle {
 	// Triangle ID
 	unsigned _triId;
-	// RGB Color Vector3Df
-	Vector3Df _colorDiffuse;
-	Vector3Df _colorSpec;
-	Vector3Df _colorEmit;
+	unsigned _materialId;
 
 	// Vertex indices will be used for intersection soon (see github issues)
 	unsigned _id1, _id2, _id3;

@@ -23,9 +23,7 @@ Vector3Df max3(const Vector3Df& a, const Vector3Df& b,
 }
 
 __host__ __device__ Triangle::Triangle(const Triangle &t) :
-		_v1(t._v1), _e1(t._e1), _e2(t._e2), _n1(t._n1), _n2(t._n2), _n3(t._n3), _colorDiffuse(
-				t._colorDiffuse), _colorSpec(t._colorSpec), _colorEmit(
-				t._colorEmit), _surfaceArea(t._surfaceArea), _triId(t._triId) {
+		_v1(t._v1), _e1(t._e1), _e2(t._e2), _n1(t._n1), _n2(t._n2), _n3(t._n3), _surfaceArea(t._surfaceArea), _triId(t._triId), _materialId(t._materialId) {
 }
 
 __device__ float Triangle::intersect(const Ray& r, float &_u, float &_v) const {

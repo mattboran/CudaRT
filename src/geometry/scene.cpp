@@ -1,17 +1,25 @@
 // Implementation for Scene functions. This file is responsible for setting up the scene for rendering
 
-#include "bvh.h"
 #include "linalg.h"
+#include "bvh.h"
 #include "scene.h"
 
 #include <algorithm>
-#include <iostream>
 #include <cfloat>
+#include <iostream>
+#include <map>
 #include <math.h>
 
 using std::vector;
+using std::map;
 
+#define LIGHTS_GAIN 3.0f
 
+unsigned int populateMaterialsMap(vector<objl::Mesh> meshes);
+Material materialFromMtl(objl::Material m);
+
+static vector<Material> materialsList;
+static map<Material, unsigned int, materialComparator> materialsMap;
 // Constructors
 Scene::Scene(std::string filename) {
 	meshLoader = objl::Loader();
@@ -33,15 +41,69 @@ float Scene::getLightsSurfaceArea() {
 	return surfaceArea;
 }
 
+Material materialFromMtl(objl::Material m) {
+	Material material;
+	material.ka = m.Ka;
+	material.kd = m.Kd;
+	material.ks = m.Ks;
+	material.ns = m.Ns;
+	material.ni = m.Ni;
+	material.bsdf = LAMBERT;
+	if (material.ks.lengthsq() > 0.0f) {
+		material.bsdf = SPECULAR;
+		if (material.kd.lengthsq() > 0.0f) {
+			material.bsdf = DIFFSPEC;
+		}
+		if (material.ns > 0.0f) {
+			material.bsdf = MICROFACET;
+		}
+	}
+	if (material.ni != 1.0f) {
+		material.bsdf = REFRACTIVE;
+	}
+	if (material.ka.lengthsq() > 0.0f) {
+		material.ka *= LIGHTS_GAIN;
+		material.bsdf = EMISSIVE;
+	}
+	return material;
+}
+
+// todo: change this to a set
+unsigned int populateMaterialsMap(vector<objl::Mesh> meshes) {
+	unsigned int idx = 0;
+	for (auto const& mesh: meshes) {
+		// TODO: Move this to Material.h
+		Material material = materialFromMtl(mesh.MeshMaterial);
+		if (materialsMap.count(material) == 0) {
+			materialsMap.insert(std::pair<Material, unsigned int>(material, idx));
+			idx++;
+		}
+	}
+	return materialsMap.size();
+}
+
 Triangle* Scene::loadTriangles() {
 	Triangle* p_tris = (Triangle*)malloc(sizeof(Triangle) * getNumTriangles());
 	Triangle* p_current = p_tris;
 	vector<objl::Mesh> meshes = meshLoader.LoadedMeshes;
+
+	// Allocate and populate materials array
+	numMaterials = populateMaterialsMap(meshes);
+	p_materials = new Material[numMaterials];
+	for (auto it = materialsMap.begin(); it != materialsMap.end(); it++) {
+		p_materials[it->second] = it->first;
+	}
+	for (unsigned i = 0; i < numMaterials; i++) {
+		materialsList.push_back(p_materials[i]);
+	}
+
 	unsigned triId = 0;
 	for (auto const& mesh: meshes) {
 		vector<objl::Vertex> vertices = mesh.Vertices;
 		vector<unsigned> indices = mesh.Indices;
 		objl::Material material = mesh.MeshMaterial;
+		Material m = materialFromMtl(material);
+		auto it = std::find(materialsList.begin(), materialsList.end(), m);
 		for (unsigned int i = 0; i < vertices.size()/3; i++) {
 			p_current->_id1 = indices[i*3];
 			p_current->_id2 = indices[i*3 + 1];
@@ -59,15 +121,13 @@ Triangle* Scene::loadTriangles() {
 			p_current->_e1 = _v2 - _v1;
 			p_current->_e2 = _v3 - _v1;
 
+			p_current->_materialId = it - materialsList.begin();
 			// Materials
-			p_current->_colorDiffuse = Vector3Df(material.Kd);
-			p_current->_colorSpec = Vector3Df(material.Ks);
-			p_current->_colorEmit = Vector3Df(material.Ka);
 
 			p_current->_surfaceArea = cross(p_current->_e1, p_current->_e2).length()/2.0f;
 			p_current->_triId = triId++;
 
-			if (p_current->_colorEmit.lengthsq() > 0.0f) {
+			if (m.bsdf == EMISSIVE) {
 				lightsList.push_back(*p_current);
 			}
 
@@ -78,5 +138,11 @@ Triangle* Scene::loadTriangles() {
 			[](const Triangle &a, const Triangle &b) -> bool {
 		return a._surfaceArea > b._surfaceArea;
 	});
+	int count = 0;
+	for (int i = 0; i < numMaterials; i++ ) {
+		if (p_materials[i].bsdf == EMISSIVE)
+			count++;
+	}
+	std::cout << "Got " << count << " emissive materials.\n";
 	return p_tris;
 }
