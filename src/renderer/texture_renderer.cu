@@ -1,9 +1,9 @@
 #include "renderer.h"
 #include <iostream>
 
-__host__ TextureRenderer::TextureRenderer(Scene* _scenePtr, Vector3Df* p_texture, int _width, int _height) :
-    Renderer(_scenePtr, _width, _height, 1) {
-
+__host__ TextureRenderer::TextureRenderer(Vector3Df* p_texture, int _width, int _height) :
+    Renderer(NULL, _width, _height, 1) {
+    h_texture = p_texture;
 }
 
 __host__ void TextureRenderer::renderOneSamplePerPixel(uchar4* p_img) {
@@ -11,12 +11,10 @@ __host__ void TextureRenderer::renderOneSamplePerPixel(uchar4* p_img) {
     for (unsigned x = 0; x < width; x++) {
         for (unsigned y = 0; y < height; y++) {
             int idx = y * width + x;
-            Vector3Df color(1, 0, 0);
-            p_img[idx] = vector3ToUchar4(color);
-            // std::cout << "x " << x << " y " << y << std::endl;
+            // Vector3Df color(1, 0, 0);
+            p_img[idx] = vector3ToUchar4(h_texture[idx]);
         }
     }
-    std::cout << "Done!\n";
 }
 
 __host__ void TextureRenderer::copyImageBytes(uchar4* p_img) {

@@ -35,7 +35,6 @@ JsonLoader::JsonLoader(std::string cam, std::string mat) : cameraFile(cam), mate
 }
 
 Camera JsonLoader::getCamera(int width, int height) {
-	const picojson::value::object& obj = cameraValue.get<picojson::object>();
 	float f = cameraValue.get("fieldOfView").get<double>();
 	float focalLength = cameraValue.get("focalLength").get<double>();
 	float fStop = cameraValue.get("fStop").get<double>();

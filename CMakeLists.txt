@@ -30,6 +30,7 @@ add_library(contextlib STATIC
 	${CONTEXT}/json_loader.cpp
 	${CONTEXT}/launcher.cpp
 	${CONTEXT}/terminal_launcher.cpp
+	${CONTEXT}/texture_loader.cu
 	${CONTEXT}/window.cpp
 	${CONTEXT}/windowed_launcher.cpp)
 target_include_directories(contextlib PUBLIC src/include /usr/include /usr/local/cuda/include)

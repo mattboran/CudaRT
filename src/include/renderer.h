@@ -76,7 +76,7 @@ public:
 class TextureRenderer: public Renderer {
 public:
     __host__ TextureRenderer() : Renderer() {}
-    __host__ TextureRenderer(Scene* _scenePtr, Vector3Df* p_texture, int _width, int _height);
+    __host__ TextureRenderer(Vector3Df* p_texture, int _width, int _height);
     __host__ void renderOneSamplePerPixel(uchar4* p_img);
     __host__ void copyImageBytes(uchar4* p_img);
     __host__ uchar4* getImgBytesPointer() { return h_imgPtr; }

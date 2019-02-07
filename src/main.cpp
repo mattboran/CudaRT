@@ -6,6 +6,7 @@
 #include "json_loader.h"
 #include "launcher.h"
 #include "renderer.h"
+#include "texture_loader.h"
 
 #include <algorithm>
 #include <array>
@@ -19,10 +20,10 @@ using namespace std;
 using namespace std::chrono;
 
 int main(int argc, char* argv[]) {
-	string outFile;
 	int samples = 10;
 	int width = 640;
 	int height = 480;
+	string outFile = "out.png";
 	string sceneName = "cornell";
 	string objPath = "../meshes/" + sceneName + ".obj";
 	string cameraPath = "../settings/" + sceneName + "-camera.json";
@@ -89,12 +90,6 @@ int main(int argc, char* argv[]) {
 		renderToScreen = true;
 	}
 
-	// Texture debug
-	if ((find(args.begin(), args.end(), "-t") < args.end() - 1)) {
-		textureDebug = true;
-		texturePath = *(find(args.begin(), args.end(), "-t") + 1);
-	}
-
 	// .obj path
 	if ((find(args.begin(), args.end(), "-f") < args.end() - 1)) {
 		sceneName = *(find(args.begin(), args.end(), "-f") + 1);
@@ -102,6 +97,13 @@ int main(int argc, char* argv[]) {
 		cameraPath = "../settings/" + sceneName + "-camera.json";
 		materialsPath = "../settings/" + sceneName + "-materials.json";
 		outFile = sceneName + ".png";
+	}
+
+
+	// Texture debug
+	if ((find(args.begin(), args.end(), "-t") < args.end() - 1)) {
+		textureDebug = true;
+		texturePath = *(find(args.begin(), args.end(), "-t") + 1);
 	}
 
 	cout << "Samples: " << samples << endl \
@@ -117,6 +119,7 @@ int main(int argc, char* argv[]) {
 	JsonLoader loader(cameraPath, materialsPath);
 	Scene scene(objPath);
 	Camera camera = loader.getCamera(width, height);
+
 	scene.setCameraPtr(&camera);
 
 	for (int i = 0; i < scene.getNumMeshes(); i++) {
@@ -132,8 +135,10 @@ int main(int argc, char* argv[]) {
 	cudaGetDeviceCount(&cudaCapableDevices);
 	if (useSequential || cudaCapableDevices == 0) {
 		if (textureDebug) {
-			cout << "Using texture debug!\n";
-			p_renderer = new TextureRenderer(&scene, NULL, width, height);
+			TextureLoader textureLoader;
+			int texw, texh, texIdx;
+			Vector3Df* p_tex = textureLoader.load(texturePath, texw, texh, texIdx);
+			p_renderer = new TextureRenderer(p_tex, texw, texh);
 		} else {
 			p_renderer = new SequentialRenderer(&scene, width, height, samples);
 		}
@@ -151,7 +156,9 @@ int main(int argc, char* argv[]) {
 	auto stop = high_resolution_clock::now();
 	auto duration = duration_cast<microseconds>(stop - start);
 
-	p_launcher->saveToImage();
+	if (!textureDebug) {
+		p_launcher->saveToImage();
+	}
 
 	float elapsedTime = duration.count()/1000000.0f;
 	int samplesRendered = p_renderer->getSamplesRendered();
