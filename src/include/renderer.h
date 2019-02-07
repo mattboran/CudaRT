@@ -58,7 +58,7 @@ protected:
 public:
 	bool useCuda = false;
 	uchar4* h_imgPtr;
-	virtual ~Renderer() { delete[] h_imgPtr;	}
+	virtual ~Renderer() { delete[] h_imgPtr; }
 	__host__ virtual void renderOneSamplePerPixel(uchar4* p_img) = 0;
 	__host__ virtual void copyImageBytes(uchar4* p_img) = 0;
 	__host__ virtual uchar4* getImgBytesPointer() = 0;
@@ -70,6 +70,20 @@ public:
 	__host__ void createSettingsData(SettingsData* p_settingsData);
 	__host__ void createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles, LinearBVHNode* p_bvh, Material* p_materials);
 	__host__ void createLightsData(LightsData* p_lightsData, Triangle* p_triangles);
+};
+
+// This class is used to debug loading of textures by displaying them on-screen
+class TextureRenderer: public Renderer {
+public:
+    __host__ TextureRenderer() : Renderer() {}
+    __host__ TextureRenderer(Scene* _scenePtr, Vector3Df* p_texture, int _width, int _height);
+    __host__ void renderOneSamplePerPixel(uchar4* p_img);
+    __host__ void copyImageBytes(uchar4* p_img);
+    __host__ uchar4* getImgBytesPointer() { return h_imgPtr; }
+    ~TextureRenderer() {};
+private:
+    uchar4* h_imgBytesPtr;
+	Vector3Df* h_texture;
 };
 
 class ParallelRenderer : public Renderer {
@@ -108,7 +122,6 @@ public:
 	__host__ uchar4* getImgBytesPointer() { return h_imgBytesPtr; }
 	~SequentialRenderer();
 private:
-	// Sampler* p_sampler = new Sampler;
 	uchar4* h_imgBytesPtr;
 	Vector3Df* h_imgVectorPtr;
 	SettingsData h_settingsData;

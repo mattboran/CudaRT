@@ -13,6 +13,7 @@
 
 #include <float.h>
 #include <math.h>
+#include <iostream>
 
 #define USE_BVH
 #define USE_SKYBOX
@@ -45,6 +46,7 @@ __host__ __device__ float Sampler::getNextFloat() {
 __host__ Renderer::Renderer(Scene* _scenePtr, int _width, int _height, int _samples) :
 	p_scene(_scenePtr), width(_width), height(_height), samples(_samples)
 {
+	std::cout << "Allocating width: " << width << " and height " << height << "\n";
 	h_imgPtr = new uchar4[width*height]();
 	samplesRendered = 0;
 }

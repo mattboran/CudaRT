@@ -29,6 +29,8 @@ int main(int argc, char* argv[]) {
 	string materialsPath = "../settings/" + sceneName + "-materials.json";
 	bool useSequential = false;
 	bool renderToScreen = false;
+	bool textureDebug = false;
+	string texturePath = "../settings/texture-test.png";
 	int cudaCapableDevices = 0;
 
 	//
@@ -87,6 +89,11 @@ int main(int argc, char* argv[]) {
 		renderToScreen = true;
 	}
 
+	// Texture debug
+	if ((find(args.begin(), args.end(), "-t") < args.end() - 1)) {
+		textureDebug = true;
+		texturePath = *(find(args.begin(), args.end(), "-t") + 1);
+	}
 
 	// .obj path
 	if ((find(args.begin(), args.end(), "-f") < args.end() - 1)) {
@@ -124,7 +131,12 @@ int main(int argc, char* argv[]) {
 
 	cudaGetDeviceCount(&cudaCapableDevices);
 	if (useSequential || cudaCapableDevices == 0) {
-		p_renderer = new SequentialRenderer(&scene, width, height, samples);
+		if (textureDebug) {
+			cout << "Using texture debug!\n";
+			p_renderer = new TextureRenderer(&scene, NULL, width, height);
+		} else {
+			p_renderer = new SequentialRenderer(&scene, width, height, samples);
+		}
 	} else {
 		p_renderer = new ParallelRenderer(&scene, width, height, samples);
 	}
