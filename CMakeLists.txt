@@ -27,6 +27,7 @@ set(RENDERER "src/renderer")
 set(INCLUDE "src/include")
 
 add_library(contextlib STATIC
+	${CONTEXT}/json_loader.cpp
 	${CONTEXT}/launcher.cpp
 	${CONTEXT}/terminal_launcher.cpp
 	${CONTEXT}/window.cpp

@@ -9,18 +9,6 @@
 
 using namespace std;
 
-__host__ Vector3Df vectorFromArray(picojson::array arr) {
-	Vector3Df retVal;
-	int idx = 0;
-	for (picojson::array::iterator it = arr.begin(); it != arr.end(); it++)
-	{
-		float val = it->get<double>();
-		retVal._v[idx] = val;
-		idx++;
-	}
-	return retVal;
-}
-
 __host__ Camera::Camera(Vector3Df pos, Vector3Df target, Vector3Df upv, float _fov, int x, int y) :
 		eye(pos), dir(target), up(upv), fov(tanf(_fov/2.0f * M_PI/180.0f)), xpixels(x), ypixels(y)
 {
@@ -31,36 +19,6 @@ __host__ Camera::Camera(Vector3Df pos, Vector3Df target, Vector3Df upv, float _f
 	right = normalize(cross(dir,up));
 }
 
-__host__ Camera::Camera(string filename, int width, int height) :
-	xpixels(width), ypixels(height) {
-	ifstream t(filename);
-	string json((istreambuf_iterator<char>(t)),
-			istreambuf_iterator<char>());
-	picojson::value v;
-	string err = picojson::parse(v, json);
-	if (!err.empty()) {
-		std::cerr << err << std::endl;
-	}
-	const picojson::value::object& obj = v.get<picojson::object>();
-	float f = v.get("fieldOfView").get<double>();
-	float focalLength = v.get("focalLength").get<double>();
-	float fStop = v.get("fStop").get<double>();
-	picojson::array e = v.get("eye").get<picojson::array>();
-	picojson::array d = v.get("viewDirection").get<picojson::array>();
-	picojson::array u = v.get("upDirection").get<picojson::array>();
-	focusDistance = v.get("focusDistance").get<double>();
-
-	fov = tanf(f * 0.5f * M_PI/180.0f);
-	eye = vectorFromArray(e);
-	dir = vectorFromArray(d);
-	focusDistance = dir.length();
-	dir = normalize(dir);
-	up = normalize(vectorFromArray(u));
-	right = normalize(cross(dir,up));
-	apertureWidth = focalLength/fStop;
-	std::cout << "Aperture width = " << apertureWidth << " and focus distance is " << focusDistance << "\n";
-	aspect = (float)xpixels / (float)ypixels;
-}
 
 __host__ __device__ void tentFilter(float &i, float &j, Sampler* p_sampler) {
 	float r1, r2;

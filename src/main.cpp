@@ -3,6 +3,7 @@
 
 #include "scene.h"
 #include "camera.h"
+#include "json_loader.h"
 #include "launcher.h"
 #include "renderer.h"
 
@@ -22,7 +23,9 @@ int main(int argc, char* argv[]) {
 	int samples = 10;
 	int width = 640;
 	int height = 480;
-	string objPath = "../meshes/cornell.obj";
+	string sceneName = "cornell";
+	string objPath = "../meshes/" + sceneName + ".obj";
+	string cameraPath = "../settings/" + sceneName + "-camera.json";
 	bool useCameraJson = false;
 	bool useSequential = false;
 	bool renderToScreen = false;
@@ -30,16 +33,14 @@ int main(int argc, char* argv[]) {
 
 	//
 	//	Parse command line arguments
-	// TODO: config.json instead of command line args
 	//
-	if (argc < 3) {
+	if (argc < 2) {
 		cerr << "Usage: CudaRT <options>\n" \
 				"-o \t<output file>\n" \
 				"-s \t<number of samples>\tdefault:10\n" \
 				"-w \t<width>\tdefault:480px\n" \
 				"-h \t<height>\tdefault:320px\n" \
-				"-f \t<path to .obj to render>\tdefault:./meshes/cornell.obj\n" \
-				"-c \t<flag to use camera/camera.json>\tdefault: false\n" \
+				"-f \t<scene>\tdefault: cornell\n" \
 				"--cpu \t<flag to run sequential code on CPU only>\tdefault: false\n" \
 				"--X \t<flag to render to screen>\tdefault: false\n" \
 				"Note: BVH has bugs in both CUDA and CPU version. CPU version is worse.\n"\
@@ -47,14 +48,6 @@ int main(int argc, char* argv[]) {
 		return(1);
 	}
 	vector<string> args(argv + 1, argv + argc);
-
-	// Output
-	if (!(find(args.begin(), args.end(), "-o") < args.end() - 1)) {
-		cerr << "-o and filename is required!" << endl;
-		return(1);
-	} else {
-		outFile = *(find(args.begin(), args.end(), "-o") + 1);
-	}
 
 	// Samples
 	if ((find(args.begin(), args.end(), "-s") < args.end() - 1)) {
@@ -83,11 +76,6 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	// useCameraJson Flag
-	if ((find(args.begin(), args.end(), "-c") < args.end())) {
-		useCameraJson = true;
-	}
-
 	// Sequential flag
 	if ((find(args.begin(), args.end(), "--cpu") < args.end())) {
 		useSequential = true;
@@ -102,13 +90,18 @@ int main(int argc, char* argv[]) {
 
 	// .obj path
 	if ((find(args.begin(), args.end(), "-f") < args.end() - 1)) {
-		objPath = *(find(args.begin(), args.end(), "-f") + 1);
+		useCameraJson = true;
+		sceneName = *(find(args.begin(), args.end(), "-f") + 1);
+		objPath = "../meshes/" + sceneName + ".obj";
+		cameraPath = "../settings/" + sceneName + "-camera.json";
+		outFile = sceneName + ".png";
 	}
 
 	cout << "Samples: " << samples << endl \
 			<< "Width: " << width << endl \
 			<< "Height: " << height << endl \
 			<< "Obj path: " << objPath << endl \
+			<< "Camera path: " << cameraPath << endl \
 			<< "Output: " << outFile << endl;
 
 	//
@@ -129,18 +122,18 @@ int main(int argc, char* argv[]) {
 	// TODO: Load this from .obj using cam meshes
 	// alternatively, use a camera.json file
 	//
-	Camera* p_camera;
+	Camera camera;
 	if (useCameraJson) {
-		cout << "Using camera.json" << endl;
-		p_camera = new Camera("../settings/camera.json", width, height);
+		JsonLoader loader(cameraPath, "");
+		camera = loader.getCamera(width, height);
 	} else {
 		float scale = 0.1f;
 		Vector3Df camPos(14.0f, 5.0f, 0.0f);
 		Vector3Df camTarget(0.0f, 5.0f, 0.0f);
 		Vector3Df camUp(0.0f, 1.0f, 0.0f);
-		p_camera = new Camera(camPos * scale, camTarget * scale, camUp, 90.0f, width, height);
+		camera = Camera(camPos * scale, camTarget * scale, camUp, 90.0f, width, height);
 	}
-	scene.setCameraPtr(p_camera);
+	scene.setCameraPtr(&camera);
 
 	Renderer* p_renderer;
 	Launcher* p_launcher;
