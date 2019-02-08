@@ -157,8 +157,12 @@ int main(int argc, char* argv[]) {
 
 	p_launcher->saveToImage();
 
-	cout << "Rendered to " << outFile << " for " << p_renderer->getSamplesRendered() << " samples per pixel. " << endl;
-	cout << "Elapsed time in seconds = " << duration.count()/1000000.0f << endl;
+	float elapsedTime = duration.count()/1000000.0f;
+	int samplesRendered = p_renderer->getSamplesRendered();
+	float averageSamplesPerPixel = samplesRendered / elapsedTime;
+	cout << "Rendered to " << outFile << " for " << samplesRendered << " samples per pixel. " << endl;
+	cout << "Elapsed time in seconds = " << elapsedTime << endl;
+	cout << "Average samples per pixel = " << averageSamplesPerPixel << endl;
 
 	return(0);
 }
