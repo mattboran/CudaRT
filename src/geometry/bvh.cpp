@@ -15,8 +15,6 @@
 
 using namespace std;
 
-typedef unsigned int uint;
-
 struct TriangleBBox {
 	int triId;
 	Vector3Df min;

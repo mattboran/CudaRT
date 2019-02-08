@@ -43,7 +43,7 @@ __host__ __device__ float Sampler::getNextFloat() {
 	#endif
 }
 
-__host__ Renderer::Renderer(Scene* _scenePtr, int _width, int _height, int _samples) :
+__host__ Renderer::Renderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, int _samples) :
 	p_scene(_scenePtr), width(_width), height(_height), samples(_samples)
 {
 	h_imgPtr = new uchar4[width*height]();
@@ -112,7 +112,6 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
         if (currentBsdf == DIFFSPEC) {
 			// use Russian roulette to decide whether to evaluate diffuse or specular BSDF
         	float p = maxComponent(p_material->ks);
-//        	float f = fabs(dot(interaction.normal, interaction.outputDirection));
         	if (p_sampler->getNextFloat() < p) {
         		currentBsdf = SPECULAR;
         	} else {

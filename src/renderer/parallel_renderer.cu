@@ -29,18 +29,18 @@ __global__ void renderKernel(SettingsData settings,
 		curandState *p_curandState,
 		int sampleNumber);
 
-__host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, int _width, int _height, int _samples) :
+__host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, int _samples) :
 	Renderer(_scenePtr, _width, _height, _samples) {
 	// CUDA settings
 	useCuda = true;
 	threadsPerBlock = BLOCK_WIDTH * BLOCK_WIDTH;
 	gridBlocks = width / BLOCK_WIDTH * height / BLOCK_WIDTH;
 
-	int pixels = width * height;
-	unsigned int numTris = p_scene->getNumTriangles();
-	unsigned int numMaterials = p_scene->getNumMaterials();
-	unsigned int numBvhNodes = p_scene->getNumBvhNodes();
-	unsigned int numLights = p_scene->getNumLights();
+	pixels_t pixels = width * height;
+	uint numTris = p_scene->getNumTriangles();
+	uint numMaterials = p_scene->getNumMaterials();
+	uint numBvhNodes = p_scene->getNumBvhNodes();
+	uint numLights = p_scene->getNumLights();
 	size_t trianglesBytes = sizeof(Triangle) * numTris;
 	size_t materialsBytes = sizeof(Material) * numMaterials;
 	size_t bvhBytes = sizeof(LinearBVHNode) * numBvhNodes;
@@ -145,7 +145,7 @@ __host__ void ParallelRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 }
 
 __host__ void ParallelRenderer::copyImageBytes(uchar4* p_img) {
-	int pixels = width * height;
+	pixels_t pixels = width * height;
 	size_t imgBytes = sizeof(uchar4) * pixels;
 	CUDA_CHECK_RETURN(cudaMemcpy(h_imgPtr, p_img, imgBytes, cudaMemcpyDeviceToHost));
 	for (unsigned i = 0; i < pixels; i++) {
@@ -180,9 +180,9 @@ __global__ void renderKernel(SettingsData settings,
 #else
 	Material* d_materials = p_tris->p_materials;
 #endif
-	int x = blockIdx.x * blockDim.x + threadIdx.x;
-	int y = blockIdx.y * blockDim.y + threadIdx.y;
-	int idx = y * settings.width + x;
+	uint x = blockIdx.x * blockDim.x + threadIdx.x;
+	uint y = blockIdx.y * blockDim.y + threadIdx.y;
+	uint idx = y * settings.width + x;
 	curandState* p_threadCurand = &p_curandState[idx];
 	Sampler sampler(p_threadCurand);
 	Vector3Df color = samplePixel(x, y, p_camera, p_tris, p_lights, d_materials, &sampler);

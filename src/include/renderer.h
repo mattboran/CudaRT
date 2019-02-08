@@ -15,6 +15,8 @@
 #include <curand_kernel.h>
 #include <cuda_runtime.h>
 
+typedef uint pixels_t;
+
 struct LightsData {
 	Triangle* lightsPtr;
 	unsigned numLights;
@@ -49,11 +51,11 @@ __host__ __device__ void gammaCorrectPixel(uchar4 &p);
 class Renderer {
 protected:
 	__host__ Renderer() {}
-	__host__ Renderer(Scene* _scenePtr, int _width, int _height, int _samples);
+	__host__ Renderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, int _samples);
 	Scene* p_scene;
-	int width;
-	int height;
-	int samples;
+	pixels_t width;
+	pixels_t height;
+	pixels_t samples;
 	int samplesRendered;
 public:
 	bool useCuda = false;
@@ -63,8 +65,8 @@ public:
 	__host__ virtual void copyImageBytes(uchar4* p_img) = 0;
 	__host__ virtual uchar4* getImgBytesPointer() = 0;
 	__host__ Scene* getScenePtr() { return p_scene; }
-	__host__ int getWidth() { return width; }
-	__host__ int getHeight() { return height; }
+	__host__ pixels_t getWidth() { return width; }
+	__host__ pixels_t getHeight() { return height; }
 	__host__ int getSamples() { return samples; }
 	__host__ int getSamplesRendered() { return samplesRendered; }
 	__host__ void createSettingsData(SettingsData* p_settingsData);
@@ -76,7 +78,7 @@ public:
 class TextureRenderer: public Renderer {
 public:
     __host__ TextureRenderer() : Renderer() {}
-    __host__ TextureRenderer(Vector3Df* p_texture, int _width, int _height);
+    __host__ TextureRenderer(Vector3Df* p_texture, pixels_t _width, pixels_t _height);
     __host__ void renderOneSamplePerPixel(uchar4* p_img);
     __host__ void copyImageBytes(uchar4* p_img);
     __host__ uchar4* getImgBytesPointer() { return h_imgPtr; }
@@ -89,7 +91,7 @@ private:
 class ParallelRenderer : public Renderer {
 public:
 	__host__ ParallelRenderer() : Renderer() {}
-	__host__ ParallelRenderer(Scene* _scenePtr, int _width, int _height, int _samples);
+	__host__ ParallelRenderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, int _samples);
 	__host__ void renderOneSamplePerPixel(uchar4* p_img);
 	__host__ void copyImageBytes(uchar4* p_img);
 	__host__ uchar4* getImgBytesPointer() { return d_imgBytesPtr; }
@@ -107,8 +109,8 @@ private:
 	Camera* d_camPtr;
 	curandState* d_curandStatePtr;
 	// TODO: Consider storing block, grid instead
-	unsigned int threadsPerBlock;
-	unsigned int gridBlocks;
+	uint threadsPerBlock;
+	uint gridBlocks;
 	__host__ void copyMemoryToCuda();
 	__host__ void initializeCurand();
 };
@@ -116,7 +118,7 @@ private:
 class SequentialRenderer : public Renderer {
 public:
 	SequentialRenderer() : Renderer() {}
-	SequentialRenderer(Scene* _scenePtr, int _width, int _height, int _samples);
+	SequentialRenderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, int _samples);
 	__host__ void renderOneSamplePerPixel(uchar4* p_img);
 	__host__ void copyImageBytes(uchar4* p_img);
 	__host__ uchar4* getImgBytesPointer() { return h_imgBytesPtr; }

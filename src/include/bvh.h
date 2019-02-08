@@ -26,24 +26,4 @@ struct LinearBVHNode {
 	int8_t pad = 0;
 };
 
-
-//struct BVHNode {
-//	BVHNode(Vector3Df &a, Vector3Df &b) : min(a), max(b) {}
-//	Vector3Df min;
-//	Vector3Df max;
-//	virtual bool isLeaf() = 0;
-//	virtual ~BVHNode();
-//};
-//
-//struct BVHInner : BVHNode {
-//	BVHNode* p_left;
-//	BVHNode* p_right;
-//	virtual bool isLeaf() { return false; }
-//};
-//
-//struct BVHLeaf : BVHNode {
-//	std::vector<Triangle> v_triangles;
-//	virtual bool isLeaf() { return true; }
-//};
-
 #endif /* BVH_H_ */

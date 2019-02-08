@@ -6,13 +6,13 @@
  #include <omp.h>
 #endif
 
-SequentialRenderer::SequentialRenderer(Scene* _scenePtr, int _width, int _height, int _samples) :
+SequentialRenderer::SequentialRenderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, int _samples) :
   Renderer(_scenePtr, _width, _height, _samples)
 {
-    unsigned int numTriangles = p_scene->getNumTriangles();
-    unsigned int numLights = p_scene->getNumLights();
-    unsigned int numBvhNodes = p_scene->getNumBvhNodes();
-    unsigned int numMaterials = p_scene->getNumMaterials();
+    uint numTriangles = p_scene->getNumTriangles();
+    uint numLights = p_scene->getNumLights();
+    uint numBvhNodes = p_scene->getNumBvhNodes();
+    uint numMaterials = p_scene->getNumMaterials();
     Triangle* p_triangles = p_scene->getTriPtr();
     LinearBVHNode* p_bvh = p_scene->getBvhPtr();
     Triangle* p_lights = p_scene->getLightsPtr();
@@ -47,8 +47,8 @@ void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 	Material* p_materials = p_scene->getMaterialsPtr();
 	Sampler* p_sampler = new Sampler();
     #pragma omp parallel for
-    for (unsigned x = 0; x < width; x++) {
-        for (unsigned y = 0; y < height; y++) {
+    for (pixels_t x = 0; x < width; x++) {
+        for (pixels_t y = 0; y < height; y++) {
             int idx = y * width + x;
             Vector3Df sample = samplePixel(x, y, p_camera, h_trianglesData, h_lightsData, p_materials, p_sampler);
             h_imgVectorPtr[idx] += sample;
@@ -59,10 +59,10 @@ void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 }
 
 void SequentialRenderer::copyImageBytes(uchar4* p_img) {
-	int pixels = width * height;
+	pixels_t pixels = width * height;
 	size_t imgBytes = sizeof(uchar4) * pixels;
 	memcpy(h_imgPtr, p_img, imgBytes);
-	for (unsigned i = 0; i < pixels; i++) {
+	for (pixels_t i = 0; i < pixels; i++) {
 		gammaCorrectPixel(h_imgPtr[i]);
 	}
 }
