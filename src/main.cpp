@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
 	string sceneName = "cornell";
 	string objPath = "../meshes/" + sceneName + ".obj";
 	string cameraPath = "../settings/" + sceneName + "-camera.json";
-	bool useCameraJson = false;
+	string materialsPath = "../settings/" + sceneName + "-materials.json";
 	bool useSequential = false;
 	bool renderToScreen = false;
 	int cudaCapableDevices = 0;
@@ -90,10 +90,10 @@ int main(int argc, char* argv[]) {
 
 	// .obj path
 	if ((find(args.begin(), args.end(), "-f") < args.end() - 1)) {
-		useCameraJson = true;
 		sceneName = *(find(args.begin(), args.end(), "-f") + 1);
 		objPath = "../meshes/" + sceneName + ".obj";
 		cameraPath = "../settings/" + sceneName + "-camera.json";
+		materialsPath = "../settings/" + sceneName + "-materials.json";
 		outFile = sceneName + ".png";
 	}
 
@@ -105,35 +105,19 @@ int main(int argc, char* argv[]) {
 			<< "Output: " << outFile << endl;
 
 	//
-	// Initialize Scene : Load .obj
+	// Initialize Scene
 	//
-	Scene scene = Scene(objPath);
-	cout << "\nLoaded " << scene.getNumMeshes() << " meshes " << endl;
+	JsonLoader loader(cameraPath, materialsPath);
+	Scene scene(objPath);
+	Camera camera = loader.getCamera(width, height);
+	scene.setCameraPtr(&camera);
+
 	for (int i = 0; i < scene.getNumMeshes(); i++) {
 		objl::Mesh mesh = scene.getMesh(i);
 		cout << "Mesh " << i << ": `" << mesh.MeshName << "`"<< endl \
 				<< "\t" << mesh.Vertices.size() << " vertices | \t" << mesh.Vertices.size() / 3 << " triangles" << endl;
 	}
-
 	cout << "Total number of triangles:\t" << scene.getNumTriangles() << endl;
-
-	//
-	// Initialize Scene : Camera
-	// TODO: Load this from .obj using cam meshes
-	// alternatively, use a camera.json file
-	//
-	Camera camera;
-	if (useCameraJson) {
-		JsonLoader loader(cameraPath, "");
-		camera = loader.getCamera(width, height);
-	} else {
-		float scale = 0.1f;
-		Vector3Df camPos(14.0f, 5.0f, 0.0f);
-		Vector3Df camTarget(0.0f, 5.0f, 0.0f);
-		Vector3Df camUp(0.0f, 1.0f, 0.0f);
-		camera = Camera(camPos * scale, camTarget * scale, camUp, 90.0f, width, height);
-	}
-	scene.setCameraPtr(&camera);
 
 	Renderer* p_renderer;
 	Launcher* p_launcher;

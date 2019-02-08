@@ -21,7 +21,9 @@ struct Material {
     float ns = 0.0f;
     // IOR
     float ni = 1.0f;
-    inline __host__ bool operator==(const Material& m) const{
+    // Diffuse Coefficient
+    float diffuseCoefficient = 1.0f;
+    inline __host__  bool operator==(const Material& m) const{
     	if (bsdf != m.bsdf) {
 			return false;
 		}
@@ -42,7 +44,7 @@ struct Material {
 		}
 		return true;
     }
-};
+}__attribute__((aligned(32)));
 
 struct materialComparator {
     bool operator() (const Material& lhs, const Material& rhs) const {

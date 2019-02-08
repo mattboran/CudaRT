@@ -12,6 +12,7 @@ public:
 	JsonLoader() {}
 	JsonLoader(std::string cam, std::string mat);
 	Camera getCamera(int width, int height);
+	Material getMaterial(std::string name);
 private:
 	std::string cameraFile;
 	std::string materialsFile;

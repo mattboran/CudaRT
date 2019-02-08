@@ -25,13 +25,13 @@ JsonLoader::JsonLoader(std::string cam, std::string mat) : cameraFile(cam), mate
 	if (!err.empty()) {
 		throw std::runtime_error(err + " loading camera!");
 	}
-//	ifstream m(materialsFile);
-//	string matJson((istreambuf_iterator<char>(m)),
-//			istreambuf_iterator<char>());
-//	err = picojson::parse(materialsValue, matJson);
-//	if (!err.empty()) {
-//		throw std::runtime_error(err + " loading materials!");
-//	}
+	ifstream m(materialsFile);
+	string matJson((istreambuf_iterator<char>(m)),
+			istreambuf_iterator<char>());
+	err = picojson::parse(materialsValue, matJson);
+	if (!err.empty()) {
+		throw std::runtime_error(err + " loading materials!");
+	}
 }
 
 Camera JsonLoader::getCamera(int width, int height) {
@@ -60,73 +60,37 @@ Camera JsonLoader::getCamera(int width, int height) {
 }
 
 // Note this is not efficient, it's O(n^2) for all materials
-//Material JsonLoader::getMaterial(std::string name) {
-//	Material mtl;
-//	picojson::value::array materials = materialsValue.get("materials").get<picojson::array>();
-//	for (auto it = materials.begin(); it != materials.end(); it++) {
-//		string otherName = it->get("name").get<string>();
-//		if (name.compare(otherName + "SG") != 0 ) {
-//			continue;
-//		}
-//
-//		mtl.ka = vector3FromArray(it->get("ka").get<picojson::array>());
-//		mtl.kd = vector3FromArray(it->get("kd").get<picojson::array>());
-//		mtl.ks = vector3FromArray(it->get("ks").get<picojson::array>());
-//		mtl.diffuseCoefficient = it->get("diffuse").get<double>();
-//		mtl.ni = it->get("ni").get<double>();
-//		mtl.ns = it->get("roughness").get<double>();
-//		mtl.bsdf = LAMBERT;
-//		if (mtl.bsdf == DIFFSPEC && mtl.diffuseCoefficient == 0.0f) {
-//			mtl.bsdf = SPECULAR;
-//		}
-//		else if (mtl.bsdf == DIFFSPEC && mtl.diffuseCoefficient == 1.0f) {
-//			mtl.bsdf = LAMBERT;
-//		}
-//		if (mtl.ns > 0.0f) {
-//			mtl.bsdf = MICROFACET;
-//		}
-//		cout << "BSDF = " << mtl.bsdf << endl;
-//		break;
-//	}
-//
-//	return mtl;
-//}
-//
-//void JsonLoader::updateMaterialFields(std::string name, Material* p_matl) {
-//	picojson::value::array materials = materialsValue.get("materials").get<picojson::array>();
-//	for (auto it = materials.begin(); it != materials.end(); it++) {
-//		string otherName = it->get("name").get<string>();
-//		if (name.compare(otherName + "SG") != 0 ) {
-//			continue;
-//		}
-//
-//		// p_matl->ka = vector3FromArray(it->get("ka").get<picojson::array>());
-//		// p_matl->kd = vector3FromArray(it->get("kd").get<picojson::array>());
-//		// p_matl->ks = vector3FromArray(it->get("ks").get<picojson::array>());
-//		// p_matl->diffuseCoefficient = it->get("diffuse").get<double>();
-//		// p_matl->ni = it->get("ni").get<double>();
-//		// p_matl->ns = it->get("roughness").get<double>();
-//		// matl.bsdf = LAMBERT;
-//		// cout << "Found material " << name << endl;
-//		// cout << "kd : " << matl.kd.x << ", " << matl.kd.y << ", " << matl.kd.z << endl;
-//		// cout << "ks : " << matl.ks.x << ", " << matl.ks.y << ", " << matl.ks.z << endl;
-//		// cout << "ka : " << matl.ka.x << ", " << matl.ka.y << ", " << matl.ka.z << endl;
-//		// cout << "Diffuse: " << matl.diffuseCoefficient << endl;
-//		// cout << "Ni: " << matl.ni << endl;
-//		// cout << "Ns: " << matl.ns << endl;
-//		// if (matl.bsdf == DIFFSPEC && matl.diffuseCoefficient == 0.0f) {
-//		// 	matl.bsdf = SPECULAR;
-//		// }
-//		// else if (matl.bsdf == DIFFSPEC && matl.diffuseCoefficient == 1.0f) {
-//		// 	matl.bsdf = LAMBERT;
-//		// }
-//		break;
-//	}
-//	//matl.diffuseCoefficient = update.diffuseCoefficient;
-//	//matl.ni = update.ni;
-//	// matl.bsdf = update.bsdf;
-//	//matl.ns = update.ns;
-//}
+Material JsonLoader::getMaterial(std::string name) {
+	Material mtl;
+	picojson::value::array materials = materialsValue.get("materials").get<picojson::array>();
+	for (auto it = materials.begin(); it != materials.end(); it++) {
+		string otherName = it->get("name").get<string>();
+		if (name.compare(otherName + "SG") != 0 ) {
+			continue;
+		}
+
+		mtl.ka = vector3FromArray(it->get("ka").get<picojson::array>());
+		mtl.kd = vector3FromArray(it->get("kd").get<picojson::array>());
+		mtl.ks = vector3FromArray(it->get("ks").get<picojson::array>());
+		mtl.diffuseCoefficient = it->get("diffuse").get<double>();
+		mtl.ni = it->get("ni").get<double>();
+		mtl.ns = it->get("roughness").get<double>();
+		mtl.bsdf = LAMBERT;
+		if (mtl.bsdf == DIFFSPEC && mtl.diffuseCoefficient == 0.0f) {
+			mtl.bsdf = SPECULAR;
+		}
+		else if (mtl.bsdf == DIFFSPEC && mtl.diffuseCoefficient == 1.0f) {
+			mtl.bsdf = LAMBERT;
+		}
+		if (mtl.ns > 0.0f) {
+			mtl.bsdf = MICROFACET;
+		}
+		cout << "BSDF = " << mtl.bsdf << endl;
+		break;
+	}
+
+	return mtl;
+}
 
 Vector3Df vector3FromArray(picojson::array arr) {
 	Vector3Df retVal;
