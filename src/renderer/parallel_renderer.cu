@@ -29,7 +29,7 @@ __global__ void renderKernel(SettingsData settings,
 		curandState *p_curandState,
 		int sampleNumber);
 
-__host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, int _samples) :
+__host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, uint _samples) :
 	Renderer(_scenePtr, _width, _height, _samples) {
 	// CUDA settings
 	useCuda = true;
@@ -88,10 +88,10 @@ __host__ ParallelRenderer::~ParallelRenderer() {
 }
 
 __host__ void ParallelRenderer::copyMemoryToCuda() {
-	unsigned int numTris = p_scene->getNumTriangles();
-	unsigned int numLights = p_scene->getNumLights();
-	unsigned int numBvhNodes = p_scene->getNumBvhNodes();
-	unsigned int numMaterials = p_scene->getNumMaterials();
+	uint numTris = p_scene->getNumTriangles();
+	uint numLights = p_scene->getNumLights();
+	uint numBvhNodes = p_scene->getNumBvhNodes();
+	uint numMaterials = p_scene->getNumMaterials();
 	float lightsSurfaceArea = p_scene->getLightsSurfaceArea();
 	size_t trianglesBytes = sizeof(Triangle) * numTris;
 	size_t materialsBytes = sizeof(Material) * numMaterials;
@@ -154,7 +154,7 @@ __host__ void ParallelRenderer::copyImageBytes(uchar4* p_img) {
 }
 
 __global__ void initializeCurandKernel(curandState* p_curandState) {
-	int idx = (blockIdx.x + blockIdx.y * gridDim.x) * (blockDim.x * blockDim.y)
+	uint idx = (blockIdx.x + blockIdx.y * gridDim.x) * (blockDim.x * blockDim.y)
 				+ (threadIdx.y * blockDim.x) + threadIdx.x;
 	curand_init(1234, idx, 0, &p_curandState[idx]);
 }

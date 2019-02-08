@@ -43,7 +43,7 @@ __host__ __device__ float Sampler::getNextFloat() {
 	#endif
 }
 
-__host__ Renderer::Renderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, int _samples) :
+__host__ Renderer::Renderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, uint _samples) :
 	p_scene(_scenePtr), width(_width), height(_height), samples(_samples)
 {
 	h_imgPtr = new uchar4[width*height]();

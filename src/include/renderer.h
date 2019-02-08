@@ -19,7 +19,7 @@ typedef uint pixels_t;
 
 struct LightsData {
 	Triangle* lightsPtr;
-	unsigned numLights;
+	uint numLights;
 	float totalSurfaceArea;
 };
 
@@ -27,15 +27,15 @@ struct TrianglesData {
 	Triangle* p_triangles;
 	LinearBVHNode* p_bvh;
 	Material* p_materials;
-	unsigned numTriangles;
-	unsigned numBVHNodes;
-	unsigned numMaterials;
+	uint numTriangles;
+	uint numBVHNodes;
+	uint numMaterials;
 };
 
 struct SettingsData {
-	int width;
-	int height;
-	int samples;
+	uint width;
+	uint height;
+	uint samples;
 };
 
 struct Sampler {
@@ -51,12 +51,12 @@ __host__ __device__ void gammaCorrectPixel(uchar4 &p);
 class Renderer {
 protected:
 	__host__ Renderer() {}
-	__host__ Renderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, int _samples);
+	__host__ Renderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, uint _samples);
 	Scene* p_scene;
 	pixels_t width;
 	pixels_t height;
-	pixels_t samples;
-	int samplesRendered;
+	uint samples;
+	uint samplesRendered;
 public:
 	bool useCuda = false;
 	uchar4* h_imgPtr;
@@ -91,7 +91,7 @@ private:
 class ParallelRenderer : public Renderer {
 public:
 	__host__ ParallelRenderer() : Renderer() {}
-	__host__ ParallelRenderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, int _samples);
+	__host__ ParallelRenderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, uint _samples);
 	__host__ void renderOneSamplePerPixel(uchar4* p_img);
 	__host__ void copyImageBytes(uchar4* p_img);
 	__host__ uchar4* getImgBytesPointer() { return d_imgBytesPtr; }
@@ -118,7 +118,7 @@ private:
 class SequentialRenderer : public Renderer {
 public:
 	SequentialRenderer() : Renderer() {}
-	SequentialRenderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, int _samples);
+	SequentialRenderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, uint _samples);
 	__host__ void renderOneSamplePerPixel(uchar4* p_img);
 	__host__ void copyImageBytes(uchar4* p_img);
 	__host__ uchar4* getImgBytesPointer() { return h_imgBytesPtr; }

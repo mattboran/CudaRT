@@ -6,7 +6,7 @@
  #include <omp.h>
 #endif
 
-SequentialRenderer::SequentialRenderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, int _samples) :
+SequentialRenderer::SequentialRenderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, uint _samples) :
   Renderer(_scenePtr, _width, _height, _samples)
 {
     uint numTriangles = p_scene->getNumTriangles();
