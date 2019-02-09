@@ -75,9 +75,22 @@ __host__ void Renderer::createLightsData(LightsData* p_lightsData, Triangle* p_t
 __host__ __device__ Vector3Df sampleTexture(Vector3Df* p_tex, pixels_t* p_dimensions, float u, float v) {
 	pixels_t width = p_dimensions[0];
 	pixels_t height = p_dimensions[1];
-	pixels_t i = truncf(u * (float)(width));
-	pixels_t j = truncf(v * (float)(height));
-	return p_tex[j * width + i];
+	float pixelCoordU = u * (float)width;
+	float pixelCoordV = v * (float)height;
+	float floorPixelCoordU = floorf(pixelCoordU);
+	float floorPixelCoordV = floorf(pixelCoordV);
+	float ceilPixelCoordU = ceilf(pixelCoordU);
+	float ceilPixelCoordV = ceilf(pixelCoordV);
+	pixels_t i = truncf(pixelCoordU);
+	pixels_t j = truncf(pixelCoordV);
+	Vector3Df valA1 = p_tex[j * width + i + 1] * (pixelCoordU - floorPixelCoordU);
+	Vector3Df valA2 = p_tex[j * width + i] * (ceilPixelCoordU - pixelCoordU);
+	Vector3Df valB1 = p_tex[(j + 1) * width + i + 1] * (pixelCoordU - floorPixelCoordU);
+	Vector3Df valB2 = p_tex[(j + 1) * width + i] * (ceilPixelCoordU - pixelCoordU);
+
+	Vector3Df valC1 = (valA1 + valA2) * (ceilPixelCoordV - pixelCoordV);
+	Vector3Df valC2 = (valB1 + valB2) * (pixelCoordV - floorPixelCoordV);
+	return valC1 + valC2;
 }
 
 __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, TrianglesData* p_trianglesData, LightsData *p_lightsData, Material* p_materials, Sampler* p_sampler) {
