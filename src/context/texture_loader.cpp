@@ -31,3 +31,13 @@ Vector3Df* TextureLoader::load(std::string filename, int& width, int& height, in
     idx = currentIdx++;
     return out;
 }
+
+void TextureLoader::loadAll(std::string* filename, uint numTextures) {
+	for (unsigned i = 0; i < numTextures; i++) {
+		int texW, texH, idx;
+		Vector3Df* p_tex = load(filename[i], texW, texH, idx);
+		textureDimensions.push_back((pixels_t)texW);
+		textureDimensions.push_back((pixels_t)texH);
+		textureDataPtrs.push_back(p_tex);
+	}
+}

@@ -7,6 +7,8 @@ __host__ TextureRenderer::TextureRenderer(Vector3Df* p_texture, pixels_t texWidt
     h_dimensions = new pixels_t[2];
     h_dimensions[0] = texWidth;
     h_dimensions[1] = texHeight;
+    allocateTextures(&h_dimensions[0], 1);
+    loadTextures(&h_texture, h_dimensions, 1);
 }
 
 __host__ void TextureRenderer::renderOneSamplePerPixel(uchar4* p_img) {
@@ -16,7 +18,7 @@ __host__ void TextureRenderer::renderOneSamplePerPixel(uchar4* p_img) {
             int idx = y * width + x;
             float u = (float)x / (float)width;
             float v = (float)y / (float)height;
-             Vector3Df color = sampleTexture(h_texture, h_dimensions, u, v);
+             Vector3Df color = sampleTexture(0, u, v);
             p_img[idx] = vector3ToUchar4(color);
         }
     }

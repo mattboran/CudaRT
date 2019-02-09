@@ -19,13 +19,6 @@
 #define USE_SKYBOX
 #define UNBIASED
 
-#ifdef USE_SKYBOX
-#ifdef __CUDA_ARCH__
-__constant__ float skybox[] = { 0.0f, 0.025f, 0.05f };
-#else
-static const float skybox[] = { 0.0f, 0.025f, 0.05f };
-#endif
-#endif
 
 
 __host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriangles, SurfaceInteraction &interaction, Ray& ray);
@@ -34,6 +27,19 @@ __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interactio
 __host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Material* p_material);
 __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, Material* p_material, const SurfaceInteraction &interaction, Sampler* p_sampler);
 __host__ __device__ bool intersectBVH(LinearBVHNode* p_bvh, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray);
+
+#ifdef USE_SKYBOX
+#ifdef __CUDA_ARCH__
+__constant__ float skybox[] = { 0.0f, 0.025f, 0.05f };
+#else
+static const float skybox[] = { 0.0f, 0.025f, 0.05f };
+#endif
+#endif
+
+Vector3Df** pp_textures;
+Vector3Df** dp_textures;
+pixels_t* p_textureDimensions;
+pixels_t* d_textureDimensions;
 
 __host__ __device__ float Sampler::getNextFloat() {
 	#ifdef __CUDA_ARCH__
@@ -72,9 +78,33 @@ __host__ void Renderer::createLightsData(LightsData* p_lightsData, Triangle* p_t
 	p_lightsData->totalSurfaceArea = p_scene->getLightsSurfaceArea();
 }
 
-__host__ __device__ Vector3Df sampleTexture(Vector3Df* p_tex, pixels_t* p_dimensions, float u, float v) {
-	pixels_t width = p_dimensions[0];
-	pixels_t height = p_dimensions[1];
+__host__ void Renderer::allocateTextures(pixels_t* p_texDimensions, uint numTextures) {
+	pp_textures = (Vector3Df**)malloc(numTextures * sizeof(Vector3Df*));
+	for (uint i = 0; i < numTextures; i++) {
+		pixels_t width = p_texDimensions[2 * i];
+		pixels_t height = p_texDimensions[2 * i + 1];
+		size_t imageSize = width * height * sizeof(Vector3Df);
+		pp_textures[i] = (Vector3Df*)malloc(imageSize);
+		p_textureDimensions = (pixels_t*)malloc(2 * numTextures * sizeof(pixels_t));
+	}
+}
+
+__host__ void Renderer::loadTextures(Vector3Df** pp_tex, pixels_t* p_texDimensions, uint numTextures) {
+	memcpy(p_textureDimensions, p_texDimensions, sizeof(pixels_t) * numTextures * 2);
+	for (uint i = 0; i < numTextures; i++) {
+		pixels_t width = p_texDimensions[2 * i];
+		pixels_t height = p_texDimensions[2 * i + 1];
+		size_t imageSize = width * height * sizeof(Vector3Df);
+		memcpy(pp_textures[i], pp_tex[i], imageSize);
+	}
+}
+
+__host__ __device__ Vector3Df sampleTexture(uint idx, float u, float v) {
+#ifdef __CUDA_ARCH__
+	return Vector3Df(1,0,0);
+#else
+	pixels_t width = p_textureDimensions[idx * 2];
+	pixels_t height = p_textureDimensions[idx * 2 + 1];
 	float pixelCoordU = u * (float)width;
 	float pixelCoordV = v * (float)height;
 	float floorPixelCoordU = floorf(pixelCoordU);
@@ -83,14 +113,18 @@ __host__ __device__ Vector3Df sampleTexture(Vector3Df* p_tex, pixels_t* p_dimens
 	float ceilPixelCoordV = ceilf(pixelCoordV);
 	pixels_t i = truncf(pixelCoordU);
 	pixels_t j = truncf(pixelCoordV);
-	Vector3Df valA1 = p_tex[j * width + i + 1] * (pixelCoordU - floorPixelCoordU);
-	Vector3Df valA2 = p_tex[j * width + i] * (ceilPixelCoordU - pixelCoordU);
-	Vector3Df valB1 = p_tex[(j + 1) * width + i + 1] * (pixelCoordU - floorPixelCoordU);
-	Vector3Df valB2 = p_tex[(j + 1) * width + i] * (ceilPixelCoordU - pixelCoordU);
+
+	// Bilinear interpolation
+	Vector3Df* p_texture = pp_textures[idx];
+	Vector3Df valA1 = p_texture[j * width + i + 1] * (pixelCoordU - floorPixelCoordU);
+	Vector3Df valA2 = p_texture[j * width + i] * (ceilPixelCoordU - pixelCoordU);
+	Vector3Df valB1 = p_texture[(j + 1) * width + i + 1] * (pixelCoordU - floorPixelCoordU);
+	Vector3Df valB2 = p_texture[(j + 1) * width + i] * (ceilPixelCoordU - pixelCoordU);
 
 	Vector3Df valC1 = (valA1 + valA2) * (ceilPixelCoordV - pixelCoordV);
 	Vector3Df valC2 = (valB1 + valB2) * (pixelCoordV - floorPixelCoordV);
 	return valC1 + valC2;
+#endif
 }
 
 __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, TrianglesData* p_trianglesData, LightsData *p_lightsData, Material* p_materials, Sampler* p_sampler) {

@@ -47,7 +47,7 @@ struct Sampler {
 
 __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, TrianglesData* p_trianglesData, LightsData *p_lightsData, Material* p_materials, Sampler* p_sampler);
 __host__ __device__ void gammaCorrectPixel(uchar4 &p);
-__host__ __device__ Vector3Df sampleTexture(Vector3Df* p_tex, pixels_t* p_dimensions, float u, float v);
+__host__ Vector3Df sampleTexture(uint idx, float u, float v);
 
 class Renderer {
 public:
@@ -65,6 +65,8 @@ public:
 	__host__ void createSettingsData(SettingsData* p_settingsData);
 	__host__ void createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles, LinearBVHNode* p_bvh, Material* p_materials);
 	__host__ void createLightsData(LightsData* p_lightsData, Triangle* p_triangles);
+	__host__ void allocateTextures(pixels_t* p_texDimensions, uint numTextures);
+	__host__ void loadTextures(Vector3Df** pp_tex, pixels_t* p_texDimensions, uint numTextures);
 protected:
 	__host__ Renderer() {}
 	__host__ Renderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, uint _samples);

@@ -133,10 +133,11 @@ int main(int argc, char* argv[]) {
 	Renderer* p_renderer;
 	Launcher* p_launcher;
 
+	TextureLoader textureLoader;
+
 	cudaGetDeviceCount(&cudaCapableDevices);
 	if (executeOnCpu || cudaCapableDevices == 0) {
 		if (textureDebug) {
-			TextureLoader textureLoader;
 			int texw, texh, texIdx;
 			Vector3Df* p_tex = textureLoader.load(texturePath, texw, texh, texIdx);
 			p_renderer = new TextureRenderer(p_tex, texw, texh, width, height);
