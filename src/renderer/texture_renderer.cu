@@ -1,18 +1,23 @@
 #include "renderer.h"
 #include <iostream>
 
-__host__ TextureRenderer::TextureRenderer(Vector3Df* p_texture, pixels_t _width, pixels_t _height) :
+__host__ TextureRenderer::TextureRenderer(Vector3Df* p_texture, pixels_t texWidth, pixels_t texHeight, pixels_t _width, pixels_t _height) :
     Renderer(NULL, _width, _height, 1) {
     h_texture = p_texture;
+    h_dimensions = new pixels_t[2];
+    h_dimensions[0] = texWidth;
+    h_dimensions[1] = texHeight;
 }
 
 __host__ void TextureRenderer::renderOneSamplePerPixel(uchar4* p_img) {
     samplesRendered++;
-    for (unsigned x = 0; x < width; x++) {
-        for (unsigned y = 0; y < height; y++) {
+    for (uint x = 0; x < width; x++) {
+        for (uint y = 0; y < height; y++) {
             int idx = y * width + x;
-            // Vector3Df color(1, 0, 0);
-            p_img[idx] = vector3ToUchar4(h_texture[idx]);
+            float u = (float)x / (float)width;
+            float v = (float)y / (float)height;
+             Vector3Df color = sampleTexture(h_texture, h_dimensions, u, v);
+            p_img[idx] = vector3ToUchar4(color);
         }
     }
 }

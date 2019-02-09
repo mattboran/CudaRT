@@ -47,16 +47,9 @@ struct Sampler {
 
 __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, TrianglesData* p_trianglesData, LightsData *p_lightsData, Material* p_materials, Sampler* p_sampler);
 __host__ __device__ void gammaCorrectPixel(uchar4 &p);
+__host__ __device__ Vector3Df sampleTexture(Vector3Df* p_tex, pixels_t* p_dimensions, float u, float v);
 
 class Renderer {
-protected:
-	__host__ Renderer() {}
-	__host__ Renderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, uint _samples);
-	Scene* p_scene;
-	pixels_t width;
-	pixels_t height;
-	uint samples;
-	uint samplesRendered;
 public:
 	bool useCuda = false;
 	uchar4* h_imgPtr;
@@ -72,19 +65,27 @@ public:
 	__host__ void createSettingsData(SettingsData* p_settingsData);
 	__host__ void createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles, LinearBVHNode* p_bvh, Material* p_materials);
 	__host__ void createLightsData(LightsData* p_lightsData, Triangle* p_triangles);
+protected:
+	__host__ Renderer() {}
+	__host__ Renderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, uint _samples);
+	Scene* p_scene;
+	pixels_t width;
+	pixels_t height;
+	uint samples;
+	uint samplesRendered;
 };
 
 // This class is used to debug loading of textures by displaying them on-screen
 class TextureRenderer: public Renderer {
 public:
     __host__ TextureRenderer() : Renderer() {}
-    __host__ TextureRenderer(Vector3Df* p_texture, pixels_t _width, pixels_t _height);
+    __host__ TextureRenderer(Vector3Df* p_texture, pixels_t texWidth, pixels_t texHeight, pixels_t _width, pixels_t _height);
     __host__ void renderOneSamplePerPixel(uchar4* p_img);
     __host__ void copyImageBytes(uchar4* p_img);
     __host__ uchar4* getImgBytesPointer() { return h_imgPtr; }
     ~TextureRenderer() {};
+    pixels_t* h_dimensions;
 private:
-    uchar4* h_imgBytesPtr;
 	Vector3Df* h_texture;
 };
 

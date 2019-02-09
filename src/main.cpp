@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
 	string objPath = "../meshes/" + sceneName + ".obj";
 	string cameraPath = "../settings/" + sceneName + "-camera.json";
 	string materialsPath = "../settings/" + sceneName + "-materials.json";
-	bool useSequential = false;
+	bool executeOnCpu = false;
 	bool renderToScreen = false;
 	bool textureDebug = false;
 	string texturePath = "../settings/texture-test.png";
@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
 
 	// Sequential flag
 	if ((find(args.begin(), args.end(), "--cpu") < args.end())) {
-		useSequential = true;
+		executeOnCpu = true;
 	}
 
 
@@ -103,6 +103,7 @@ int main(int argc, char* argv[]) {
 	// Texture debug
 	if ((find(args.begin(), args.end(), "-t") < args.end() - 1)) {
 		textureDebug = true;
+		executeOnCpu = true;
 		texturePath = *(find(args.begin(), args.end(), "-t") + 1);
 	}
 
@@ -133,12 +134,12 @@ int main(int argc, char* argv[]) {
 	Launcher* p_launcher;
 
 	cudaGetDeviceCount(&cudaCapableDevices);
-	if (useSequential || cudaCapableDevices == 0) {
+	if (executeOnCpu || cudaCapableDevices == 0) {
 		if (textureDebug) {
 			TextureLoader textureLoader;
 			int texw, texh, texIdx;
 			Vector3Df* p_tex = textureLoader.load(texturePath, texw, texh, texIdx);
-			p_renderer = new TextureRenderer(p_tex, texw, texh);
+			p_renderer = new TextureRenderer(p_tex, texw, texh, width, height);
 		} else {
 			p_renderer = new SequentialRenderer(&scene, width, height, samples);
 		}

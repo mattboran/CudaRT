@@ -72,6 +72,14 @@ __host__ void Renderer::createLightsData(LightsData* p_lightsData, Triangle* p_t
 	p_lightsData->totalSurfaceArea = p_scene->getLightsSurfaceArea();
 }
 
+__host__ __device__ Vector3Df sampleTexture(Vector3Df* p_tex, pixels_t* p_dimensions, float u, float v) {
+	pixels_t width = p_dimensions[0];
+	pixels_t height = p_dimensions[1];
+	pixels_t i = truncf(u * (float)(width));
+	pixels_t j = truncf(v * (float)(height));
+	return p_tex[j * width + i];
+}
+
 __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, TrianglesData* p_trianglesData, LightsData *p_lightsData, Material* p_materials, Sampler* p_sampler) {
 	Ray ray = p_camera->computeCameraRay(x, y, p_sampler);
 

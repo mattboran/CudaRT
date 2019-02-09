@@ -148,7 +148,7 @@ __host__ void ParallelRenderer::copyImageBytes(uchar4* p_img) {
 	pixels_t pixels = width * height;
 	size_t imgBytes = sizeof(uchar4) * pixels;
 	CUDA_CHECK_RETURN(cudaMemcpy(h_imgPtr, p_img, imgBytes, cudaMemcpyDeviceToHost));
-	for (unsigned i = 0; i < pixels; i++) {
+	for (uint i = 0; i < pixels; i++) {
 		gammaCorrectPixel(h_imgPtr[i]);
 	}
 }

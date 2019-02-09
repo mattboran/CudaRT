@@ -30,7 +30,7 @@ add_library(contextlib STATIC
 	${CONTEXT}/json_loader.cpp
 	${CONTEXT}/launcher.cpp
 	${CONTEXT}/terminal_launcher.cpp
-	${CONTEXT}/texture_loader.cu
+	${CONTEXT}/texture_loader.cpp
 	${CONTEXT}/window.cpp
 	${CONTEXT}/windowed_launcher.cpp)
 target_include_directories(contextlib PUBLIC src/include /usr/include /usr/local/cuda/include)
@@ -47,6 +47,7 @@ add_library(rendererlib STATIC
 
 target_include_directories(rendererlib PUBLIC src/include /usr/include /usr/local/cuda/include)
 target_compile_features(rendererlib PUBLIC cxx_std_11)
+target_compile_options(rendererlib PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:-gencode arch=compute_52,code=sm_52>)
 set_target_properties(rendererlib PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 set_target_properties(rendererlib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
