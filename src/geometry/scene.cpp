@@ -24,7 +24,7 @@ static vector<Material> materialsList;
 static map<Material, uint, materialComparator> materialsMap;
 
 const static std::map<std::string, refl_t> reflDict = {
-		{"LAMBERT", LAMBERT},
+		{"LAMBERT", DIFFUSE},
 		{"SPECULAR", SPECULAR},
 		{"DIFFSPEC", DIFFSPEC},
 		{"MICROFACET", MICROFACET},
@@ -61,7 +61,7 @@ Material materialFromMtl(objl::Material m) {
 	material.ns = m.Ns;
 	material.ni = m.Ni;
 	material.diffuseCoefficient = m.diffuse;
-	material.bsdf = LAMBERT;
+	material.bsdf = DIFFUSE;
 
 	auto it = reflDict.find(m.type);
 	if (it != reflDict.end()) {

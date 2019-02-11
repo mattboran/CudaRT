@@ -27,6 +27,8 @@ __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interactio
 __host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Material* p_material);
 __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, Material* p_material, const SurfaceInteraction &interaction, Sampler* p_sampler);
 __host__ __device__ bool intersectBVH(LinearBVHNode* p_bvh, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray);
+__host__ __device__ Vector3Df reflect(const Vector3Df& incedent, const Vector3Df& normal);
+__host__ __device__ float getFresnelReflectance(const SurfaceInteraction &interaction, float ior);
 
 #ifdef USE_SKYBOX
 #ifdef __CUDA_ARCH__
@@ -135,8 +137,8 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
     SurfaceInteraction interaction = SurfaceInteraction();
     Triangle* p_triangles = p_trianglesData->p_triangles;
     Triangle* p_hitTriangle = NULL;
-    refl_t currentBsdf = LAMBERT;
-    refl_t previousBsdf = LAMBERT;
+    refl_t currentBsdf = DIFFUSE;
+    refl_t previousBsdf = DIFFUSE;
     LinearBVHNode* p_bvh = p_trianglesData->p_bvh;
     for (unsigned bounces = 0; bounces < 6; bounces++) {
     	if (!intersectBVH(p_bvh, p_triangles, interaction, ray)) {
@@ -151,11 +153,12 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
         return p_hitTriangle->getNormal(interaction.u, interaction.v);
 #endif
         Material* p_material = &p_materials[p_hitTriangle->_materialId];
-        if (bounces == 0 || previousBsdf == SPECULAR) {
+        if (bounces == 0 || previousBsdf == SPECULAR || previousBsdf == REFRACTIVE) {
         	color += mask * p_material->ka;
         }
 
         interaction.normal = p_hitTriangle->getNormal(interaction.u, interaction.v);
+        Vector3Df orientedNormal = dot(interaction.normal, ray.dir) > 0 ? interaction.normal : interaction.normal * -1.0f;
         interaction.position = ray.origin + ray.dir * ray.tMax;
         interaction.outputDirection = normalize(ray.dir);
         interaction.p_hitTriangle = p_hitTriangle;
@@ -166,17 +169,57 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
         // DIFFUSE AND SPECULAR BSDF
         if (currentBsdf == DIFFSPEC) {
 			// use Russian roulette to decide whether to evaluate diffuse or specular BSDF
-        	float p = maxComponent(p_material->ks);
+        	float p = p_material->diffuseCoefficient;
         	if (p_sampler->getNextFloat() < p) {
-        		currentBsdf = SPECULAR;
+        		currentBsdf = DIFFUSE;
+				mask *= 1.0f / p;
         	} else {
-        		currentBsdf = LAMBERT;
+        		currentBsdf = SPECULAR;
+        		mask *= 1.0f / (1.0f - p);
         	}
-        	mask *= 1.0f / p;
+        }
+
+        if (currentBsdf == REFRACTIVE) {
+			Vector3Df incedent = interaction.outputDirection;
+			Vector3Df normal = interaction.normal;
+
+        	bool into = dot(orientedNormal, normal) > 0.0f;
+        	float nc = 1.0f;
+        	float nt = p_material->ni;
+        	float nnt = into ? nc / nt : nt / nc;
+        	float ddn = dot(incedent, orientedNormal);
+        	float cos2t = 1.0f - nnt * nnt * (1.f - ddn * ddn);
+        	// TIR
+//        	if (cos2t < 0.0f) {
+        	if (false) {
+        		currentBsdf = SPECULAR;
+        	}
+        	else {
+        		Vector3Df tDir = normalize(incedent * nnt - normal *
+        				((into ? 1 : -1) * (ddn * nnt + sqrtf(cos2t))));
+        		interaction.inputDirection = tDir;
+//        		interaction.normal = orientedNormal;
+//        		float R0 = (nt - nc) * (nt - nc) / (nt + nc) * (nt + nc);
+//        		float c = 1.f - (into ? -ddn : dot(tDir, normal));
+//        		float Re = R0 + (1.f - R0) * c * c * c * c * c;
+//        		float TR = 1 - Re;
+//        		float P = .25f + .5f * Re;
+//        		float RP = Re/P;
+//        		float TP = TR / (1.f - P);
+//
+//        		if (p_sampler->getNextFloat() < 0.25f) {
+//        			mask *= RP;
+//        			currentBsdf = SPECULAR;
+//        		}
+//        		else {
+//        			mask *= TP;
+//        			interaction.inputDirection = tDir;
+//        		}
+        	}
         }
 
         // DIFFUSE BSDF
-        if (currentBsdf == LAMBERT) {
+        if (currentBsdf == DIFFUSE) {
         	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, p_material, p_sampler);
 			mask = mask * diffuseSample / interaction.pdf;
 
@@ -333,10 +376,13 @@ __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interactio
 __host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Material* p_material) {
 	Vector3Df normal = p_interaction->normal;
 	Vector3Df incedent = p_interaction->outputDirection;
-	Vector3Df reflected = incedent - normal * dot(incedent, normal) * 2.f;
-	p_interaction->inputDirection = reflected;
+	p_interaction->inputDirection = reflect(incedent, normal);
 	p_interaction->pdf = 1.0f;
 	return p_material->ks;
+}
+
+__host__ __device__ Vector3Df reflect(const Vector3Df& incedent, const Vector3Df& normal) {
+	return incedent - normal * dot(incedent, normal) * 2.f;
 }
 
 __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, Material* p_material, const SurfaceInteraction &interaction, Sampler* p_sampler) {
@@ -366,6 +412,20 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, Triangle
 		directLighting += p_material->ka * weightFactor;
 	}
 	return directLighting;
+}
+
+__host__ __device__ float getFresnelReflectance(const SurfaceInteraction &interaction, float ior) {
+	float n = ior;
+	float cosI = -dot(interaction.outputDirection, interaction.normal);
+	float sin2T = n * n * (1.0f - cosI * cosI);
+	if (sin2T > 1.0f) {
+		return 1.0f;
+	}
+
+	float cosT = sqrtf(1.0f - sin2T);
+	float rPer = (n * cosI - cosT) / (n * cosI + cosT);
+	float rPar = (cosI - n * cosT) / (cosI + n * cosT);
+	return (rPer * rPer + rPar * rPar) / 2.0f;
 }
 
 __host__ __device__ void gammaCorrectPixel(uchar4 &p) {

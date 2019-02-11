@@ -4,7 +4,7 @@
 #include "linalg.h"
 
 enum refl_t {
-    LAMBERT,
+    DIFFUSE,
     SPECULAR,
     DIFFSPEC,
     MICROFACET,
@@ -13,7 +13,8 @@ enum refl_t {
 };
 
 struct Material {
-    refl_t bsdf = LAMBERT;
+    refl_t bsdf = DIFFUSE;
+    // TODO: Union kd and ka because they'll never both be used in the same place
     Vector3Df kd = Vector3Df(1,1,1);
     Vector3Df ka = Vector3Df(0,0,0);
     Vector3Df ks = Vector3Df(0,0,0);
