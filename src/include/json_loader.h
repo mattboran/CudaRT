@@ -7,17 +7,14 @@
 
 #include <string>
 
-class JsonLoader{
+class CameraJsonLoader{
 public:
-	JsonLoader() {}
-	JsonLoader(std::string cam, std::string mat);
+	CameraJsonLoader() {}
+	CameraJsonLoader(std::string cam);
 	Camera getCamera(int width, int height);
-	Material getMaterial(std::string name);
 private:
 	std::string cameraFile;
-	std::string materialsFile;
 	picojson::value cameraValue;
-	picojson::value materialsValue;
 };
 
 #endif

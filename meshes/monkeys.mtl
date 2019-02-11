@@ -1,34 +1,39 @@
 newmtl blinn1SG
 illum 4
-Kd 0.50 0.00 0.00
+Kd 0.00 0.00 0.00
 Ka 0.00 0.00 0.00
 Tf 1.00 1.00 1.00
-Ni 1.00
+Ni 1.35
 Ks 0.44 0.00 0.00
+type SPECULAR
 newmtl initialShadingGroup
 illum 4
 Kd 0.50 0.50 0.50
 Ka 0.00 0.00 0.00
 Tf 1.00 1.00 1.00
 Ni 1.00
+type LAMBERT
 newmtl lambert2SG
 illum 4
 Kd 0.50 0.50 0.50
 Ka 1.00 0.78 0.55
 Tf 1.00 1.00 1.00
 Ni 1.00
+type EMISSIVE
 newmtl lambert3SG
 illum 4
 Kd 0.50 0.50 0.50
 Ka 0.35 0.73 1.00
 Tf 1.00 1.00 1.00
 Ni 1.00
+type EMISSIVE
 newmtl lambert6SG
 illum 4
 Kd 0.86 0.86 0.86
 Ka 0.00 0.00 0.00
 Tf 1.00 1.00 1.00
-Ni 1.00
+Ni 1.33
+type LAMBERT
 newmtl phongE1SG
 illum 4
 Kd 0.50 0.50 0.50
@@ -36,3 +41,5 @@ Ka 0.00 0.00 0.00
 Tf 1.00 1.00 1.00
 Ni 1.00
 Ks 0.00 0.29 0.00
+type DIFFSPEC
+diffuse 0.662337660789

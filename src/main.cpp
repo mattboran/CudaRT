@@ -27,7 +27,6 @@ int main(int argc, char* argv[]) {
 	string sceneName = "cornell";
 	string objPath = "../meshes/" + sceneName + ".obj";
 	string cameraPath = "../settings/" + sceneName + "-camera.json";
-	string materialsPath = "../settings/" + sceneName + "-materials.json";
 	bool executeOnCpu = false;
 	bool renderToScreen = false;
 	bool textureDebug = false;
@@ -95,7 +94,8 @@ int main(int argc, char* argv[]) {
 		sceneName = *(find(args.begin(), args.end(), "-f") + 1);
 		objPath = "../meshes/" + sceneName + ".obj";
 		cameraPath = "../settings/" + sceneName + "-camera.json";
-		materialsPath = "../settings/" + sceneName + "-materials.json";
+//		objPath = "/home/matt/Documents/CudaRT/meshes/monkeys.obj";
+//		cameraPath = "/home/matt/Documents/CudaRT/settings/monkeys-camera.json";
 		outFile = sceneName + ".png";
 	}
 
@@ -117,7 +117,7 @@ int main(int argc, char* argv[]) {
 	//
 	// Initialize Scene
 	//
-	JsonLoader loader(cameraPath, materialsPath);
+	CameraJsonLoader loader(cameraPath);
 	Scene scene(objPath);
 	Camera camera = loader.getCamera(width, height);
 

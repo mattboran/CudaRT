@@ -42,6 +42,9 @@ struct Material {
 		if (ni != m.ni) {
 			return false;
 		}
+		if (diffuseCoefficient != m.diffuseCoefficient) {
+			return false;
+		}
 		return true;
     }
 }__attribute__((aligned(32)));

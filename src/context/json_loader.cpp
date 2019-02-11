@@ -17,7 +17,7 @@ using namespace std;
 
 Vector3Df vector3FromArray(picojson::array arr);
 
-JsonLoader::JsonLoader(std::string cam, std::string mat) : cameraFile(cam), materialsFile(mat) {
+CameraJsonLoader::CameraJsonLoader(std::string cam) : cameraFile(cam){
 	ifstream c(cameraFile);
 	string camJson((istreambuf_iterator<char>(c)),
 			istreambuf_iterator<char>());
@@ -25,16 +25,9 @@ JsonLoader::JsonLoader(std::string cam, std::string mat) : cameraFile(cam), mate
 	if (!err.empty()) {
 		throw std::runtime_error(err + " loading camera!");
 	}
-	ifstream m(materialsFile);
-	string matJson((istreambuf_iterator<char>(m)),
-			istreambuf_iterator<char>());
-	err = picojson::parse(materialsValue, matJson);
-	if (!err.empty()) {
-		throw std::runtime_error(err + " loading materials!");
-	}
 }
 
-Camera JsonLoader::getCamera(int width, int height) {
+Camera CameraJsonLoader::getCamera(int width, int height) {
 	float f = cameraValue.get("fieldOfView").get<double>();
 	float focalLength = cameraValue.get("focalLength").get<double>();
 	float fStop = cameraValue.get("fStop").get<double>();
@@ -56,39 +49,6 @@ Camera JsonLoader::getCamera(int width, int height) {
 	camera.aspect = (float)width / (float)height;
 
 	return camera;
-}
-
-// Note this is not efficient, it's O(n^2) for all materials
-Material JsonLoader::getMaterial(std::string name) {
-	Material mtl;
-	picojson::value::array materials = materialsValue.get("materials").get<picojson::array>();
-	for (auto it = materials.begin(); it != materials.end(); it++) {
-		string otherName = it->get("name").get<string>();
-		if (name.compare(otherName + "SG") != 0 ) {
-			continue;
-		}
-
-		mtl.ka = vector3FromArray(it->get("ka").get<picojson::array>());
-		mtl.kd = vector3FromArray(it->get("kd").get<picojson::array>());
-		mtl.ks = vector3FromArray(it->get("ks").get<picojson::array>());
-		mtl.diffuseCoefficient = it->get("diffuse").get<double>();
-		mtl.ni = it->get("ni").get<double>();
-		mtl.ns = it->get("roughness").get<double>();
-		mtl.bsdf = LAMBERT;
-		if (mtl.bsdf == DIFFSPEC && mtl.diffuseCoefficient == 0.0f) {
-			mtl.bsdf = SPECULAR;
-		}
-		else if (mtl.bsdf == DIFFSPEC && mtl.diffuseCoefficient == 1.0f) {
-			mtl.bsdf = LAMBERT;
-		}
-		if (mtl.ns > 0.0f) {
-			mtl.bsdf = MICROFACET;
-		}
-		cout << "BSDF = " << mtl.bsdf << endl;
-		break;
-	}
-
-	return mtl;
 }
 
 Vector3Df vector3FromArray(picojson::array arr) {

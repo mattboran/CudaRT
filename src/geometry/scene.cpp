@@ -9,8 +9,10 @@
 #include <iostream>
 #include <map>
 #include <math.h>
+#include <string>
 
 using std::vector;
+using std::string;
 using std::map;
 
 #define LIGHTS_GAIN 3.0f
@@ -19,7 +21,17 @@ unsigned int populateMaterialsMap(vector<objl::Mesh> meshes);
 Material materialFromMtl(objl::Material m);
 
 static vector<Material> materialsList;
-static map<Material, unsigned int, materialComparator> materialsMap;
+static map<Material, uint, materialComparator> materialsMap;
+
+const static std::map<std::string, refl_t> reflDict = {
+		{"LAMBERT", LAMBERT},
+		{"SPECULAR", SPECULAR},
+		{"DIFFSPEC", DIFFSPEC},
+		{"MICROFACET", MICROFACET},
+		{"REFRACTIVE", REFRACTIVE},
+		{"EMISSIVE", EMISSIVE}
+};
+
 // Constructors
 Scene::Scene(std::string filename) {
 	meshLoader = objl::Loader();
@@ -43,29 +55,35 @@ float Scene::getLightsSurfaceArea() {
 
 Material materialFromMtl(objl::Material m) {
 	Material material;
-	material.ka = m.Ka;
+	material.ka = m.Ka * LIGHTS_GAIN;
 	material.kd = m.Kd;
 	material.ks = m.Ks;
 	material.ns = m.Ns;
 	material.ni = m.Ni;
+	material.diffuseCoefficient = m.diffuse;
 	material.bsdf = LAMBERT;
-	if (material.ks.lengthsq() > 0.0f) {
-		material.bsdf = SPECULAR;
-		if (material.kd.lengthsq() > 0.0f) {
-			material.bsdf = DIFFSPEC;
-		}
-		if (material.ns > 0.0f) {
-			material.bsdf = MICROFACET;
-		}
-	}
-	if (material.ni != 1.0f) {
-		material.bsdf = REFRACTIVE;
-	}
-	if (material.ka.lengthsq() > 0.0f) {
-		material.ka *= LIGHTS_GAIN;
-		material.bsdf = EMISSIVE;
+
+	auto it = reflDict.find(m.type);
+	if (it != reflDict.end()) {
+		material.bsdf = it->second;
 	}
 	return material;
+}
+
+std::ostream& operator<<(std::ostream& os, const Vector3Df& v) {
+	os << "X: " << v.x << " Y: " << v.y << " Z: " << v.z << "\n";
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const Material& m) {
+	refl_t type = m.bsdf;
+	os << "Type: " << type << "\n";
+	os << "Ka = " << m.ka;
+	os << "Kd = " << m.kd;
+	os << "Ks = " << m.ks;
+	os << "Ni = " << m.ni << std::endl;
+	os << "diffuse = " << m.diffuseCoefficient << std::endl;
+	return os;
 }
 
 // todo: change this to a set
@@ -75,6 +93,7 @@ unsigned int populateMaterialsMap(vector<objl::Mesh> meshes) {
 		// TODO: Move this to Material.h
 		Material material = materialFromMtl(mesh.MeshMaterial);
 		if (materialsMap.count(material) == 0) {
+			std::cout << "Inserting " << mesh.MeshMaterial.name << " into materials map " << std::endl;
 			materialsMap.insert(std::pair<Material, unsigned int>(material, idx));
 			idx++;
 		}
@@ -92,6 +111,7 @@ Triangle* Scene::loadTriangles() {
 	p_materials = new Material[numMaterials];
 	for (auto it = materialsMap.begin(); it != materialsMap.end(); it++) {
 		p_materials[it->second] = it->first;
+		std::cout << "p_materials[" << it->second << "] = \n" << it->first << std::endl;
 	}
 	for (unsigned i = 0; i < numMaterials; i++) {
 		materialsList.push_back(p_materials[i]);
@@ -104,6 +124,9 @@ Triangle* Scene::loadTriangles() {
 		objl::Material material = mesh.MeshMaterial;
 		Material m = materialFromMtl(material);
 		auto it = std::find(materialsList.begin(), materialsList.end(), m);
+		if (it == materialsList.end()) {
+			std::cout << "Couldn't find material " << m;
+		}
 		for (unsigned int i = 0; i < vertices.size()/3; i++) {
 			p_current->_id1 = indices[i*3];
 			p_current->_id2 = indices[i*3 + 1];

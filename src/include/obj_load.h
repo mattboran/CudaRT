@@ -155,6 +155,8 @@ namespace objl
 			Ni = 0.0f;
 			d = 0.0f;
 			illum = 0;
+			type = "LAMBERT";
+			diffuse = 0.0f;
 		}
 
 		// Material Name
@@ -185,6 +187,13 @@ namespace objl
 		std::string map_d;
 		// Bump Map
 		std::string map_bump;
+
+		// CUDART Specific properties
+
+		// Surface type
+		std::string type;
+		// Diffuse coefficient for diffspec materials
+		float diffuse;
 	};
 
 	// Structure: Mesh
@@ -1148,6 +1157,17 @@ namespace objl
 				{
 					tempMaterial.map_bump = algorithm::tail(curline);
 				}
+				// CUDART Type
+				if (algorithm::firstToken(curline) == "type")
+				{
+					tempMaterial.type = algorithm::tail(curline);
+				}
+				// CUDART Diffuse coefficient
+				if (algorithm::firstToken(curline) == "diffuse")
+				{
+					tempMaterial.diffuse = std::stof(algorithm::tail(curline));
+				}
+
 			}
 
 			// Deal with last material
