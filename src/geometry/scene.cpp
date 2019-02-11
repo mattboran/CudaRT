@@ -94,7 +94,6 @@ Triangle* Scene::loadTriangles() {
 	p_materials = new Material[numMaterials];
 	for (auto it = materialsMap.begin(); it != materialsMap.end(); it++) {
 		p_materials[it->second] = it->first;
-		std::cout << "p_materials[" << it->second << "] = \n" << it->first << std::endl;
 	}
 	for (unsigned i = 0; i < numMaterials; i++) {
 		materialsList.push_back(p_materials[i]);
@@ -107,9 +106,6 @@ Triangle* Scene::loadTriangles() {
 		objl::Material material = mesh.MeshMaterial;
 		Material m = materialFromMtl(material);
 		auto it = std::find(materialsList.begin(), materialsList.end(), m);
-		if (it == materialsList.end()) {
-			std::cout << "Couldn't find material " << m;
-		}
 		for (unsigned int i = 0; i < vertices.size()/3; i++) {
 			p_current->_id1 = indices[i*3];
 			p_current->_id2 = indices[i*3 + 1];
@@ -144,11 +140,5 @@ Triangle* Scene::loadTriangles() {
 			[](const Triangle &a, const Triangle &b) -> bool {
 		return a._surfaceArea > b._surfaceArea;
 	});
-	int count = 0;
-	for (int i = 0; i < numMaterials; i++ ) {
-		if (p_materials[i].bsdf == EMISSIVE)
-			count++;
-	}
-	std::cout << "Got " << count << " emissive materials.\n";
 	return p_tris;
 }

@@ -94,8 +94,6 @@ int main(int argc, char* argv[]) {
 		sceneName = *(find(args.begin(), args.end(), "-f") + 1);
 		objPath = "../meshes/" + sceneName + ".obj";
 		cameraPath = "../settings/" + sceneName + "-camera.json";
-//		objPath = "/home/matt/Documents/CudaRT/meshes/monkeys.obj";
-//		cameraPath = "/home/matt/Documents/CudaRT/settings/monkeys-camera.json";
 		outFile = sceneName + ".png";
 	}
 
