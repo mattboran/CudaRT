@@ -70,23 +70,6 @@ Material materialFromMtl(objl::Material m) {
 	return material;
 }
 
-std::ostream& operator<<(std::ostream& os, const Vector3Df& v) {
-	os << "X: " << v.x << " Y: " << v.y << " Z: " << v.z << "\n";
-	return os;
-}
-
-std::ostream& operator<<(std::ostream& os, const Material& m) {
-	refl_t type = m.bsdf;
-	os << "Type: " << type << "\n";
-	os << "Ka = " << m.ka;
-	os << "Kd = " << m.kd;
-	os << "Ks = " << m.ks;
-	os << "Ni = " << m.ni << std::endl;
-	os << "diffuse = " << m.diffuseCoefficient << std::endl;
-	return os;
-}
-
-// todo: change this to a set
 unsigned int populateMaterialsMap(vector<objl::Mesh> meshes) {
 	unsigned int idx = 0;
 	for (auto const& mesh: meshes) {
