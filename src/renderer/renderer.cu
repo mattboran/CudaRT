@@ -382,11 +382,11 @@ __host__ __device__ Vector3Df refract(const Vector3Df& incedent, const Vector3Df
 	float etai = 1, etat = ior;
 	Vector3Df n = normal;
 	if (cosi < 0) {
+		cosi = -cosi;
+	} else {
 		float temp = etai;
 		etai = etat;
 		etat = temp;
-		cosi = -cosi;
-	} else {
 		n = -normal;
 	}
 	float eta = etai / etat;
@@ -404,8 +404,8 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, Triangle
 	if (sameTriangle(interaction.p_hitTriangle, p_light)) {
 		return directLighting;
 	}
-	//if specular, return directLighting
-	Ray ray(interaction.position,  normalize(p_light->getRandomPointOn(p_sampler) - interaction.position));
+	Vector3Df rayOrigin = interaction.position + interaction.normal * EPSILON;
+	Ray ray(rayOrigin,  normalize(p_light->getRandomPointOn(p_sampler) - interaction.position));
 	SurfaceInteraction lightInteraction = SurfaceInteraction();
 	// Sample the light
 	Triangle* p_triangles = p_trianglesData->p_triangles;
@@ -421,8 +421,8 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, Triangle
 		// For directional lights also consider light direction
 //		float incidenceAngle = fabs(dot(p_light->getNormal(lightInteraction.u, lightInteraction.v), -ray.dir));
 		// Otherwise direct lighting is based on the diffuse term and obey Lambert's cosine law
-		float incidenceAngle = fabs(dot(ray.dir, interaction.normal));
-		float weightFactor = surfaceArea/distanceSquared * incidenceAngle;
+		float cosTheta = fabs(dot(ray.dir, interaction.normal));
+		float weightFactor = surfaceArea/distanceSquared * cosTheta;
 		directLighting += p_material->ka * weightFactor;
 	}
 	return directLighting;
