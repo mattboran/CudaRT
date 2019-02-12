@@ -28,6 +28,7 @@ __host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interacti
 __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, Material* p_material, const SurfaceInteraction &interaction, Sampler* p_sampler);
 __host__ __device__ bool intersectBVH(LinearBVHNode* p_bvh, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray);
 __host__ __device__ Vector3Df reflect(const Vector3Df& incedent, const Vector3Df& normal);
+__host__ __device__ Vector3Df refract(const Vector3Df& incedent, const Vector3Df& normal, const float ior);
 __host__ __device__ float getFresnelReflectance(const SurfaceInteraction &interaction, float ior);
 
 #ifdef USE_SKYBOX
@@ -158,7 +159,6 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
         }
 
         interaction.normal = p_hitTriangle->getNormal(interaction.u, interaction.v);
-        Vector3Df orientedNormal = dot(interaction.normal, ray.dir) > 0 ? interaction.normal : interaction.normal * -1.0f;
         interaction.position = ray.origin + ray.dir * ray.tMax;
         interaction.outputDirection = normalize(ray.dir);
         interaction.p_hitTriangle = p_hitTriangle;
@@ -182,40 +182,34 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
         if (currentBsdf == REFRACTIVE) {
 			Vector3Df incedent = interaction.outputDirection;
 			Vector3Df normal = interaction.normal;
-
-        	bool into = dot(orientedNormal, normal) > 0.0f;
-        	float nc = 1.0f;
-        	float nt = p_material->ni;
-        	float nnt = into ? nc / nt : nt / nc;
-        	float ddn = dot(incedent, orientedNormal);
-        	float cos2t = 1.0f - nnt * nnt * (1.f - ddn * ddn);
-        	// TIR
-//        	if (cos2t < 0.0f) {
-        	if (false) {
-        		currentBsdf = SPECULAR;
-        	}
-        	else {
-        		Vector3Df tDir = normalize(incedent * nnt - normal *
-        				((into ? 1 : -1) * (ddn * nnt + sqrtf(cos2t))));
-        		interaction.inputDirection = tDir;
-//        		interaction.normal = orientedNormal;
-//        		float R0 = (nt - nc) * (nt - nc) / (nt + nc) * (nt + nc);
-//        		float c = 1.f - (into ? -ddn : dot(tDir, normal));
-//        		float Re = R0 + (1.f - R0) * c * c * c * c * c;
-//        		float TR = 1 - Re;
-//        		float P = .25f + .5f * Re;
-//        		float RP = Re/P;
-//        		float TP = TR / (1.f - P);
-//
-//        		if (p_sampler->getNextFloat() < 0.25f) {
-//        			mask *= RP;
-//        			currentBsdf = SPECULAR;
-//        		}
-//        		else {
-//        			mask *= TP;
-//        			interaction.inputDirection = tDir;
-//        		}
-        	}
+			Vector3Df orientedNormal = dot(normal, ray.dir) > 0 ? normal : -normal;
+//			bool into = dot(orientedNormal, normal) > 0.0f;
+			interaction.inputDirection = refract(incedent, orientedNormal, p_material->ni);
+//        	if (false) {
+//        		currentBsdf = SPECULAR;
+//        	}
+//        	else {
+//        		Vector3Df tDir = normalize(incedent * nnt - normal *
+//        				((into ? 1 : -1) * (ddn * nnt + sqrtf(cos2t))));
+//        		interaction.inputDirection = tDir;
+////        		interaction.normal = orientedNormal;
+////        		float R0 = (nt - nc) * (nt - nc) / (nt + nc) * (nt + nc);
+////        		float c = 1.f - (into ? -ddn : dot(tDir, normal));
+////        		float Re = R0 + (1.f - R0) * c * c * c * c * c;
+////        		float TR = 1 - Re;
+////        		float P = .25f + .5f * Re;
+////        		float RP = Re/P;
+////        		float TP = TR / (1.f - P);
+////
+////        		if (p_sampler->getNextFloat() < 0.25f) {
+////        			mask *= RP;
+////        			currentBsdf = SPECULAR;
+////        		}
+////        		else {
+////        			mask *= TP;
+////        			interaction.inputDirection = tDir;
+////        		}
+//        	}
         }
 
         // DIFFUSE BSDF
@@ -245,7 +239,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
 
         previousBsdf = currentBsdf;
 
-        ray.origin = interaction.position + interaction.normal * EPSILON;
+        ray.origin = interaction.position + interaction.inputDirection * EPSILON;
         ray.dir = interaction.inputDirection;
         ray.tMin = EPSILON;
         ray.tMax = FLT_MAX;
@@ -383,6 +377,28 @@ __host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interacti
 
 __host__ __device__ Vector3Df reflect(const Vector3Df& incedent, const Vector3Df& normal) {
 	return incedent - normal * dot(incedent, normal) * 2.f;
+}
+
+__host__ __device__ Vector3Df refract(const Vector3Df& incedent, const Vector3Df& normal, const float ior) {
+	float cosi = dot(incedent, normal);
+	float etai = 1, etat = ior;
+	Vector3Df n = normal;
+	if (cosi < 0) {
+		float temp = etai;
+		etai = etat;
+		etat = temp;
+		cosi = -cosi;
+	} else {
+		n = -normal;
+	}
+	float eta = etai / etat;
+	float k = 1 - eta * eta * (1 - cosi * cosi);
+	if (k < 0) {
+		return Vector3Df(0,0,0);
+	} else {
+		Vector3Df refracted = incedent * eta + normal * (eta * cosi - sqrtf(k));
+		return normalize(refracted);
+	}
 }
 
 __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, Material* p_material, const SurfaceInteraction &interaction, Sampler* p_sampler) {
