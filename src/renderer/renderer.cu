@@ -182,9 +182,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
         if (currentBsdf == REFRACTIVE) {
 			Vector3Df incedent = interaction.outputDirection;
 			Vector3Df normal = interaction.normal;
-			Vector3Df orientedNormal = dot(normal, ray.dir) > 0 ? normal : -normal;
-//			bool into = dot(orientedNormal, normal) > 0.0f;
-			interaction.inputDirection = refract(incedent, orientedNormal, p_material->ni);
+			interaction.inputDirection = refract(incedent, normal, p_material->ni);
 //        	if (false) {
 //        		currentBsdf = SPECULAR;
 //        	}
@@ -396,7 +394,7 @@ __host__ __device__ Vector3Df refract(const Vector3Df& incedent, const Vector3Df
 	if (k < 0) {
 		return Vector3Df(0,0,0);
 	} else {
-		Vector3Df refracted = incedent * eta + normal * (eta * cosi - sqrtf(k));
+		Vector3Df refracted = incedent * eta + n * (eta * cosi - sqrtf(k));
 		return normalize(refracted);
 	}
 }
