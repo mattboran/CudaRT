@@ -182,10 +182,14 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
         if (currentBsdf == REFRACTIVE) {
 			Vector3Df incedent = interaction.outputDirection;
 			Vector3Df normal = interaction.normal;
-			interaction.inputDirection = refract(incedent, normal, p_material->ni);
-//        	if (false) {
-//        		currentBsdf = SPECULAR;
-//        	}
+			Vector3Df tDir = refract(incedent, normal, p_material->ni);
+	       	if (tDir.lengthsq() == 0) {
+	       		currentBsdf = SPECULAR;
+	       	}
+			else {
+				interaction.inputDirection = tDir;
+				mask *= p_material->ks / 1.0f;
+			}
 //        	else {
 //        		Vector3Df tDir = normalize(incedent * nnt - normal *
 //        				((into ? 1 : -1) * (ddn * nnt + sqrtf(cos2t))));
