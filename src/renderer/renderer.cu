@@ -183,36 +183,38 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
 			Vector3Df incedent = interaction.outputDirection;
 			Vector3Df normal = interaction.normal;
 			float rp, tp;
-			Vector3Df tDir = refract(incedent, normal, p_material->ni, rp, tp);
-	       	if (tDir.lengthsq() == 0) {
-	       		currentBsdf = SPECULAR;
-	       	}
-//			else {
-//				mask *= p_material->ks / 1.0f;
-//				interaction.inputDirection = tDir;
-//			}
-        	else {
-//        		Vector3Df tDir = normalize(incedent * nnt - normal *
-//        				((into ? 1 : -1) * (ddn * nnt + sqrtf(cos2t))));
-//        		interaction.inputDirection = tDir;
-////        		interaction.normal = orientedNormal;
-////        		float R0 = (nt - nc) * (nt - nc) / (nt + nc) * (nt + nc);
-////        		float c = 1.f - (into ? -ddn : dot(tDir, normal));
-////        		float Re = R0 + (1.f - R0) * c * c * c * c * c;
-////        		float TR = 1 - Re;
-////        		float P = .25f + .5f * Re;
-////        		float RP = Re/P;
-////        		float TP = TR / (1.f - P);
-////
-        		if (p_sampler->getNextFloat() < tp) {
-        			mask *= rp;
-        			currentBsdf = SPECULAR;
-        		}
-        		else {
-        			mask *= tp;
-        			interaction.inputDirection = tDir;
-        		}
-        	}
+			float cosi = dot(incedent, normal);
+			float etai = 1, etat = p_material->ni;
+			Vector3Df n = normal;
+			if (cosi < 0) {
+				cosi = -cosi;
+			} else {
+				float temp = etai;
+				etai = etat;
+				etat = temp;
+				n = -normal;
+			}
+			float eta = etai / etat;
+			float k = 1 - eta * eta * (1 - cosi * cosi);
+			if (k < 0) {
+				currentBsdf = SPECULAR;
+			} else {
+				Vector3Df transmitted = incedent * eta + n * (eta * cosi - sqrtf(k));
+				float R0 = (etat - etai) * (etat - etai) / (etat + etai) * (etat + etai);
+				float c = 1.f - dot(transmitted, n);
+				float Re = R0 + (1.f - R0) * c * c * c * c * c;
+				float Tr = 1.f - Re;
+				float P = .25 + .5f * Re;
+				float RP = Re/P;
+				float TP = Tr / (1.f - P);
+				if (p_sampler->getNextFloat() > .25f) {
+					interaction.inputDirection = transmitted;
+					mask *= p_material->ks * TP;
+				} else {
+					currentBsdf = SPECULAR;
+					mask *= RP;
+				}
+			}
         }
 
         // DIFFUSE BSDF
