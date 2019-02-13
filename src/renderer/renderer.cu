@@ -182,7 +182,6 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
         if (currentBsdf == REFRACTIVE) {
 			Vector3Df incedent = interaction.outputDirection;
 			Vector3Df normal = interaction.normal;
-			float rp, tp;
 			float cosi = dot(incedent, normal);
 			float etai = 1, etat = p_material->ni;
 			Vector3Df n = normal;
