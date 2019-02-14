@@ -200,10 +200,10 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
 			} else {
 				Vector3Df transmitted = incedent * eta + n * (eta * cosi - sqrtf(k));
 				float R0 = (etat - etai) * (etat - etai) / (etat + etai) * (etat + etai);
-				float c = 1.f - dot(transmitted, n);
+				float c = 1.f - dot(transmitted, normal);
 				float Re = R0 + (1.f - R0) * c * c * c * c * c;
 				float Tr = 1.f - Re;
-				float P = .25 + .5f * Re;
+				float P = .25f + .5f * Re;
 				float RP = Re/P;
 				float TP = Tr / (1.f - P);
 				if (p_sampler->getNextFloat() > .25f) {
