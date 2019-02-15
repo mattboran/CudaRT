@@ -198,9 +198,9 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
 				// Reason dictates that this should be Re
 				if (p_sampler->getNextFloat() > unknownMagicNumber) {
 					interaction.inputDirection = transmittedDir;
-					mask *= p_material->ks;// * TP;
+					mask *= p_material->ks * TP;
 				} else {
-					// mask *= RP;
+					mask *= RP;
 					currentBsdf = SPECULAR;
 				}
 			}
