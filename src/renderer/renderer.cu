@@ -19,7 +19,10 @@
 #define USE_SKYBOX
 #define UNBIASED
 
-
+struct Fresnel {
+	float probReflection;
+	float probTransmission;
+};
 
 __host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriangles, SurfaceInteraction &interaction, Ray& ray);
 __host__ __device__ bool rayIntersectsBox(Ray& ray, const Vector3Df& min, const Vector3Df& max);
@@ -28,8 +31,7 @@ __host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interacti
 __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, Material* p_material, const SurfaceInteraction &interaction, Sampler* p_sampler);
 __host__ __device__ bool intersectBVH(LinearBVHNode* p_bvh, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray);
 __host__ __device__ Vector3Df reflect(const Vector3Df& incedent, const Vector3Df& normal);
-__host__ __device__ Vector3Df refract(const Vector3Df& incedent, const Vector3Df& normal, const float ior, float& rp, float& tp);
-__host__ __device__ float getFresnelReflectance(const SurfaceInteraction &interaction, float ior);
+__host__ __device__ Fresnel getFresnelReflectance(const SurfaceInteraction& interaction, const float ior, Vector3Df& transmittedDir);
 
 #ifdef USE_SKYBOX
 #ifdef __CUDA_ARCH__
@@ -180,38 +182,26 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
         }
 
         if (currentBsdf == REFRACTIVE) {
-			Vector3Df incedent = interaction.outputDirection;
-			Vector3Df normal = interaction.normal;
-			float cosi = dot(incedent, normal);
-			float etai = 1, etat = p_material->ni;
-			Vector3Df n = normal;
-			if (cosi < 0) {
-				cosi = -cosi;
-			} else {
-				float temp = etai;
-				etai = etat;
-				etat = temp;
-				n = -normal;
-			}
-			float eta = etai / etat;
-			float k = 1 - eta * eta * (1 - cosi * cosi);
-			if (k < 0) {
+			Vector3Df reflectedDir, transmittedDir;
+			Fresnel fresnel = getFresnelReflectance(interaction, p_material->ni, transmittedDir);
+			if (fresnel.probReflection == 1.0f) {
 				currentBsdf = SPECULAR;
-			} else {
-				Vector3Df transmitted = incedent * eta + n * (eta * cosi - sqrtf(k));
-				float R0 = (etat - etai) * (etat - etai) / (etat + etai) * (etat + etai);
-				float c = 1.f - dot(transmitted, normal);
-				float Re = R0 + (1.f - R0) * c * c * c * c * c;
-				float Tr = 1.f - Re;
-				float P = .25f + .5f * Re;
+			}
+			else {
+				float Re = fresnel.probReflection;
+				// TODO: What's this magic number?
+				float unknownMagicNumber = 0.25f;
+				float Tr = fresnel.probTransmission;
+				float P = unknownMagicNumber + .5f * Re;
 				float RP = Re/P;
 				float TP = Tr / (1.f - P);
-				if (p_sampler->getNextFloat() > .25f) {
-					interaction.inputDirection = transmitted;
-					mask *= p_material->ks * TP;
+				// Reason dictates that this should be Re
+				if (p_sampler->getNextFloat() > unknownMagicNumber) {
+					interaction.inputDirection = transmittedDir;
+					mask *= p_material->ks;// * TP;
 				} else {
+					// mask *= RP;
 					currentBsdf = SPECULAR;
-					mask *= RP;
 				}
 			}
         }
@@ -222,7 +212,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, Triang
 			mask = mask * diffuseSample / interaction.pdf;
 
 			float randomNumber = p_sampler->getNextFloat() * ((float)p_lightsData->numLights - .00001f);
-			int selectedLightIdx = (int)truncf(randomNumber);
+			int selectedLightIdx = truncf(randomNumber);
 			Triangle* p_light = &p_lightsData->lightsPtr[selectedLightIdx];
 			Material* p_lightMaterial = &p_materials[p_light->_materialId];
 			Vector3Df directLighting = estimateDirectLighting(p_light, p_trianglesData, p_lightMaterial, interaction, p_sampler);
@@ -372,9 +362,7 @@ __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interactio
 }
 
 __host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Material* p_material) {
-	Vector3Df normal = p_interaction->normal;
-	Vector3Df incedent = p_interaction->outputDirection;
-	p_interaction->inputDirection = reflect(incedent, normal);
+	p_interaction->inputDirection = reflect(p_interaction->outputDirection,  p_interaction->normal);
 	p_interaction->pdf = 1.0f;
 	return p_material->ks;
 }
@@ -383,7 +371,35 @@ __host__ __device__ Vector3Df reflect(const Vector3Df& incedent, const Vector3Df
 	return incedent - normal * dot(incedent, normal) * 2.f;
 }
 
-__host__ __device__ Vector3Df refract(const Vector3Df& incedent, const Vector3Df& normal, const float ior, float& rp, float& tp) {
+__host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, Material* p_material, const SurfaceInteraction &interaction, Sampler* p_sampler) {
+	Vector3Df directLighting(0.0f, 0.0f, 0.0f);
+	if (sameTriangle(interaction.p_hitTriangle, p_light)) {
+		return directLighting;
+	}
+	Vector3Df rayOrigin = interaction.position + interaction.normal * EPSILON;
+	Ray ray(rayOrigin,  normalize(p_light->getRandomPointOn(p_sampler) - interaction.position));
+	SurfaceInteraction lightInteraction = SurfaceInteraction();
+	// Sample the light
+	Triangle* p_triangles = p_trianglesData->p_triangles;
+	LinearBVHNode* p_bvh = p_trianglesData->p_bvh;
+	bool intersectsLight = intersectBVH(p_bvh, p_triangles, lightInteraction, ray);
+	if (intersectsLight && sameTriangle(lightInteraction.p_hitTriangle, p_light)) {
+		float surfaceArea = p_light->_surfaceArea;
+		float distanceSquared = ray.tMax*ray.tMax;
+		// For directional lights also consider light direction
+//		float incidenceAngle = fabs(dot(p_light->getNormal(lightInteraction.u, lightInteraction.v), -ray.dir));
+		// Otherwise direct lighting is based on the diffuse term and obey Lambert's cosine law
+		float cosTheta = fabs(dot(ray.dir, interaction.normal));
+		float weightFactor = surfaceArea/distanceSquared * cosTheta;
+		directLighting += p_material->ka * weightFactor;
+	}
+	return directLighting;
+}
+
+__host__ __device__ Fresnel getFresnelReflectance(const SurfaceInteraction& interaction, const float ior, Vector3Df& transmittedDir) {
+	Fresnel fresnel;
+	Vector3Df incedent = interaction.outputDirection;
+	Vector3Df normal = interaction.normal;
 	float cosi = dot(incedent, normal);
 	float etai = 1, etat = ior;
 	Vector3Df n = normal;
@@ -398,61 +414,17 @@ __host__ __device__ Vector3Df refract(const Vector3Df& incedent, const Vector3Df
 	float eta = etai / etat;
 	float k = 1 - eta * eta * (1 - cosi * cosi);
 	if (k < 0) {
-		return Vector3Df(0,0,0);
+		fresnel.probReflection = 1.0f;
+		fresnel.probTransmission = 0.0f;
 	} else {
-		Vector3Df transmitted = incedent * eta + n * (eta * cosi - sqrtf(k));
-		float R0 = (etat - etai) * (etat - etai) / (etat + etai) * (etat + etai);
-		float c = 1.f - dot(transmitted, n);
+		transmittedDir = incedent * eta + n * (eta * cosi - sqrtf(k));
+		float R0 = (etai - etat) * (etai - etat) / (etat + etai) * (etat + etai);
+		float c = 1.f - dot(transmittedDir, normal);
 		float Re = R0 + (1.f - R0) * c * c * c * c * c;
-		float TR = 1.f - Re;
-		float P = .25f + 0.5f * Re;
-		float rp = Re/P;
-		float tp = TR / (1.f - P);
-		return normalize(transmitted);
+		fresnel.probReflection = Re;
+		fresnel.probTransmission = 1.f - Re;
 	}
-}
-
-__host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, TrianglesData* p_trianglesData, Material* p_material, const SurfaceInteraction &interaction, Sampler* p_sampler) {
-	Vector3Df directLighting(0.0f, 0.0f, 0.0f);
-	if (sameTriangle(interaction.p_hitTriangle, p_light)) {
-		return directLighting;
-	}
-	Vector3Df rayOrigin = interaction.position + interaction.normal * EPSILON;
-	Ray ray(rayOrigin,  normalize(p_light->getRandomPointOn(p_sampler) - interaction.position));
-	SurfaceInteraction lightInteraction = SurfaceInteraction();
-	// Sample the light
-	Triangle* p_triangles = p_trianglesData->p_triangles;
-	LinearBVHNode* p_bvh = p_trianglesData->p_bvh;
-#ifdef USE_BVH
-	bool intersectsLight = intersectBVH(p_bvh, p_triangles, lightInteraction, ray);
-#else
-	bool intersectsLight = intersectTriangles(p_triangles, p_trianglesData->numTriangles, lightInteraction, ray);
-#endif
-	if (intersectsLight && sameTriangle(lightInteraction.p_hitTriangle, p_light)) {
-		float surfaceArea = p_light->_surfaceArea;
-		float distanceSquared = ray.tMax*ray.tMax;
-		// For directional lights also consider light direction
-//		float incidenceAngle = fabs(dot(p_light->getNormal(lightInteraction.u, lightInteraction.v), -ray.dir));
-		// Otherwise direct lighting is based on the diffuse term and obey Lambert's cosine law
-		float cosTheta = fabs(dot(ray.dir, interaction.normal));
-		float weightFactor = surfaceArea/distanceSquared * cosTheta;
-		directLighting += p_material->ka * weightFactor;
-	}
-	return directLighting;
-}
-
-__host__ __device__ float getFresnelReflectance(const SurfaceInteraction &interaction, float ior) {
-	float n = ior;
-	float cosI = -dot(interaction.outputDirection, interaction.normal);
-	float sin2T = n * n * (1.0f - cosI * cosI);
-	if (sin2T > 1.0f) {
-		return 1.0f;
-	}
-
-	float cosT = sqrtf(1.0f - sin2T);
-	float rPer = (n * cosI - cosT) / (n * cosI + cosT);
-	float rPar = (cosI - n * cosT) / (cosI + n * cosT);
-	return (rPer * rPer + rPar * rPar) / 2.0f;
+	return fresnel;
 }
 
 __host__ __device__ void gammaCorrectPixel(uchar4 &p) {
