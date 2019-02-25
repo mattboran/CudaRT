@@ -3,7 +3,7 @@
 
 #include "scene.h"
 #include "camera.h"
-#include "json_loader.h"
+#include "loaders.h"
 #include "launcher.h"
 #include "renderer.h"
 #include "texture_loader.h"
@@ -12,6 +12,7 @@
 #include <array>
 #include <chrono>
 #include <cuda.h>
+#include <exception>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -25,13 +26,32 @@ int main(int argc, char* argv[]) {
 	int height = 480;
 	string outFile = "out.png";
 	string sceneName = "cornell";
-	string objPath = "../meshes/" + sceneName + ".obj";
-	string cameraPath = "../settings/" + sceneName + "-camera.json";
+	string objDir;
+	string objPath;
+	string cameraDir;
+	string cameraPath;
+	string texturePath;
+	string envPath = "../.env";
 	bool executeOnCpu = false;
 	bool renderToScreen = false;
 	bool textureDebug = false;
-	string texturePath;
 	int cudaCapableDevices = 0;
+
+	//
+	// Parse environment arguments
+	//
+	try {
+		EnvLoader dotEnvLoader(envPath);
+		objDir = dotEnvLoader.getMeshesPath() + "/";
+		cameraDir = dotEnvLoader.getCameraPath() + "/";
+		texturePath = dotEnvLoader.getTexturesPath();
+	} catch (const runtime_error& e) {
+		objDir = "../meshes/";
+		cameraDir = "../settings/";
+		texturePath = "../textures/";
+	}
+	objPath = objDir + sceneName + ".obj";
+	cameraPath = cameraDir + sceneName + "-camera.json";
 
 	//
 	//	Parse command line arguments
@@ -92,8 +112,8 @@ int main(int argc, char* argv[]) {
 	// .obj path
 	if ((find(args.begin(), args.end(), "-f") < args.end() - 1)) {
 		sceneName = *(find(args.begin(), args.end(), "-f") + 1);
-		objPath = "../meshes/" + sceneName + ".obj";
-		cameraPath = "../settings/" + sceneName + "-camera.json";
+		objPath = objDir + sceneName + ".obj";
+		cameraPath = cameraDir + sceneName + "-camera.json";
 		outFile = sceneName + ".png";
 	}
 
