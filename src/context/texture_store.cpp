@@ -14,7 +14,7 @@
 
 using namespace std;
 
-Vector3Df* TextureLoader::load(std::string filename, int& width, int& height, int& idx) {
+Vector3Df* TextureStore::load(std::string filename, int& width, int& height, int& idx) {
     bool isHdr = stbi_is_hdr(filename.c_str());
     cout << "Loading " << filename << ": " << (isHdr ? "is " : "not ") << "hdr." << endl;
     int components = 0;
@@ -32,7 +32,7 @@ Vector3Df* TextureLoader::load(std::string filename, int& width, int& height, in
     return out;
 }
 
-void TextureLoader::loadAll(std::string* filename, uint numTextures) {
+void TextureStore::loadAll(std::string* filename, uint numTextures) {
 	for (unsigned i = 0; i < numTextures; i++) {
 		int texW, texH, idx;
 		Vector3Df* p_tex = load(filename[i], texW, texH, idx);

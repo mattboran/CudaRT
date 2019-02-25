@@ -32,9 +32,9 @@ private:
 };
 
 // This class handles reading textures from files and copying them to device memory
-class TextureLoader {
+class TextureStore {
 public:
-    TextureLoader() { }
+    TextureStore() { }
     Vector3Df* load(std::string filename, int& width, int& height, int& idx);
     void loadAll(std::string* filename, uint numTextures);
     pixels_t* getTextureDimensionsPtr() { return &textureDimensions[0]; }

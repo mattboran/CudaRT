@@ -2,7 +2,9 @@
 #ifndef SCENE_H
 #define SCENE_H
 
+#include "bvh.h"
 #include "camera.h"
+#include "loaders.h"
 #include "material.h"
 
 #include "obj_load.h"
@@ -11,53 +13,63 @@
 #include <string>
 #include <vector>
 
-#include "bvh.h"
 
 struct LinearBVHNode;
 
 class Scene {
 public:
 	~Scene() { };
+	Scene();
 	Scene(std::string filename);
 
 	// Get methods
 	int getNumMeshes() { return meshLoader.LoadedMeshes.size(); }
 	int getNumTriangles() { return getNumVertices() / 3; }
 	int getNumLights() { return lightsList.size(); }
-	unsigned int getNumVertices() { return meshLoader.LoadedVertices.size(); }
-	unsigned int getNumBvhNodes() { return numBvhNodes; }
-	unsigned int getNumMaterials() { return numMaterials; }
+	uint getNumVertices() { return meshLoader.LoadedVertices.size(); }
+	uint getNumBvhNodes() { return numBvhNodes; }
+	uint getNumMaterials() { return numMaterials; }
 	float getLightsSurfaceArea();
 	Triangle* getTriPtr() { return p_triangles; }
 	Triangle* getLightsPtr() { return &lightsList[0]; }
 	objl::Vertex* getVertexPtr() { return p_vertices; }
-	unsigned* getVertexIndicesPtr() { return vertexIndices; }
+	uint* getVertexIndicesPtr() { return vertexIndices; }
 	LinearBVHNode* getBvhPtr() { return p_bvh; }
 
 	objl::Mesh getMesh(int i) { return meshLoader.LoadedMeshes[i]; }
 	Camera* getCameraPtr() { return p_camera; }
 	Material* getMaterialsPtr() { return p_materials; }
 
+	// Load functions
+	Camera* loadCamera(std::string cameraPath);
+	Triangle* loadTriangles(std::string objPath);
+	void loadTextures(std::string texturesPath);
+
 	// Set methods
 	void setCameraPtr(Camera* p) { p_camera = p; }
 
 	// For bvh construction
-	void allocateBvhArray(const unsigned int n) { p_bvh = new LinearBVHNode[n](); numBvhNodes = n; }
+	void allocateBvhArray(const uint n) { p_bvh = new LinearBVHNode[n](); numBvhNodes = n; }
 
 private:
 	// Geometry - todo: phase these out if possible
+	objl::Loader meshLoader;
+	uint* vertexIndices;
+	objl::Vertex* p_vertices;
 	Triangle* p_triangles;
 	std::vector<Triangle> lightsList;
-	objl::Loader meshLoader;
 	Camera* p_camera;
-	unsigned* vertexIndices;
-	objl::Vertex* p_vertices;
+
 	LinearBVHNode* p_bvh;
-	unsigned int numBvhNodes;
+	uint numBvhNodes;
+
 	Material* p_materials;
-	unsigned int numMaterials;
+	uint numMaterials;
+	TextureStore textureStore;
 	std::vector<std::string> textureFiles;
 
+	void getTextureFilesFromMaterials();
+	void loadTextures(std::string texturesPath);
 	Triangle* loadTriangles();
 };
 

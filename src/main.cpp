@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
 	Renderer* p_renderer;
 	Launcher* p_launcher;
 
-	TextureLoader textureLoader;
+	TextureStore textureLoader;
 
 	cudaGetDeviceCount(&cudaCapableDevices);
 	if (executeOnCpu || cudaCapableDevices == 0) {

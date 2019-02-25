@@ -63,8 +63,12 @@ public:
 	__host__ int getSamples() { return samples; }
 	__host__ int getSamplesRendered() { return samplesRendered; }
 	__host__ void createSettingsData(SettingsData* p_settingsData);
-	__host__ void createSceneData(SceneData* p_SceneData, Triangle* p_triangles, LinearBVHNode* p_bvh, Material* p_materials);
+	__host__ void createSceneData(SceneData* p_SceneData,
+                                  Triangle* p_triangles,
+                                  LinearBVHNode* p_bvh,
+                                  Material* p_materials);
 	__host__ void createLightsData(LightsData* p_lightsData, Triangle* p_triangles);
+    // TODO: These are part of the textureRenderer class that will be removed
 	__host__ void allocateTextures(pixels_t* p_texDimensions, uint numTextures);
 	__host__ void loadTextures(Vector3Df** pp_tex, pixels_t* p_texDimensions, uint numTextures);
 protected:

@@ -32,6 +32,9 @@ const static std::map<std::string, refl_t> reflDict = {
 		{"EMISSIVE", EMISSIVE}
 };
 
+Material materialFromMtl(objl::Material m);
+unsigned int populateMaterialsMap(vector<objl::Mesh> meshes);
+
 // Constructors
 Scene::Scene(std::string filename) {
 	meshLoader = objl::Loader();
@@ -39,6 +42,8 @@ Scene::Scene(std::string filename) {
 	if (!meshLoader.LoadFile(filename)) {
 		std::cerr << "Failed to load mesh for " << filename << std::endl;
 	}
+	getTextureFilesFromMaterials();
+	loadTextures("../textures/");
 	p_triangles = loadTriangles();
 	vertexIndices = &meshLoader.LoadedIndices[0];
 	p_vertices = &meshLoader.LoadedVertices[0];
@@ -53,35 +58,19 @@ float Scene::getLightsSurfaceArea() {
 	return surfaceArea;
 }
 
-Material materialFromMtl(objl::Material m) {
-	Material material;
-	material.ka = m.Ka * LIGHTS_GAIN;
-	material.kd = m.Kd;
-	material.ks = m.Ks;
-	material.ns = m.Ns;
-	material.ni = m.Ni;
-	material.diffuseCoefficient = m.diffuse;
-	material.bsdf = DIFFUSE;
-
-	auto it = reflDict.find(m.type);
-	if (it != reflDict.end()) {
-		material.bsdf = it->second;
-	}
-	return material;
-}
-
-unsigned int populateMaterialsMap(vector<objl::Mesh> meshes) {
-	unsigned int idx = 0;
-	for (auto const& mesh: meshes) {
-		// TODO: Move this to Material.h
-		Material material = materialFromMtl(mesh.MeshMaterial);
-		if (materialsMap.count(material) == 0) {
-			std::cout << "Inserting " << mesh.MeshMaterial.name << " into materials map " << std::endl;
-			materialsMap.insert(std::pair<Material, unsigned int>(material, idx));
-			idx++;
+void Scene::getTextureFilesFromMaterials() {
+	auto materials = meshLoader.LoadedMaterials;
+	for (auto material: materials) {
+		if (!material.map_Kd.empty()) {
+			textureFiles.push_back(material.map_Kd);
 		}
 	}
-	return materialsMap.size();
+}
+
+void Scene::loadTextures(std::string texturesPath) {
+	textureStore = TextureStore();
+	textureStore.loadAll(&textureFiles[0], textureFiles.size());
+	
 }
 
 Triangle* Scene::loadTriangles() {
@@ -141,4 +130,35 @@ Triangle* Scene::loadTriangles() {
 		return a._surfaceArea > b._surfaceArea;
 	});
 	return p_tris;
+}
+
+Material materialFromMtl(objl::Material m) {
+	Material material;
+	material.ka = m.Ka * LIGHTS_GAIN;
+	material.kd = m.Kd;
+	material.ks = m.Ks;
+	material.ns = m.Ns;
+	material.ni = m.Ni;
+	material.diffuseCoefficient = m.diffuse;
+	material.bsdf = DIFFUSE;
+
+	auto it = reflDict.find(m.type);
+	if (it != reflDict.end()) {
+		material.bsdf = it->second;
+	}
+	return material;
+}
+
+unsigned int populateMaterialsMap(vector<objl::Mesh> meshes) {
+	unsigned int idx = 0;
+	for (auto const& mesh: meshes) {
+		// TODO: Move this to Material.h
+		Material material = materialFromMtl(mesh.MeshMaterial);
+		if (materialsMap.count(material) == 0) {
+			std::cout << "Inserting " << mesh.MeshMaterial.name << " into materials map " << std::endl;
+			materialsMap.insert(std::pair<Material, unsigned int>(material, idx));
+			idx++;
+		}
+	}
+	return materialsMap.size();
 }

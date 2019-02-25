@@ -186,13 +186,11 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneD
 				currentBsdf = SPECULAR;
 			}
 			else {
-				float Re = fresnel.probReflection;
 				// TODO: What's this magic number?
 				float unknownMagicNumber = 0.25f;
-				float Tr = fresnel.probTransmission;
-				float P = unknownMagicNumber + .5f * Re;
-				float RP = Re/P;
-				float TP = Tr / (1.f - P);
+				float P = unknownMagicNumber + .5f * fresnel.probReflection;
+				float RP = fresnel.probReflection /P;
+				float TP = fresnel.probTransmission / (1.f - P);
 				// Reason dictates that this should be Re
 				if (p_sampler->getNextFloat() > unknownMagicNumber) {
 					interaction.inputDirection = transmittedDir;
