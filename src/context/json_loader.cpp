@@ -5,7 +5,7 @@
  *      Author: matt
  */
 
-#include "json_loader.h"
+#include "loaders.h"
 #include "linalg.h"
 
 #include <exception>
