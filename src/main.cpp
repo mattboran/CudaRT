@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
 	bool executeOnCpu = false;
 	bool renderToScreen = false;
 	bool textureDebug = false;
-	string texturePath = "../settings/texture-test.png";
+	string texturePath;
 	int cudaCapableDevices = 0;
 
 	//
@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
 
 
 	// Render To Screen flag
-	if ((find(args.begin(), args.end(), "--X") < args.end())) {
+	if ((find(args.begin(), args.end(), "--x") < args.end())) {
 		renderToScreen = true;
 	}
 
