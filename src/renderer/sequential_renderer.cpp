@@ -22,21 +22,21 @@ SequentialRenderer::SequentialRenderer(Scene* _scenePtr, pixels_t _width, pixels
     size_t lightsBytes = sizeof(Triangle) * numLights;
     size_t bvhBytes = sizeof(LinearBVHNode) * numBvhNodes;
     size_t materialsBytes = sizeof(Material) * numMaterials;
-    size_t trianglesDataBytes = sizeof(TrianglesData) + trianglesBytes + bvhBytes + materialsBytes;
+    size_t SceneDataBytes = sizeof(SceneData) + trianglesBytes + bvhBytes + materialsBytes;
     size_t lightsDataBytes = sizeof(LightsData) + lightsBytes;
-    h_trianglesData = (TrianglesData*)malloc(trianglesDataBytes);
+    h_SceneData = (SceneData*)malloc(SceneDataBytes);
     h_lightsData = (LightsData*)malloc(lightsDataBytes);
     h_imgBytesPtr = new uchar4[width * height]();
     h_imgVectorPtr = new Vector3Df[width * height]();
 
-    createTrianglesData(h_trianglesData, p_triangles, p_bvh, p_materials);
+    createSceneData(h_SceneData, p_triangles, p_bvh, p_materials);
     createLightsData(h_lightsData, p_lights);
     createSettingsData(&h_settingsData);
 }
 
 SequentialRenderer::~SequentialRenderer() {
     free(h_lightsData);
-    free(h_trianglesData);
+    free(h_SceneData);
     delete[] h_imgBytesPtr;
     delete[] h_imgVectorPtr;
 }
@@ -50,7 +50,7 @@ void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
     for (pixels_t x = 0; x < width; x++) {
         for (pixels_t y = 0; y < height; y++) {
             int idx = y * width + x;
-            Vector3Df sample = samplePixel(x, y, p_camera, h_trianglesData, h_lightsData, p_materials, p_sampler);
+            Vector3Df sample = samplePixel(x, y, p_camera, h_SceneData, h_lightsData, p_materials, p_sampler);
             h_imgVectorPtr[idx] += sample;
             p_img[idx] = vector3ToUchar4(h_imgVectorPtr[idx]/samplesRendered);
         }

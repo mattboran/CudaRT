@@ -6,7 +6,7 @@
 #include "loaders.h"
 #include "launcher.h"
 #include "renderer.h"
-#include "texture_loader.h"
+#include "loaders.h"
 
 #include <algorithm>
 #include <array>

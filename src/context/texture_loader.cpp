@@ -1,4 +1,4 @@
-#include "texture_loader.h"
+#include "loaders.h"
 
 #include <iostream>
 

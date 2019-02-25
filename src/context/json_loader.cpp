@@ -17,8 +17,8 @@ using namespace std;
 
 Vector3Df vector3FromArray(picojson::array arr);
 
-CameraJsonLoader::CameraJsonLoader(std::string cam) : cameraFile(cam){
-	ifstream c(cameraFile);
+CameraJsonLoader::CameraJsonLoader(std::string cam) {
+	ifstream c(cam);
 	string camJson((istreambuf_iterator<char>(c)),
 			istreambuf_iterator<char>());
 	string err = picojson::parse(cameraValue, camJson);
@@ -27,7 +27,7 @@ CameraJsonLoader::CameraJsonLoader(std::string cam) : cameraFile(cam){
 	}
 }
 
-Camera CameraJsonLoader::getCamera(int width, int height) {
+Camera CameraJsonLoader::getCamera(pixels_t width, pixels_t height) {
 	float f = cameraValue.get("fieldOfView").get<double>();
 	float focalLength = cameraValue.get("focalLength").get<double>();
 	float fStop = cameraValue.get("fStop").get<double>();

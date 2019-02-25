@@ -5,16 +5,18 @@
 #include "camera.h"
 #include "material.h"
 
-#include <string>
 #include <map>
+#include <string>
+#include <vector>
+
+typedef unsigned int pixels_t;
 
 class CameraJsonLoader {
 public:
 	CameraJsonLoader() {}
 	CameraJsonLoader(std::string cam);
-	Camera getCamera(int width, int height);
+	Camera getCamera(pixels_t width, pixels_t height);
 private:
-	std::string cameraFile;
 	picojson::value cameraValue;
 };
 
@@ -27,6 +29,20 @@ public:
 	std::string getTexturesPath();
 private:
 	std::map<std::string, std::string> settingsDict;
+};
+
+// This class handles reading textures from files and copying them to device memory
+class TextureLoader {
+public:
+    TextureLoader() { }
+    Vector3Df* load(std::string filename, int& width, int& height, int& idx);
+    void loadAll(std::string* filename, uint numTextures);
+    pixels_t* getTextureDimensionsPtr() { return &textureDimensions[0]; }
+    Vector3Df** getTextureDataPtr() { return &textureDataPtrs[0]; }
+private:
+    int currentIdx = 0;
+    std::vector<pixels_t> textureDimensions;
+    std::vector<Vector3Df*> textureDataPtrs;
 };
 
 #endif

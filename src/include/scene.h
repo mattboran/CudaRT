@@ -41,6 +41,7 @@ public:
 	// Set methods
 	void setCameraPtr(Camera* p) { p_camera = p; }
 
+	// For bvh construction
 	void allocateBvhArray(const unsigned int n) { p_bvh = new LinearBVHNode[n](); numBvhNodes = n; }
 
 private:
@@ -57,7 +58,6 @@ private:
 	unsigned int numMaterials;
 	std::vector<std::string> textureFiles;
 
-	void loadTextures()
 	Triangle* loadTriangles();
 };
 
