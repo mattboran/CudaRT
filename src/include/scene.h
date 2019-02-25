@@ -55,7 +55,9 @@ private:
 	unsigned int numBvhNodes;
 	Material* p_materials;
 	unsigned int numMaterials;
+	std::vector<std::string> textureFiles;
 
+	void loadTextures()
 	Triangle* loadTriangles();
 };
 

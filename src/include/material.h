@@ -24,6 +24,8 @@ struct Material {
     float ni = 1.0f;
     // Diffuse Coefficient
     float diffuseCoefficient = 1.0f;
+    int texKdIdx = -1;
+    
     inline __host__  bool operator==(const Material& m) const{
     	if (bsdf != m.bsdf) {
 			return false;
