@@ -8,22 +8,18 @@
 #include "loaders.h"
 #include "linalg.h"
 
-#include <exception>
-#include <fstream>
-#include <iostream>
-#include <string>
-
 using namespace std;
 
 Vector3Df vector3FromArray(picojson::array arr);
 
-CameraJsonLoader::CameraJsonLoader(std::string cam) {
+CameraJsonLoader::CameraJsonLoader(string cam) {
+	verifyFileExists(cam);
 	ifstream c(cam);
 	string camJson((istreambuf_iterator<char>(c)),
 			istreambuf_iterator<char>());
 	string err = picojson::parse(cameraValue, camJson);
 	if (!err.empty()) {
-		throw std::runtime_error(err + " loading camera!");
+		throw runtime_error(err + " loading camera!");
 	}
 }
 

@@ -62,6 +62,7 @@ target_include_directories(geometrylib PUBLIC src/include /usr/include /usr/loca
 target_compile_features(geometrylib PUBLIC cxx_std_11)
 set_target_properties(geometrylib PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 set_target_properties(geometrylib PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(geometrylib contextlib)
 
 add_executable(CudaRT src/main.cpp)
 set_property(TARGET CudaRT PROPERTY CUDA_STANDARD 11)

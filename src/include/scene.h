@@ -19,8 +19,7 @@ struct LinearBVHNode;
 class Scene {
 public:
 	~Scene() { };
-	Scene();
-	Scene(std::string filename);
+	Scene() {};
 
 	// Get methods
 	int getNumMeshes() { return meshLoader.LoadedMeshes.size(); }
@@ -33,7 +32,7 @@ public:
 	Triangle* getTriPtr() { return p_triangles; }
 	Triangle* getLightsPtr() { return &lightsList[0]; }
 	objl::Vertex* getVertexPtr() { return p_vertices; }
-	uint* getVertexIndicesPtr() { return vertexIndices; }
+	uint* getVertexIndicesPtr() { return p_vertexIndices; }
 	LinearBVHNode* getBvhPtr() { return p_bvh; }
 
 	objl::Mesh getMesh(int i) { return meshLoader.LoadedMeshes[i]; }
@@ -41,12 +40,11 @@ public:
 	Material* getMaterialsPtr() { return p_materials; }
 
 	// Load functions
-	Camera* loadCamera(std::string cameraPath);
-	Triangle* loadTriangles(std::string objPath);
+	void loadObj(std::string objPath);
+	void loadCamera(std::string cameraPath, pixels_t width, pixels_t height);
+	void loadTriangles();
 	void loadTextures(std::string texturesPath);
-
-	// Set methods
-	void setCameraPtr(Camera* p) { p_camera = p; }
+	void constructBvh();
 
 	// For bvh construction
 	void allocateBvhArray(const uint n) { p_bvh = new LinearBVHNode[n](); numBvhNodes = n; }
@@ -54,7 +52,7 @@ public:
 private:
 	// Geometry - todo: phase these out if possible
 	objl::Loader meshLoader;
-	uint* vertexIndices;
+	uint* p_vertexIndices;
 	objl::Vertex* p_vertices;
 	Triangle* p_triangles;
 	std::vector<Triangle> lightsList;
@@ -67,10 +65,6 @@ private:
 	uint numMaterials;
 	TextureStore textureStore;
 	std::vector<std::string> textureFiles;
-
-	void getTextureFilesFromMaterials();
-	void loadTextures(std::string texturesPath);
-	Triangle* loadTriangles();
 };
 
 

@@ -2,6 +2,7 @@
 
 #include "linalg.h"
 #include "bvh.h"
+#include "loaders.h"
 #include "scene.h"
 
 #include <algorithm>
@@ -35,45 +36,34 @@ const static std::map<std::string, refl_t> reflDict = {
 Material materialFromMtl(objl::Material m);
 unsigned int populateMaterialsMap(vector<objl::Mesh> meshes);
 
-// Constructors
-Scene::Scene(std::string filename) {
+// Note - this function should be called before the other load functions
+void Scene::loadObj(string filename) {
 	meshLoader = objl::Loader();
 	std::cout << "Loading single .obj as scene from " << filename << std::endl;
 	if (!meshLoader.LoadFile(filename)) {
 		std::cerr << "Failed to load mesh for " << filename << std::endl;
 	}
-	getTextureFilesFromMaterials();
-	loadTextures("../textures/");
-	p_triangles = loadTriangles();
-	vertexIndices = &meshLoader.LoadedIndices[0];
-	p_vertices = &meshLoader.LoadedVertices[0];
-	constructBVH(this);
 }
 
-float Scene::getLightsSurfaceArea() {
-	float surfaceArea = 0;
-	for (auto light: lightsList) {
-		surfaceArea += light._surfaceArea;
-	}
-	return surfaceArea;
-}
-
-void Scene::getTextureFilesFromMaterials() {
-	auto materials = meshLoader.LoadedMaterials;
-	for (auto material: materials) {
-		if (!material.map_Kd.empty()) {
-			textureFiles.push_back(material.map_Kd);
-		}
-	}
+void Scene::loadCamera(string cameraPath, pixels_t width, pixels_t height) {
+	CameraJsonLoader loader(cameraPath);
+	p_camera = new Camera();
+	Camera camera = loader.getCamera(width, height);
+	*p_camera = camera;
 }
 
 void Scene::loadTextures(std::string texturesPath) {
+	auto materials = meshLoader.LoadedMaterials;
+	for (auto material: materials) {
+		if (!material.map_Kd.empty()) {
+			textureFiles.push_back(texturesPath + material.map_Kd);
+		}
+	}
 	textureStore = TextureStore();
 	textureStore.loadAll(&textureFiles[0], textureFiles.size());
-	
 }
 
-Triangle* Scene::loadTriangles() {
+void Scene::loadTriangles() {
 	Triangle* p_tris = (Triangle*)malloc(sizeof(Triangle) * getNumTriangles());
 	Triangle* p_current = p_tris;
 	vector<objl::Mesh> meshes = meshLoader.LoadedMeshes;
@@ -129,7 +119,23 @@ Triangle* Scene::loadTriangles() {
 			[](const Triangle &a, const Triangle &b) -> bool {
 		return a._surfaceArea > b._surfaceArea;
 	});
-	return p_tris;
+	p_triangles = p_tris;
+}
+
+void Scene::constructBvh() {
+	p_vertexIndices = &meshLoader.LoadedIndices[0];
+	p_vertices = &meshLoader.LoadedVertices[0];
+	// This is a hook into bvh.cpp.
+	// todo: find a more graceful way to do this
+	constructBVH(this);
+}
+
+float Scene::getLightsSurfaceArea() {
+	float surfaceArea = 0;
+	for (auto light: lightsList) {
+		surfaceArea += light._surfaceArea;
+	}
+	return surfaceArea;
 }
 
 Material materialFromMtl(objl::Material m) {

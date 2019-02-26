@@ -107,7 +107,7 @@ private:
 	Vector3Df* d_imgVectorPtr;
 	uchar4* d_imgBytesPtr;
 	LightsData* d_lightsData;
-	SceneData* d_SceneData;
+	SceneData* d_sceneData;
 	SettingsData d_settingsData;
 	Triangle* d_triPtr;
 	LinearBVHNode* d_bvhPtr;

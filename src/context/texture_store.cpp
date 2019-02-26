@@ -14,11 +14,12 @@
 
 using namespace std;
 
-Vector3Df* TextureStore::load(std::string filename, int& width, int& height, int& idx) {
-    bool isHdr = stbi_is_hdr(filename.c_str());
-    cout << "Loading " << filename << ": " << (isHdr ? "is " : "not ") << "hdr." << endl;
+Vector3Df* TextureStore::load(std::string fileName, int& width, int& height, int& idx) {
+	verifyFileExists(fileName);
+    bool isHdr = stbi_is_hdr(fileName.c_str());
+    cout << "Loading " << fileName << ": " << (isHdr ? "is " : "not ") << "hdr." << endl;
     int components = 0;
-    float* data = stbi_loadf(filename.c_str(), &width, &height, &components, 0);
+    float* data = stbi_loadf(fileName.c_str(), &width, &height, &components, 0);
     int pixels = width * height;
     Vector3Df* out = new Vector3Df[pixels]();
     for (int i = 0; i < pixels; i++) {
@@ -32,10 +33,10 @@ Vector3Df* TextureStore::load(std::string filename, int& width, int& height, int
     return out;
 }
 
-void TextureStore::loadAll(std::string* filename, uint numTextures) {
+void TextureStore::loadAll(std::string* fileName, uint numTextures) {
 	for (unsigned i = 0; i < numTextures; i++) {
 		int texW, texH, idx;
-		Vector3Df* p_tex = load(filename[i], texW, texH, idx);
+		Vector3Df* p_tex = load(fileName[i], texW, texH, idx);
 		textureDimensions.push_back((pixels_t)texW);
 		textureDimensions.push_back((pixels_t)texH);
 		textureDataPtrs.push_back(p_tex);

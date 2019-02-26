@@ -5,24 +5,42 @@
 #include "camera.h"
 #include "material.h"
 
+#include <exception>
+#include <fstream>
 #include <map>
 #include <string>
 #include <vector>
 
 typedef unsigned int pixels_t;
 
-class CameraJsonLoader {
+class Loader {
 public:
-	CameraJsonLoader() {}
+	Loader() {}
+protected:
+	void verifyFileExists(std::string fileName) {
+		if (!fileExists(fileName)) {
+			throw std::runtime_error("File " + fileName + " not found.");
+		}
+	}
+private:
+	bool fileExists(std::string fileName) {
+	    std::ifstream infile(fileName.c_str());
+	    return infile.good();
+	}
+};
+
+class CameraJsonLoader : public Loader {
+public:
+	CameraJsonLoader() : Loader() {}
 	CameraJsonLoader(std::string cam);
 	Camera getCamera(pixels_t width, pixels_t height);
 private:
 	picojson::value cameraValue;
 };
 
-class EnvLoader {
+class EnvLoader : public Loader{
 public:
-	EnvLoader() {}
+	EnvLoader() : Loader() {}
 	EnvLoader(std::string envPath);
 	std::string getMeshesPath();
 	std::string getCameraPath();
@@ -32,15 +50,16 @@ private:
 };
 
 // This class handles reading textures from files and copying them to device memory
-class TextureStore {
+class TextureStore : public Loader {
 public:
-    TextureStore() { }
+    TextureStore() : Loader() { }
     Vector3Df* load(std::string filename, int& width, int& height, int& idx);
     void loadAll(std::string* filename, uint numTextures);
     pixels_t* getTextureDimensionsPtr() { return &textureDimensions[0]; }
     Vector3Df** getTextureDataPtr() { return &textureDataPtrs[0]; }
+    uint getNumTextures() { return currentIdx; }
 private:
-    int currentIdx = 0;
+    uint currentIdx = 0;
     std::vector<pixels_t> textureDimensions;
     std::vector<Vector3Df*> textureDataPtrs;
 };

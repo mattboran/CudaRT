@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
 		EnvLoader dotEnvLoader(envPath);
 		objDir = dotEnvLoader.getMeshesPath() + "/";
 		cameraDir = dotEnvLoader.getCameraPath() + "/";
-		texturePath = dotEnvLoader.getTexturesPath();
+		texturePath = dotEnvLoader.getTexturesPath() + "/";
 	} catch (const runtime_error& e) {
 		objDir = "../meshes/";
 		cameraDir = "../settings/";
@@ -135,11 +135,18 @@ int main(int argc, char* argv[]) {
 	//
 	// Initialize Scene
 	//
-	CameraJsonLoader loader(cameraPath);
-	Scene scene(objPath);
-	Camera camera = loader.getCamera(width, height);
+//	CameraJsonLoader loader(cameraPath);
+//	Scene scene(objPath);
+//	Camera camera = loader.getCamera(width, height);
+//
+//	scene.setCameraPtr(&camera);
 
-	scene.setCameraPtr(&camera);
+	Scene scene;
+	scene.loadObj(objPath);
+	scene.loadCamera(cameraPath, width, height);
+	scene.loadTextures(texturePath);
+	scene.loadTriangles();
+	scene.constructBvh();
 
 	for (int i = 0; i < scene.getNumMeshes(); i++) {
 		objl::Mesh mesh = scene.getMesh(i);
