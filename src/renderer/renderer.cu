@@ -41,8 +41,8 @@ static const float skybox[] = { 0.0f, 0.025f, 0.05f };
 #endif
 #endif
 
-Vector3Df** pp_textures;
-pixels_t* p_textureDimensions;
+//Vector3Df** pp_textures;
+//pixels_t* p_textureDimensions;
 
 __host__ __device__ float Sampler::getNextFloat() {
 	#ifdef __CUDA_ARCH__
@@ -66,13 +66,16 @@ __host__ void Renderer::createSettingsData(SettingsData* p_settingsData){
 	p_settingsData->samples = getSamples();
 }
 
-__host__ void Renderer::createSceneData(SceneData* p_SceneData, Triangle* p_triangles, LinearBVHNode* p_bvh, Material* p_materials) {
-	p_SceneData->p_triangles = p_triangles;
-	p_SceneData->p_bvh = p_bvh;
-	p_SceneData->p_materials = p_materials;
-	p_SceneData->numTriangles = p_scene->getNumTriangles();
-	p_SceneData->numBVHNodes = p_scene->getNumBvhNodes();
-	p_SceneData->numMaterials = p_scene->getNumMaterials();
+__host__ void Renderer::createSceneData(SceneData* p_sceneData, Triangle* p_triangles, LinearBVHNode* p_bvh, Material* p_materials, Vector3Df** pp_textureData, pixels_t* p_textureDimensions) {
+	p_sceneData->p_triangles = p_triangles;
+	p_sceneData->p_bvh = p_bvh;
+	p_sceneData->p_materials = p_materials;
+	p_sceneData->pp_textureData = pp_textureData;
+	p_sceneData->p_textureDimensions = p_textureDimensions;
+	p_sceneData->numTriangles = p_scene->getNumTriangles();
+	p_sceneData->numBVHNodes = p_scene->getNumBvhNodes();
+	p_sceneData->numMaterials = p_scene->getNumMaterials();
+	p_sceneData->numTextures = p_scene->getNumTextures();
 }
 
 __host__ void Renderer::createLightsData(LightsData* p_lightsData, Triangle* p_triangles) {
@@ -82,52 +85,52 @@ __host__ void Renderer::createLightsData(LightsData* p_lightsData, Triangle* p_t
 }
 
 __host__ void Renderer::allocateTextures(pixels_t* p_texDimensions, uint numTextures) {
-	pp_textures = (Vector3Df**)malloc(numTextures * sizeof(Vector3Df*));
-	for (uint i = 0; i < numTextures; i++) {
-		pixels_t width = p_texDimensions[2 * i];
-		pixels_t height = p_texDimensions[2 * i + 1];
-		size_t imageSize = width * height * sizeof(Vector3Df);
-		pp_textures[i] = (Vector3Df*)malloc(imageSize);
-		p_textureDimensions = (pixels_t*)malloc(2 * numTextures * sizeof(pixels_t));
-	}
+//	pp_textures = (Vector3Df**)malloc(numTextures * sizeof(Vector3Df*));
+//	for (uint i = 0; i < numTextures; i++) {
+//		pixels_t width = p_texDimensions[2 * i];
+//		pixels_t height = p_texDimensions[2 * i + 1];
+//		size_t imageSize = width * height * sizeof(Vector3Df);
+//		pp_textures[i] = (Vector3Df*)malloc(imageSize);
+//		p_textureDimensions = (pixels_t*)malloc(2 * numTextures * sizeof(pixels_t));
+//	}
 }
 
 __host__ void Renderer::loadTextures(Vector3Df** pp_tex, pixels_t* p_texDimensions, uint numTextures) {
-	memcpy(p_textureDimensions, p_texDimensions, sizeof(pixels_t) * numTextures * 2);
-	for (uint i = 0; i < numTextures; i++) {
-		pixels_t width = p_texDimensions[2 * i];
-		pixels_t height = p_texDimensions[2 * i + 1];
-		size_t imageSize = width * height * sizeof(Vector3Df);
-		memcpy(pp_textures[i], pp_tex[i], imageSize);
-	}
+//	memcpy(p_textureDimensions, p_texDimensions, sizeof(pixels_t) * numTextures * 2);
+//	for (uint i = 0; i < numTextures; i++) {
+//		pixels_t width = p_texDimensions[2 * i];
+//		pixels_t height = p_texDimensions[2 * i + 1];
+//		size_t imageSize = width * height * sizeof(Vector3Df);
+//		memcpy(pp_textures[i], pp_tex[i], imageSize);
+//	}
 }
 
 __host__ __device__ Vector3Df sampleTexture(uint idx, float u, float v) {
-#ifdef __CUDA_ARCH__
+//#ifdef __CUDA_ARCH__
 	return Vector3Df(1,0,0);
-#else
-	pixels_t width = p_textureDimensions[idx * 2];
-	pixels_t height = p_textureDimensions[idx * 2 + 1];
-	float pixelCoordU = u * (float)width;
-	float pixelCoordV = v * (float)height;
-	float floorPixelCoordU = floorf(pixelCoordU);
-	float floorPixelCoordV = floorf(pixelCoordV);
-	float ceilPixelCoordU = ceilf(pixelCoordU);
-	float ceilPixelCoordV = ceilf(pixelCoordV);
-	pixels_t i = truncf(pixelCoordU);
-	pixels_t j = truncf(pixelCoordV);
-
-	// Bilinear interpolation
-	Vector3Df* p_texture = pp_textures[idx];
-	Vector3Df valA1 = p_texture[j * width + i + 1] * (pixelCoordU - floorPixelCoordU);
-	Vector3Df valA2 = p_texture[j * width + i] * (ceilPixelCoordU - pixelCoordU);
-	Vector3Df valB1 = p_texture[(j + 1) * width + i + 1] * (pixelCoordU - floorPixelCoordU);
-	Vector3Df valB2 = p_texture[(j + 1) * width + i] * (ceilPixelCoordU - pixelCoordU);
-
-	Vector3Df valC1 = (valA1 + valA2) * (ceilPixelCoordV - pixelCoordV);
-	Vector3Df valC2 = (valB1 + valB2) * (pixelCoordV - floorPixelCoordV);
-	return valC1 + valC2;
-#endif
+//#else
+//	pixels_t width = p_textureDimensions[idx * 2];
+//	pixels_t height = p_textureDimensions[idx * 2 + 1];
+//	float pixelCoordU = u * (float)width;
+//	float pixelCoordV = v * (float)height;
+//	float floorPixelCoordU = floorf(pixelCoordU);
+//	float floorPixelCoordV = floorf(pixelCoordV);
+//	float ceilPixelCoordU = ceilf(pixelCoordU);
+//	float ceilPixelCoordV = ceilf(pixelCoordV);
+//	pixels_t i = truncf(pixelCoordU);
+//	pixels_t j = truncf(pixelCoordV);
+//
+//	// Bilinear interpolation
+//	Vector3Df* p_texture = pp_textures[idx];
+//	Vector3Df valA1 = p_texture[j * width + i + 1] * (pixelCoordU - floorPixelCoordU);
+//	Vector3Df valA2 = p_texture[j * width + i] * (ceilPixelCoordU - pixelCoordU);
+//	Vector3Df valB1 = p_texture[(j + 1) * width + i + 1] * (pixelCoordU - floorPixelCoordU);
+//	Vector3Df valB2 = p_texture[(j + 1) * width + i] * (ceilPixelCoordU - pixelCoordU);
+//
+//	Vector3Df valC1 = (valA1 + valA2) * (ceilPixelCoordV - pixelCoordV);
+//	Vector3Df valC2 = (valB1 + valB2) * (pixelCoordV - floorPixelCoordV);
+//	return valC1 + valC2;
+//#endif
 }
 
 __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneData* p_SceneData, LightsData *p_lightsData, Material* p_materials, Sampler* p_sampler) {

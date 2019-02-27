@@ -135,11 +135,6 @@ int main(int argc, char* argv[]) {
 	//
 	// Initialize Scene
 	//
-//	CameraJsonLoader loader(cameraPath);
-//	Scene scene(objPath);
-//	Camera camera = loader.getCamera(width, height);
-//
-//	scene.setCameraPtr(&camera);
 
 	Scene scene;
 	scene.loadObj(objPath);

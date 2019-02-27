@@ -17,6 +17,8 @@ SequentialRenderer::SequentialRenderer(Scene* _scenePtr, pixels_t _width, pixels
     LinearBVHNode* p_bvh = p_scene->getBvhPtr();
     Triangle* p_lights = p_scene->getLightsPtr();
     Material* p_materials = p_scene->getMaterialsPtr();
+    Vector3Df** pp_textureData = p_scene->getTexturePPtr();
+    pixels_t* p_textureDimensions = p_scene->getTextureDimensionsPtr();
 
     size_t trianglesBytes = sizeof(Triangle) * numTriangles;
     size_t lightsBytes = sizeof(Triangle) * numLights;
@@ -29,7 +31,7 @@ SequentialRenderer::SequentialRenderer(Scene* _scenePtr, pixels_t _width, pixels
     h_imgBytesPtr = new uchar4[width * height]();
     h_imgVectorPtr = new Vector3Df[width * height]();
 
-    createSceneData(h_SceneData, p_triangles, p_bvh, p_materials);
+    createSceneData(h_SceneData, p_triangles, p_bvh, p_materials, pp_textureData, p_textureDimensions);
     createLightsData(h_lightsData, p_lights);
     createSettingsData(&h_settingsData);
 }

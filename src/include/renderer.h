@@ -27,9 +27,12 @@ struct SceneData {
 	Triangle* p_triangles;
 	LinearBVHNode* p_bvh;
 	Material* p_materials;
+	Vector3Df** pp_textureData;
+	pixels_t* p_textureDimensions;
 	uint numTriangles;
 	uint numBVHNodes;
 	uint numMaterials;
+	uint numTextures;
 };
 
 struct SettingsData {
@@ -47,7 +50,7 @@ struct Sampler {
 
 __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneData* p_SceneData, LightsData *p_lightsData, Material* p_materials, Sampler* p_sampler);
 __host__ __device__ void gammaCorrectPixel(uchar4 &p);
-__host__ Vector3Df sampleTexture(uint idx, float u, float v);
+__host__ __device__ Vector3Df sampleTexture(uint idx, float u, float v);
 
 class Renderer {
 public:
@@ -66,7 +69,9 @@ public:
 	__host__ void createSceneData(SceneData* p_SceneData,
                                   Triangle* p_triangles,
                                   LinearBVHNode* p_bvh,
-                                  Material* p_materials);
+                                  Material* p_materials,
+                                  Vector3Df** pp_textureData,
+                                  pixels_t* p_textureDimensions);
 	__host__ void createLightsData(LightsData* p_lightsData, Triangle* p_triangles);
     // TODO: These are part of the textureRenderer class that will be removed
 	__host__ void allocateTextures(pixels_t* p_texDimensions, uint numTextures);
@@ -113,6 +118,8 @@ private:
 	LinearBVHNode* d_bvhPtr;
 	Triangle* d_lightsPtr;
 	Material* d_materials;
+	Vector3Df** dd_textureData;
+	pixels_t* d_textureDimensions;
 	Camera* d_camPtr;
 	curandState* d_curandStatePtr;
 	// TODO: Consider storing block, grid instead

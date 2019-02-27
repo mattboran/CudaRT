@@ -56,13 +56,18 @@ void Scene::loadTextures(std::string texturesPath) {
 	auto materials = meshLoader.LoadedMaterials;
 	for (auto material: materials) {
 		if (!material.map_Kd.empty()) {
-			textureFiles.push_back(texturesPath + material.map_Kd);
+			textureFiles.push_back(material.map_Kd);
 		}
 	}
-	textureStore = TextureStore();
-	textureStore.loadAll(&textureFiles[0], textureFiles.size());
+	p_textureStore = new TextureStore();
+	vector<string> fullTextureFiles;
+	for (string file: textureFiles) {
+		fullTextureFiles.push_back(texturesPath + file);
+	}
+	p_textureStore->loadAll(&fullTextureFiles[0], textureFiles.size());
 }
 
+// This function should be called after loadTextures
 void Scene::loadTriangles() {
 	Triangle* p_tris = (Triangle*)malloc(sizeof(Triangle) * getNumTriangles());
 	Triangle* p_current = p_tris;
@@ -78,12 +83,21 @@ void Scene::loadTriangles() {
 		materialsList.push_back(p_materials[i]);
 	}
 
+	if (p_textureStore == NULL) {
+		throw std::runtime_error("p_textureStore is null!");
+	}
 	unsigned triId = 0;
 	for (auto const& mesh: meshes) {
 		vector<objl::Vertex> vertices = mesh.Vertices;
 		vector<unsigned> indices = mesh.Indices;
 		objl::Material material = mesh.MeshMaterial;
 		Material m = materialFromMtl(material);
+		if(!material.map_Kd.empty()) {
+			auto foundTex = std::find(textureFiles.begin(), textureFiles.end(), material.map_Kd);
+			if (foundTex != textureFiles.end()) {
+				m.texKdIdx = foundTex - textureFiles.begin();
+			}
+		}
 		auto it = std::find(materialsList.begin(), materialsList.end(), m);
 		for (unsigned int i = 0; i < vertices.size()/3; i++) {
 			p_current->_id1 = indices[i*3];
@@ -161,7 +175,6 @@ unsigned int populateMaterialsMap(vector<objl::Mesh> meshes) {
 		// TODO: Move this to Material.h
 		Material material = materialFromMtl(mesh.MeshMaterial);
 		if (materialsMap.count(material) == 0) {
-			std::cout << "Inserting " << mesh.MeshMaterial.name << " into materials map " << std::endl;
 			materialsMap.insert(std::pair<Material, unsigned int>(material, idx));
 			idx++;
 		}

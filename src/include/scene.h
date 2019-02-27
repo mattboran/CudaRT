@@ -18,8 +18,8 @@ struct LinearBVHNode;
 
 class Scene {
 public:
-	~Scene() { };
-	Scene() {};
+	~Scene() { }
+	Scene() { }
 
 	// Get methods
 	int getNumMeshes() { return meshLoader.LoadedMeshes.size(); }
@@ -39,6 +39,10 @@ public:
 	Camera* getCameraPtr() { return p_camera; }
 	Material* getMaterialsPtr() { return p_materials; }
 
+	uint getNumTextures() { return p_textureStore->getNumTextures(); }
+	Vector3Df** getTexturePPtr() { return p_textureStore->getTextureDataPtr(); }
+	Vector3Df* getTexturePtr(uint i) { return p_textureStore->getTextureDataPtr()[i]; }
+	pixels_t* getTextureDimensionsPtr() { return p_textureStore->getTextureDimensionsPtr(); }
 	// Load functions
 	void loadObj(std::string objPath);
 	void loadCamera(std::string cameraPath, pixels_t width, pixels_t height);
@@ -63,7 +67,7 @@ private:
 
 	Material* p_materials;
 	uint numMaterials;
-	TextureStore textureStore;
+	TextureStore* p_textureStore = NULL;
 	std::vector<std::string> textureFiles;
 };
 
