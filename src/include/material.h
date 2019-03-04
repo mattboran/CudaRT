@@ -3,6 +3,8 @@
 
 #include "linalg.h"
 
+#define NO_TEXTURE -1
+
 enum refl_t {
     DIFFUSE,
     SPECULAR,
@@ -24,7 +26,7 @@ struct Material {
     float ni = 1.0f;
     // Diffuse Coefficient
     float diffuseCoefficient = 1.0f;
-    int texKdIdx = -1;
+    int texKdIdx = NO_TEXTURE;
     
     inline __host__  bool operator==(const Material& m) const{
     	if (bsdf != m.bsdf) {

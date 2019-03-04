@@ -26,12 +26,33 @@ struct Fresnel {
 
 __host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriangles, SurfaceInteraction &interaction, Ray& ray);
 __host__ __device__ bool rayIntersectsBox(Ray& ray, const Vector3Df& min, const Vector3Df& max);
-__host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Material* p_material, Sampler* p_sampler);
-__host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Material* p_material);
-__host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, SceneData* p_SceneData, Material* p_material, const SurfaceInteraction &interaction, Sampler* p_sampler);
+__host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction,
+												Triangle* p_hitTriangle,
+												Material* p_material,
+												TextureContainer* p_textureContainer,
+												Sampler* p_sampler);
+__host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction,
+												 Triangle* p_hitTriangle,
+												 Material* p_material);
+__host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light,
+													 SceneData* p_SceneData,
+													 Material* p_material,
+													 const SurfaceInteraction &interaction,
+													 Sampler* p_sampler);
 __host__ __device__ bool intersectBVH(LinearBVHNode* p_bvh, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray);
 __host__ __device__ Vector3Df reflect(const Vector3Df& incedent, const Vector3Df& normal);
 __host__ __device__ Fresnel getFresnelReflectance(const SurfaceInteraction& interaction, const float ior, Vector3Df& transmittedDir);
+__host__ __device__ TextureContainer* textureContainerFactory(int i, Vector3Df* p_texData, pixels_t* p_texDimensions, pixels_t *p_texOffsets);
+
+__host__ __device__ TextureContainer* textureContainerFactory(int i, Vector3Df* p_texData, pixels_t* p_texDimensions, pixels_t *p_texOffsets) {
+	if (i == NO_TEXTURE) {
+		return NULL;
+	}
+	Vector3Df* p_textureData = p_textureData = &p_texData[p_texOffsets[i]];
+	pixels_t* p_textureDimensions = &p_texDimensions[2 * i];
+	return new TextureContainer(p_textureData, p_textureDimensions);
+}
+
 
 #ifdef USE_SKYBOX
 #ifdef __CUDA_ARCH__
@@ -40,9 +61,6 @@ __constant__ float skybox[] = { 0.0f, 0.025f, 0.05f };
 static const float skybox[] = { 0.0f, 0.025f, 0.05f };
 #endif
 #endif
-
-//Vector3Df** pp_textures;
-//pixels_t* p_textureDimensions;
 
 __host__ __device__ float Sampler::getNextFloat() {
 	#ifdef __CUDA_ARCH__
@@ -112,32 +130,29 @@ __host__ void Renderer::loadTextures(Vector3Df** pp_tex, pixels_t* p_texDimensio
 //	}
 }
 
-__host__ __device__ Vector3Df sampleTexture(uint idx, float u, float v) {
-//#ifdef __CUDA_ARCH__
-	return Vector3Df(1,0,0);
-//#else
-//	pixels_t width = p_textureDimensions[idx * 2];
-//	pixels_t height = p_textureDimensions[idx * 2 + 1];
-//	float pixelCoordU = u * (float)width;
-//	float pixelCoordV = v * (float)height;
-//	float floorPixelCoordU = floorf(pixelCoordU);
-//	float floorPixelCoordV = floorf(pixelCoordV);
-//	float ceilPixelCoordU = ceilf(pixelCoordU);
-//	float ceilPixelCoordV = ceilf(pixelCoordV);
-//	pixels_t i = truncf(pixelCoordU);
-//	pixels_t j = truncf(pixelCoordV);
-//
-//	// Bilinear interpolation
-//	Vector3Df* p_texture = pp_textures[idx];
-//	Vector3Df valA1 = p_texture[j * width + i + 1] * (pixelCoordU - floorPixelCoordU);
-//	Vector3Df valA2 = p_texture[j * width + i] * (ceilPixelCoordU - pixelCoordU);
-//	Vector3Df valB1 = p_texture[(j + 1) * width + i + 1] * (pixelCoordU - floorPixelCoordU);
-//	Vector3Df valB2 = p_texture[(j + 1) * width + i] * (ceilPixelCoordU - pixelCoordU);
-//
-//	Vector3Df valC1 = (valA1 + valA2) * (ceilPixelCoordV - pixelCoordV);
-//	Vector3Df valC2 = (valB1 + valB2) * (pixelCoordV - floorPixelCoordV);
-//	return valC1 + valC2;
-//#endif
+__host__ __device__ Vector3Df sampleTexture(TextureContainer* p_textureContainer,  float u, float v) {
+	pixels_t* p_texDimensions = p_textureContainer->p_textureDimensions;
+	pixels_t width = p_texDimensions[0];
+	pixels_t height = p_texDimensions[1];
+	float pixelCoordU = u * (float)width;
+	float pixelCoordV = v * (float)height;
+	float floorPixelCoordU = floorf(pixelCoordU);
+	float floorPixelCoordV = floorf(pixelCoordV);
+	float ceilPixelCoordU = ceilf(pixelCoordU);
+	float ceilPixelCoordV = ceilf(pixelCoordV);
+	pixels_t i = truncf(pixelCoordU);
+	pixels_t j = truncf(pixelCoordV);
+
+	// Bilinear interpolation
+	Vector3Df* p_texture = p_textureContainer->p_textureData;
+	Vector3Df valA1 = p_texture[j * width + i + 1] * (pixelCoordU - floorPixelCoordU);
+	Vector3Df valA2 = p_texture[j * width + i] * (ceilPixelCoordU - pixelCoordU);
+	Vector3Df valB1 = p_texture[(j + 1) * width + i + 1] * (pixelCoordU - floorPixelCoordU);
+	Vector3Df valB2 = p_texture[(j + 1) * width + i] * (ceilPixelCoordU - pixelCoordU);
+
+	Vector3Df valC1 = (valA1 + valA2) * (ceilPixelCoordV - pixelCoordV);
+	Vector3Df valC2 = (valB1 + valB2) * (pixelCoordV - floorPixelCoordV);
+	return valC1 + valC2;
 }
 
 __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneData* p_SceneData, LightsData *p_lightsData, Material* p_materials, Sampler* p_sampler) {
@@ -214,8 +229,13 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneD
 
         // DIFFUSE BSDF
         if (currentBsdf == DIFFUSE) {
-        	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, p_material, p_sampler);
+        	TextureContainer* p_texContainer = textureContainerFactory(p_material->texKdIdx,
+        								  	  	  	  	  	  	  	   p_SceneData->p_textureData,
+																	   p_SceneData->p_textureDimensions,
+																	   p_SceneData->p_textureOffsets);
+        	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, p_material, p_texContainer, p_sampler);
 			mask = mask * diffuseSample / interaction.pdf;
+        	delete p_texContainer;
 
 			float randomNumber = p_sampler->getNextFloat() * ((float)p_lightsData->numLights - .00001f);
 			int selectedLightIdx = truncf(randomNumber);
@@ -351,7 +371,11 @@ __host__ __device__ bool rayIntersectsBox(Ray& ray, const Vector3Df& min, const 
 	return true;
 }
 
-__host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Material* p_material, Sampler* p_sampler) {
+__host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction,
+												Triangle* p_hitTriangle,
+												Material* p_material,
+												TextureContainer* p_textureContainer,
+												Sampler* p_sampler) {
    float r1 = 2 * M_PI * p_sampler->getNextFloat();
    float r2 = p_sampler->getNextFloat();
    float r2sq = sqrtf(r2);
@@ -364,7 +388,12 @@ __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interactio
    p_interaction->inputDirection = normalize(u * cosf(r1) * r2sq + v * sinf(r1) * r2sq + w * sqrtf(1.f - r2));
    p_interaction->pdf = 0.5f;
    float cosineWeight = dot(p_interaction->inputDirection, p_interaction->normal);
-   return p_material->kd * cosineWeight;
+
+   Vector3Df kd = p_material->kd;
+//   if (p_textureContainer != NULL) {
+//		kd = sampleTexture(p_textureContainer, p_interaction->u, p_interaction->v);
+//   }
+   return kd * cosineWeight;
 }
 
 __host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Material* p_material) {

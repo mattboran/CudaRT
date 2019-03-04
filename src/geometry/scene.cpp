@@ -88,17 +88,19 @@ void Scene::loadTriangles() {
 	}
 	unsigned triId = 0;
 	for (auto const& mesh: meshes) {
-		vector<objl::Vertex> vertices = mesh.Vertices;
-		vector<unsigned> indices = mesh.Indices;
 		objl::Material material = mesh.MeshMaterial;
 		Material m = materialFromMtl(material);
+		auto it = std::find(materialsList.begin(), materialsList.end(), m);
+		int materialId = it - materialsList.begin();
 		if(!material.map_Kd.empty()) {
 			auto foundTex = std::find(textureFiles.begin(), textureFiles.end(), material.map_Kd);
 			if (foundTex != textureFiles.end()) {
-				m.texKdIdx = foundTex - textureFiles.begin();
+				p_materials[materialId].texKdIdx = foundTex - textureFiles.begin();
 			}
 		}
-		auto it = std::find(materialsList.begin(), materialsList.end(), m);
+
+		vector<objl::Vertex> vertices = mesh.Vertices;
+		vector<unsigned> indices = mesh.Indices;
 		for (unsigned int i = 0; i < vertices.size()/3; i++) {
 			p_current->_id1 = indices[i*3];
 			p_current->_id2 = indices[i*3 + 1];
@@ -116,7 +118,7 @@ void Scene::loadTriangles() {
 			p_current->_e1 = _v2 - _v1;
 			p_current->_e2 = _v3 - _v1;
 
-			p_current->_materialId = it - materialsList.begin();
+			p_current->_materialId = materialId;
 			// Materials
 
 			p_current->_surfaceArea = cross(p_current->_e1, p_current->_e2).length()/2.0f;

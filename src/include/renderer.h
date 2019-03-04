@@ -42,6 +42,13 @@ struct SettingsData {
 	uint samples;
 };
 
+struct TextureContainer {
+	__host__ __device__ TextureContainer(Vector3Df* p_texData, pixels_t* p_texDims) :
+		p_textureData(p_texData), p_textureDimensions(p_texDims) {}
+	Vector3Df* p_textureData = NULL;
+	pixels_t* p_textureDimensions = NULL;
+};
+
 struct Sampler {
 	curandState* p_curandState = NULL;
 	__host__ Sampler() {}
@@ -51,7 +58,7 @@ struct Sampler {
 
 __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneData* p_SceneData, LightsData *p_lightsData, Material* p_materials, Sampler* p_sampler);
 __host__ __device__ void gammaCorrectPixel(uchar4 &p);
-__host__ __device__ Vector3Df sampleTexture(uint idx, float u, float v);
+__host__ __device__ Vector3Df sampleTexture(TextureContainer* p_textureContainer, float u, float v);
 
 class Renderer {
 public:
