@@ -390,9 +390,9 @@ __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interactio
    float cosineWeight = dot(p_interaction->inputDirection, p_interaction->normal);
 
    Vector3Df kd = p_material->kd;
-//   if (p_textureContainer != NULL) {
-//		kd = sampleTexture(p_textureContainer, p_interaction->u, p_interaction->v);
-//   }
+  if (p_textureContainer != NULL) {
+		kd = sampleTexture(p_textureContainer, p_interaction->u, p_interaction->v);
+  }
    return kd * cosineWeight;
 }
 
