@@ -58,6 +58,8 @@ struct Vector3Df
 	inline __host__ __device__ bool operator!=(const Vector3Df& v) const{ return x != v.x || y != v.y || z != v.z; }
 };
 
+inline __host__ __device__ float4 make_float4(const Vector3Df& v) { return make_float4(v.x, v.y, v.z, 0.0f); }
+
 inline __host__ __device__ Vector3Df normalize(const Vector3Df& v) { float norm = sqrtf(v.x * v.x + v.y*v.y + v.z*v.z); return Vector3Df(v.x/norm, v.y/norm, v.z/norm);}
 inline __host__ __device__ Vector3Df min3(const Vector3Df& v1, const Vector3Df& v2){ return Vector3Df(v1.x < v2.x ? v1.x : v2.x, v1.y < v2.y ? v1.y : v2.y, v1.z < v2.z ? v1.z : v2.z); }
 inline __host__ __device__ Vector3Df max3(const Vector3Df& v1, const Vector3Df& v2){ return Vector3Df(v1.x > v2.x ? v1.x : v2.x, v1.y > v2.y ? v1.y : v2.y, v1.z > v2.z ? v1.z : v2.z); }

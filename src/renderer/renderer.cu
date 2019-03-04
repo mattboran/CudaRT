@@ -42,15 +42,28 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light,
 __host__ __device__ bool intersectBVH(LinearBVHNode* p_bvh, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray);
 __host__ __device__ Vector3Df reflect(const Vector3Df& incedent, const Vector3Df& normal);
 __host__ __device__ Fresnel getFresnelReflectance(const SurfaceInteraction& interaction, const float ior, Vector3Df& transmittedDir);
-__host__ __device__ TextureContainer* textureContainerFactory(int i, Vector3Df* p_texData, pixels_t* p_texDimensions, pixels_t *p_texOffsets);
+__host__ __device__ TextureContainer* textureContainerFactory(int i,
+															  Vector3Df* p_texData,
+															  pixels_t* p_texDimensions,
+															  pixels_t* p_texOffsets,
+															  cudaTextureObject_t* p_texObject);
 
-__host__ __device__ TextureContainer* textureContainerFactory(int i, Vector3Df* p_texData, pixels_t* p_texDimensions, pixels_t *p_texOffsets) {
+__host__ __device__ TextureContainer* textureContainerFactory(int i,
+															  Vector3Df* p_texData,
+															  pixels_t* p_texDimensions,
+															  pixels_t* p_texOffsets,
+															  cudaTextureObject_t* p_texObject)
+{
 	if (i == NO_TEXTURE) {
 		return NULL;
 	}
 	Vector3Df* p_textureData = &p_texData[p_texOffsets[i]];
 	pixels_t* p_textureDimensions = &p_texDimensions[2 * i];
-	return new TextureContainer(p_textureData, p_textureDimensions);
+	cudaTextureObject_t* p_textureObject = NULL;
+#ifdef __CUDA_ARCH__
+	p_textureObject = &p_texObject[i];
+#endif
+	return new TextureContainer(p_textureData, p_textureDimensions, p_textureObject);
 }
 
 
@@ -115,12 +128,17 @@ __host__ __device__ Vector3Df sampleTexture(TextureContainer* p_textureContainer
 	pixels_t height = p_texDimensions[1];
 	float pixelCoordU = u * (float)width;
 	float pixelCoordV = v * (float)height;
+	pixels_t i = truncf(pixelCoordU);
+	pixels_t j = truncf(pixelCoordV);
+#ifdef __CUDA_ARCH__
+	float4 texValue = tex1Dfetch<float4>(*p_textureContainer->p_textureObject, j * width + i);
+	return Vector3Df(texValue);
+#endif
+
 	float floorPixelCoordU = floorf(pixelCoordU);
 	float floorPixelCoordV = floorf(pixelCoordV);
 	float ceilPixelCoordU = ceilf(pixelCoordU);
 	float ceilPixelCoordV = ceilf(pixelCoordV);
-	pixels_t i = truncf(pixelCoordU);
-	pixels_t j = truncf(pixelCoordV);
 
 	// Bilinear interpolation
 	Vector3Df* p_texture = p_textureContainer->p_textureData;
@@ -134,17 +152,17 @@ __host__ __device__ Vector3Df sampleTexture(TextureContainer* p_textureContainer
 	return valC1 + valC2;
 }
 
-__host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneData* p_SceneData, LightsData *p_lightsData, Material* p_materials, Sampler* p_sampler) {
+__host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneData* p_sceneData, LightsData *p_lightsData, Material* p_materials, Sampler* p_sampler) {
 	Ray ray = p_camera->computeCameraRay(x, y, p_sampler);
 
     Vector3Df color = Vector3Df(0.f, 0.f, 0.f);
     Vector3Df mask = Vector3Df(1.f, 1.f, 1.f);
     SurfaceInteraction interaction = SurfaceInteraction();
-    Triangle* p_triangles = p_SceneData->p_triangles;
+    Triangle* p_triangles = p_sceneData->p_triangles;
     Triangle* p_hitTriangle = NULL;
     refl_t currentBsdf = DIFFUSE;
     refl_t previousBsdf = DIFFUSE;
-    LinearBVHNode* p_bvh = p_SceneData->p_bvh;
+    LinearBVHNode* p_bvh = p_sceneData->p_bvh;
     for (unsigned bounces = 0; bounces < 6; bounces++) {
     	if (!intersectBVH(p_bvh, p_triangles, interaction, ray)) {
 #ifdef USE_SKYBOX
@@ -209,9 +227,10 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneD
         // DIFFUSE BSDF
         if (currentBsdf == DIFFUSE) {
         	TextureContainer* p_texContainer = textureContainerFactory(p_material->texKdIdx,
-        								  	  	  	  	  	  	  	   p_SceneData->p_textureData,
-																	   p_SceneData->p_textureDimensions,
-																	   p_SceneData->p_textureOffsets);
+        								  	  	  	  	  	  	  	   p_sceneData->p_textureData,
+																	   p_sceneData->p_textureDimensions,
+																	   p_sceneData->p_textureOffsets,
+																	   p_sceneData->p_cudaTexObjects);
         	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, p_material, p_texContainer, p_sampler);
 			mask = mask * diffuseSample / interaction.pdf;
         	delete p_texContainer;
@@ -220,7 +239,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneD
 			int selectedLightIdx = truncf(randomNumber);
 			Triangle* p_light = &p_lightsData->lightsPtr[selectedLightIdx];
 			Material* p_lightMaterial = &p_materials[p_light->_materialId];
-			Vector3Df directLighting = estimateDirectLighting(p_light, p_SceneData, p_lightMaterial, interaction, p_sampler);
+			Vector3Df directLighting = estimateDirectLighting(p_light, p_sceneData, p_lightMaterial, interaction, p_sampler);
 
 #ifndef UNBIASED
 			directLighting.x = clamp(directLighting.x, 0.0f, 1.0f);

@@ -112,6 +112,7 @@ __host__ void ParallelRenderer::copyMemoryToCuda() {
 	size_t bvhBytes = sizeof(LinearBVHNode) * numBvhNodes;
 	size_t lightsBytes = sizeof(Triangle) * numLights;
 	size_t textureBytes = sizeof(Vector3Df) * numTotalTexturePixels;
+	size_t textureObjectBytes = sizeof(cudaTextureObject_t) * numTextures;
 
 	Camera* h_camPtr = p_scene->getCameraPtr();
 	Triangle* h_triPtr = p_scene->getTriPtr();
@@ -134,6 +135,43 @@ __host__ void ParallelRenderer::copyMemoryToCuda() {
 	CUDA_CHECK_RETURN(cudaMemcpy(d_textureDimensions, h_textureDimensions, sizeof(pixels_t) * 2 * numTextures, cudaMemcpyHostToDevice));
 	CUDA_CHECK_RETURN(cudaMemcpy(d_textureOffsets, h_textureOffsets, sizeof(pixels_t) * numTextures + sizeof(pixels_t), cudaMemcpyHostToDevice));
 
+	// Create texture objects for textures
+	h_sceneData->p_cudaTexObjects = new cudaTextureObject_t[numTextures];
+	cudaResourceDesc* p_resDesc = new cudaResourceDesc[numTextures];
+	cudaTextureDesc* p_texDesc = new cudaTextureDesc[numTextures];
+	for (uint i = 0; i < numTextures; i++) {
+		Vector3Df* p_currentTextureData = p_scene->getTexturePtr(i);
+		pixels_t numPixels = h_textureOffsets[i+1] - h_textureOffsets[i];
+		float4* p_currentTextureFormattedData = new float4[numPixels];
+		for (pixels_t j = 0; j < numPixels; j++) {
+			p_currentTextureFormattedData[j] = make_float4(p_currentTextureData[j]);
+		}
+		float4* d_currentTextureData = NULL;
+		CUDA_CHECK_RETURN(cudaMalloc((void**)&d_currentTextureData, sizeof(float4) * numPixels));
+		CUDA_CHECK_RETURN(cudaMemcpy(d_currentTextureData, p_currentTextureData, sizeof(float4) * numPixels, cudaMemcpyHostToDevice));
+
+		memset(&p_resDesc[i], 0, sizeof(cudaResourceDesc));
+		p_resDesc[i].resType = cudaResourceTypeLinear;
+		p_resDesc[i].res.linear.devPtr = d_currentTextureData;
+		p_resDesc[i].res.linear.desc.f = cudaChannelFormatKindFloat;
+		p_resDesc[i].res.linear.desc.x = 32;
+		p_resDesc[i].res.linear.desc.z = 32;
+		p_resDesc[i].res.linear.desc.y = 32;
+		p_resDesc[i].res.linear.desc.w = 32; //todo: should this be 0??
+		p_resDesc[i].res.linear.sizeInBytes = numPixels * sizeof(float4);
+
+		memset(&p_texDesc[i], 0, sizeof(cudaTextureDesc));
+		p_texDesc[i].readMode = cudaReadModeElementType;
+		p_texDesc[i].addressMode[0] = cudaAddressModeWrap;
+		p_texDesc[i].filterMode = cudaFilterModeLinear;
+
+		cudaTextureObject_t* p_currentTexObject = new cudaTextureObject_t();
+		cudaCreateTextureObject(p_currentTexObject,
+								&p_resDesc[i],
+								&p_texDesc[i],
+								NULL);
+		h_sceneData->p_cudaTexObjects[i] = *p_currentTexObject;
+	}
 	createSceneData(h_sceneData, d_triPtr, d_bvhPtr, d_materials, d_textureData, d_textureDimensions, d_textureOffsets);
 	CUDA_CHECK_RETURN(cudaMemcpy(d_sceneData, h_sceneData, sizeof(SceneData), cudaMemcpyHostToDevice));
 

@@ -27,6 +27,7 @@ struct SceneData {
 	Triangle* p_triangles;
 	LinearBVHNode* p_bvh;
 	Material* p_materials;
+	cudaTextureObject_t* p_cudaTexObjects;
 	Vector3Df* p_textureData;
 	pixels_t* p_textureDimensions;
 	pixels_t* p_textureOffsets;
@@ -43,10 +44,11 @@ struct SettingsData {
 };
 
 struct TextureContainer {
-	__host__ __device__ TextureContainer(Vector3Df* p_texData, pixels_t* p_texDims) :
-		p_textureData(p_texData), p_textureDimensions(p_texDims) {}
+	__host__ __device__ TextureContainer(Vector3Df* p_texData, pixels_t* p_texDims, cudaTextureObject_t* p_texObject) :
+		p_textureData(p_texData), p_textureDimensions(p_texDims), p_textureObject(p_texObject) {}
 	Vector3Df* p_textureData = NULL;
 	pixels_t* p_textureDimensions = NULL;
+	cudaTextureObject_t* p_textureObject = NULL;
 };
 
 struct Sampler {
@@ -68,6 +70,7 @@ public:
 	__host__ virtual void renderOneSamplePerPixel(uchar4* p_img) = 0;
 	__host__ virtual void copyImageBytes(uchar4* p_img) = 0;
 	__host__ virtual uchar4* getImgBytesPointer() = 0;
+	__host__ cudaTextureObject_t* getCudaTextureObjectPtr() { return NULL; }
 	__host__ Scene* getScenePtr() { return p_scene; }
 	__host__ pixels_t getWidth() { return width; }
 	__host__ pixels_t getHeight() { return height; }
@@ -99,6 +102,7 @@ public:
 	__host__ void renderOneSamplePerPixel(uchar4* p_img);
 	__host__ void copyImageBytes(uchar4* p_img);
 	__host__ uchar4* getImgBytesPointer() { return d_imgBytesPtr; }
+	__host__ cudaTextureObject_t* getCudaTextureObjectPtr() { return p_cudaTexObjects; }
 	~ParallelRenderer();
 private:
 	Vector3Df* d_imgVectorPtr;
@@ -113,6 +117,7 @@ private:
 	Vector3Df* d_textureData;
 	pixels_t* d_textureDimensions;
 	pixels_t* d_textureOffsets;
+	cudaTextureObject_t* p_cudaTexObjects;
 	Camera* d_camPtr;
 	curandState* d_curandStatePtr;
 	// TODO: Consider storing block, grid instead
@@ -120,6 +125,7 @@ private:
 	uint gridBlocks;
 	__host__ void copyMemoryToCuda();
 	__host__ void initializeCurand();
+//	__host__ void createTextureObjects(SceneData* h_sceneData);
 };
 
 class SequentialRenderer : public Renderer {
