@@ -29,7 +29,7 @@ SequentialRenderer::SequentialRenderer(Scene* _scenePtr, pixels_t _width, pixels
     size_t bvhBytes = sizeof(LinearBVHNode) * numBvhNodes;
     size_t materialsBytes = sizeof(Material) * numMaterials;
     size_t texturePixelsBytes = sizeof(Vector3Df) * numTexturePixels;
-    size_t textureOffsetsBytes = sizeof(pixels_t) * numTextures;
+    size_t textureOffsetsBytes = sizeof(pixels_t) * numTextures + sizeof(pixels_t);
     size_t textureDimensionsBytes = textureOffsetsBytes * 2;
     size_t totalTextureBytes = texturePixelsBytes + textureOffsetsBytes + textureDimensionsBytes;
 

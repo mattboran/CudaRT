@@ -56,7 +56,10 @@ void Scene::loadTextures(std::string texturesPath) {
 	auto materials = meshLoader.LoadedMaterials;
 	for (auto material: materials) {
 		if (!material.map_Kd.empty()) {
-			textureFiles.push_back(material.map_Kd);
+			auto foundTex = std::find(textureFiles.begin(), textureFiles.end(), material.map_Kd);
+			if (foundTex == textureFiles.end()) {
+				textureFiles.push_back(material.map_Kd);
+			}
 		}
 	}
 	p_textureStore = new TextureStore();
