@@ -64,4 +64,8 @@ void TextureStore::loadAll(std::string* fileName, uint numTextures) {
 			start++; p_current++;
 		}
 	}
+
+	for (uint i = 0; i < textureDimensions[2 * (numTextures - 1)]; i++) {
+		flattenedTextureData.push_back(Vector3Df(0,0,0));
+	}
 }
