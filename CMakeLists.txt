@@ -41,7 +41,6 @@ set_target_properties(contextlib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(contextlib ${OPENGL_STATIC_LIBRARIES} ${GLEW_STATIC_LIBRARIES} ${GLFW_STATIC_LIBRARIES})
 
 add_library(rendererlib STATIC
-	${RENDERER}/texture_renderer.cu
 	${RENDERER}/parallel_renderer.cu
 	${RENDERER}/renderer.cu
 	${RENDERER}/sequential_renderer.cpp)

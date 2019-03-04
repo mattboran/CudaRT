@@ -34,7 +34,6 @@ int main(int argc, char* argv[]) {
 	string envPath = "../.env";
 	bool executeOnCpu = false;
 	bool renderToScreen = false;
-	bool textureDebug = false;
 	int cudaCapableDevices = 0;
 
 	//
@@ -117,14 +116,6 @@ int main(int argc, char* argv[]) {
 		outFile = sceneName + ".png";
 	}
 
-
-	// Texture debug
-	if ((find(args.begin(), args.end(), "-t") < args.end() - 1)) {
-		textureDebug = true;
-		executeOnCpu = true;
-		texturePath = *(find(args.begin(), args.end(), "-t") + 1);
-	}
-
 	cout << "Samples: " << samples << endl \
 			<< "Width: " << width << endl \
 			<< "Height: " << height << endl \
@@ -157,13 +148,7 @@ int main(int argc, char* argv[]) {
 
 	cudaGetDeviceCount(&cudaCapableDevices);
 	if (executeOnCpu || cudaCapableDevices == 0) {
-		if (textureDebug) {
-			int texw, texh, texIdx;
-			Vector3Df* p_tex = textureLoader.load(texturePath, texw, texh, texIdx);
-			p_renderer = new TextureRenderer(p_tex, texw, texh, width, height);
-		} else {
-			p_renderer = new SequentialRenderer(&scene, width, height, samples);
-		}
+		p_renderer = new SequentialRenderer(&scene, width, height, samples);
 	} else {
 		p_renderer = new ParallelRenderer(&scene, width, height, samples);
 	}
@@ -178,9 +163,7 @@ int main(int argc, char* argv[]) {
 	auto stop = high_resolution_clock::now();
 	auto duration = duration_cast<microseconds>(stop - start);
 
-	if (!textureDebug) {
-		p_launcher->saveToImage();
-	}
+	p_launcher->saveToImage();
 
 	float elapsedTime = duration.count()/1000000.0f;
 	int samplesRendered = p_renderer->getSamplesRendered();

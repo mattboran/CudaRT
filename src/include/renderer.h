@@ -15,7 +15,7 @@
 #include <curand_kernel.h>
 #include <cuda_runtime.h>
 
-typedef uint pixels_t;
+typedef unsigned int pixels_t;
 
 struct LightsData {
 	Triangle* lightsPtr;
@@ -82,9 +82,6 @@ public:
                                   pixels_t* p_textureDimensions,
                                   pixels_t* p_textureOffsets);
 	__host__ void createLightsData(LightsData* p_lightsData, Triangle* p_triangles);
-    // TODO: These are part of the textureRenderer class that will be removed
-	__host__ void allocateTextures(pixels_t* p_texDimensions, uint numTextures);
-	__host__ void loadTextures(Vector3Df** pp_tex, pixels_t* p_texDimensions, uint numTextures);
 protected:
 	__host__ Renderer() {}
 	__host__ Renderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, uint _samples);
@@ -93,20 +90,6 @@ protected:
 	pixels_t height;
 	uint samples;
 	uint samplesRendered;
-};
-
-// This class is used to debug loading of textures by displaying them on-screen
-class TextureRenderer: public Renderer {
-public:
-    __host__ TextureRenderer() : Renderer() {}
-    __host__ TextureRenderer(Vector3Df* p_texture, pixels_t texWidth, pixels_t texHeight, pixels_t _width, pixels_t _height);
-    __host__ void renderOneSamplePerPixel(uchar4* p_img);
-    __host__ void copyImageBytes(uchar4* p_img);
-    __host__ uchar4* getImgBytesPointer() { return h_imgPtr; }
-    ~TextureRenderer() {};
-    pixels_t* h_dimensions;
-private:
-	Vector3Df* h_texture;
 };
 
 class ParallelRenderer : public Renderer {

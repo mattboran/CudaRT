@@ -48,7 +48,7 @@ __host__ __device__ TextureContainer* textureContainerFactory(int i, Vector3Df* 
 	if (i == NO_TEXTURE) {
 		return NULL;
 	}
-	Vector3Df* p_textureData = p_textureData = &p_texData[p_texOffsets[i]];
+	Vector3Df* p_textureData = &p_texData[p_texOffsets[i]];
 	pixels_t* p_textureDimensions = &p_texDimensions[2 * i];
 	return new TextureContainer(p_textureData, p_textureDimensions);
 }
@@ -109,33 +109,7 @@ __host__ void Renderer::createLightsData(LightsData* p_lightsData, Triangle* p_t
 	p_lightsData->totalSurfaceArea = p_scene->getLightsSurfaceArea();
 }
 
-__host__ void Renderer::allocateTextures(pixels_t* p_texDimensions, uint numTextures) {
-//	pp_textures = (Vector3Df**)malloc(numTextures * sizeof(Vector3Df*));
-//	for (uint i = 0; i < numTextures; i++) {
-//		pixels_t width = p_texDimensions[2 * i];
-//		pixels_t height = p_texDimensions[2 * i + 1];
-//		size_t imageSize = width * height * sizeof(Vector3Df);
-//		pp_textures[i] = (Vector3Df*)malloc(imageSize);
-//		p_textureDimensions = (pixels_t*)malloc(2 * numTextures * sizeof(pixels_t));
-//	}
-}
-
-__host__ void Renderer::loadTextures(Vector3Df** pp_tex, pixels_t* p_texDimensions, uint numTextures) {
-//	memcpy(p_textureDimensions, p_texDimensions, sizeof(pixels_t) * numTextures * 2);
-//	for (uint i = 0; i < numTextures; i++) {
-//		pixels_t width = p_texDimensions[2 * i];
-//		pixels_t height = p_texDimensions[2 * i + 1];
-//		size_t imageSize = width * height * sizeof(Vector3Df);
-//		memcpy(pp_textures[i], pp_tex[i], imageSize);
-//	}
-}
-
 __host__ __device__ Vector3Df sampleTexture(TextureContainer* p_textureContainer,  float u, float v) {
-	// printf("Sample texture with u %.4f, v %.4f\n", u, v);
-	float upU = u * 100.0f;
-	float upV = v * 100.0f;
-
-	return Vector3Df(upU - floorf(upU), 0.0f, upV - floorf(upV));
 	pixels_t* p_texDimensions = p_textureContainer->p_textureDimensions;
 	pixels_t width = p_texDimensions[0];
 	pixels_t height = p_texDimensions[1];
@@ -147,7 +121,10 @@ __host__ __device__ Vector3Df sampleTexture(TextureContainer* p_textureContainer
 	float ceilPixelCoordV = ceilf(pixelCoordV);
 	pixels_t i = truncf(pixelCoordU);
 	pixels_t j = truncf(pixelCoordV);
-	// return p_textureContainer->p_textureData[j * width + i];
+	// printf("i and j %d, %d\n", i, j);
+	Vector3Df textureData = p_textureContainer->p_textureData[j * width + i];
+	// printf("Texture color at that i, j is %.3f, %.3f, %.3f\n", textureData.x, textureData.y, textureData.z);
+	return textureData;
 
 	// Bilinear interpolation
 	Vector3Df* p_texture = p_textureContainer->p_textureData;

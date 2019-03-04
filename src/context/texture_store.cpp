@@ -36,24 +36,26 @@ Vector3Df* TextureStore::load(std::string fileName, int& width, int& height, int
 
 void TextureStore::loadAll(std::string* fileName, uint numTextures) {
 	pixels_t totalTexturePixels = 0;
+	textureOffsets.push_back(0);
 	for (uint i = 0; i < numTextures; i++) {
 		int texW, texH, idx;
 		Vector3Df* p_tex = load(fileName[i], texW, texH, idx);
+		pixels_t texels = texW * texH;
 		textureDimensions.push_back((pixels_t)texW);
 		textureDimensions.push_back((pixels_t)texH);
 		textureDataPtrs.push_back(p_tex);
+		totalTexturePixels += texels;
 		textureOffsets.push_back(totalTexturePixels);
-		totalTexturePixels += (pixels_t)(texW * texH);
 	}
 
 	// Now flatten the data
 	flattenedTextureData.reserve(totalTexturePixels);
 	for (uint i = 0; i < numTextures; i++) {
-		auto start = flattenedTextureData.begin() + textureOffsets[i];
-		auto end = flattenedTextureData.begin() + textureOffsets[i + 1];
+		pixels_t start = textureOffsets[i];
+		pixels_t end = textureOffsets[i + 1];
 		Vector3Df* p_current = textureDataPtrs[i];
 		while (start < end) {
-			*start = *p_current;
+			flattenedTextureData.push_back(*p_current);
 			start++; p_current++;
 		}
 	}
