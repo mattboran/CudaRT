@@ -48,6 +48,11 @@ void TextureStore::loadAll(std::string* fileName, uint numTextures) {
 		textureOffsets.push_back(totalTexturePixels);
 	}
 
+	cout << "Loaded " << numTextures << " textures with offsets: " << endl;
+	for (pixels_t offset: textureOffsets) {
+		cout << offset << endl;
+	}
+
 	// Now flatten the data
 	flattenedTextureData.reserve(totalTexturePixels);
 	for (uint i = 0; i < numTextures; i++) {

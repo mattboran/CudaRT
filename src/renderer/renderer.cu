@@ -121,10 +121,6 @@ __host__ __device__ Vector3Df sampleTexture(TextureContainer* p_textureContainer
 	float ceilPixelCoordV = ceilf(pixelCoordV);
 	pixels_t i = truncf(pixelCoordU);
 	pixels_t j = truncf(pixelCoordV);
-	// printf("i and j %d, %d\n", i, j);
-	Vector3Df textureData = p_textureContainer->p_textureData[j * width + i];
-	// printf("Texture color at that i, j is %.3f, %.3f, %.3f\n", textureData.x, textureData.y, textureData.z);
-	return textureData;
 
 	// Bilinear interpolation
 	Vector3Df* p_texture = p_textureContainer->p_textureData;
@@ -377,12 +373,7 @@ __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interactio
 	  float u = p_interaction->u;
 	  float v = p_interaction->v;
 	  float w = 1.f - u - v;
-	  // point.uv = v * v1.uv + w * v2.uv + (1 - v - w) * v3.uv
-
 	  Vector2Df uv = p_hitTriangle->_uv1 * w + p_hitTriangle->_uv2 * u + p_hitTriangle->_uv3 * v;
-
-	  // printf("Got u %.3f, v %.3f, w %.3f ", u, v, w);
-	  // printf("Which correspond to normalized uv: %.3f, %.3f\n", uv.x, uv.y);
 	  kd = sampleTexture(p_textureContainer, uv.x, uv.y);
   }
    return kd * cosineWeight;
