@@ -55,13 +55,18 @@ public:
     TextureStore() : Loader() { }
     Vector3Df* load(std::string filename, int& width, int& height, int& idx);
     void loadAll(std::string* filename, uint numTextures);
-    pixels_t* getTextureDimensionsPtr() { return &textureDimensions[0]; }
     Vector3Df** getTextureDataPtr() { return &textureDataPtrs[0]; }
+    Vector3Df* getFlattenedTextureDataPtr() { return &flattenedTextureData[0]; }
+    pixels_t getTotalPixels() { return textureOffsets.back(); }
+    pixels_t* getTextureOffsetsPtr() { return &textureOffsets[0]; }
+    pixels_t* getTextureDimensionsPtr() { return &textureDimensions[0]; }
     uint getNumTextures() { return currentIdx; }
 private:
     uint currentIdx = 0;
     std::vector<pixels_t> textureDimensions;
     std::vector<Vector3Df*> textureDataPtrs;
+    std::vector<Vector3Df> flattenedTextureData;
+    std::vector<pixels_t> textureOffsets;
 };
 
 #endif

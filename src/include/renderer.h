@@ -27,8 +27,9 @@ struct SceneData {
 	Triangle* p_triangles;
 	LinearBVHNode* p_bvh;
 	Material* p_materials;
-	Vector3Df** pp_textureData;
+	Vector3Df* p_textureData;
 	pixels_t* p_textureDimensions;
+	pixels_t* p_textureOffsets;
 	uint numTriangles;
 	uint numBVHNodes;
 	uint numMaterials;
@@ -70,8 +71,9 @@ public:
                                   Triangle* p_triangles,
                                   LinearBVHNode* p_bvh,
                                   Material* p_materials,
-                                  Vector3Df** pp_textureData,
-                                  pixels_t* p_textureDimensions);
+                                  Vector3Df* p_textureData,
+                                  pixels_t* p_textureDimensions,
+                                  pixels_t* p_textureOffsets);
 	__host__ void createLightsData(LightsData* p_lightsData, Triangle* p_triangles);
     // TODO: These are part of the textureRenderer class that will be removed
 	__host__ void allocateTextures(pixels_t* p_texDimensions, uint numTextures);
@@ -118,8 +120,9 @@ private:
 	LinearBVHNode* d_bvhPtr;
 	Triangle* d_lightsPtr;
 	Material* d_materials;
-	Vector3Df** dd_textureData;
+	Vector3Df* d_textureData;
 	pixels_t* d_textureDimensions;
+	pixels_t* d_textureOffsets;
 	Camera* d_camPtr;
 	curandState* d_curandStatePtr;
 	// TODO: Consider storing block, grid instead
@@ -141,7 +144,7 @@ private:
 	uchar4* h_imgBytesPtr;
 	Vector3Df* h_imgVectorPtr;
 	SettingsData h_settingsData;
-	SceneData* h_SceneData;
+	SceneData* h_sceneData;
 	LightsData* h_lightsData;
 };
 

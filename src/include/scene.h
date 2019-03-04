@@ -40,9 +40,12 @@ public:
 	Material* getMaterialsPtr() { return p_materials; }
 
 	uint getNumTextures() { return p_textureStore->getNumTextures(); }
-	Vector3Df** getTexturePPtr() { return p_textureStore->getTextureDataPtr(); }
+	pixels_t getTotalTexturePixels() { return p_textureStore->getTotalPixels(); }
 	Vector3Df* getTexturePtr(uint i) { return p_textureStore->getTextureDataPtr()[i]; }
+	Vector3Df* getTexturePtr() { return p_textureStore->getFlattenedTextureDataPtr(); }
 	pixels_t* getTextureDimensionsPtr() { return p_textureStore->getTextureDimensionsPtr(); }
+	pixels_t* getTextureOffsetsPtr() { return p_textureStore->getTextureOffsetsPtr(); }
+
 	// Load functions
 	void loadObj(std::string objPath);
 	void loadCamera(std::string cameraPath, pixels_t width, pixels_t height);
