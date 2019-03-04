@@ -34,10 +34,11 @@ struct Triangle {
 	Vector3Df _v1;
 	Vector3Df _e1, _e2;
 	Vector3Df _n1, _n2, _n3;
+	Vector2Df _uv1, _uv2, _uv3;
 	float _surfaceArea = 0.0f;
 	__device__ __host__ Triangle() {}
 	__device__ __host__ Triangle(const Triangle &t);
-	__host__ __device__ float intersect(const Ray &r, float &_u, float &_v) const;
+	__host__ __device__ float intersect(const Ray &r, float &o_u, float &o_v) const;
 	__host__ __device__ Vector3Df getNormal(const float u, const float v) const;
 	__host__ __device__ Vector3Df getRandomPointOn(Sampler* p_sampler) const;
 	// Raytracing intersection pre-computed cache:

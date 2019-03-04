@@ -131,6 +131,11 @@ __host__ void Renderer::loadTextures(Vector3Df** pp_tex, pixels_t* p_texDimensio
 }
 
 __host__ __device__ Vector3Df sampleTexture(TextureContainer* p_textureContainer,  float u, float v) {
+	// printf("Sample texture with u %.4f, v %.4f\n", u, v);
+	float upU = u * 100.0f;
+	float upV = v * 100.0f;
+
+	return Vector3Df(upU - floorf(upU), 0.0f, upV - floorf(upV));
 	pixels_t* p_texDimensions = p_textureContainer->p_textureDimensions;
 	pixels_t width = p_texDimensions[0];
 	pixels_t height = p_texDimensions[1];
@@ -142,6 +147,7 @@ __host__ __device__ Vector3Df sampleTexture(TextureContainer* p_textureContainer
 	float ceilPixelCoordV = ceilf(pixelCoordV);
 	pixels_t i = truncf(pixelCoordU);
 	pixels_t j = truncf(pixelCoordV);
+	// return p_textureContainer->p_textureData[j * width + i];
 
 	// Bilinear interpolation
 	Vector3Df* p_texture = p_textureContainer->p_textureData;
@@ -391,7 +397,16 @@ __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interactio
 
    Vector3Df kd = p_material->kd;
   if (p_textureContainer != NULL) {
-		kd = sampleTexture(p_textureContainer, p_interaction->u, p_interaction->v);
+	  float u = p_interaction->u;
+	  float v = p_interaction->v;
+	  float w = 1.f - u - v;
+	  // point.uv = v * v1.uv + w * v2.uv + (1 - v - w) * v3.uv
+
+	  Vector2Df uv = p_hitTriangle->_uv1 * w + p_hitTriangle->_uv2 * u + p_hitTriangle->_uv3 * v;
+
+	  // printf("Got u %.3f, v %.3f, w %.3f ", u, v, w);
+	  // printf("Which correspond to normalized uv: %.3f, %.3f\n", uv.x, uv.y);
+	  kd = sampleTexture(p_textureContainer, uv.x, uv.y);
   }
    return kd * cosineWeight;
 }

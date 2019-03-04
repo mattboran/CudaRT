@@ -5,6 +5,25 @@
 #include <math.h>
 #include "obj_load.h"
 
+struct Vector2Df
+{
+	union {
+		struct { float x, y; };
+		float _v[2];
+	};
+
+	__host__ Vector2Df(const objl::Vector2& v): x(v.X), y(v.Y) {}
+
+	__host__ __device__ Vector2Df(float _x = 0, float _y = 0) : x(_x), y(_y) {}
+	__host__ __device__ Vector2Df(const Vector2Df& v) : x(v.x), y(v.y) {}
+	inline __host__ __device__ Vector2Df operator*(float a) const{ return Vector2Df(x*a, y*a); }
+	inline __host__ __device__ Vector2Df operator/(float a) const{ return Vector2Df(x/a, y/a); }
+	inline __host__ __device__ Vector2Df operator*(const Vector2Df& v) const{ return Vector2Df(x * v.x, y * v.y); }
+	inline __host__ __device__ Vector2Df operator+(const Vector2Df& v) const{ return Vector2Df(x + v.x, y + v.y); }
+	inline __host__ __device__ Vector2Df operator-(const Vector2Df& v) const{ return Vector2Df(x - v.x, y - v.y); }
+	inline __host__ __device__ Vector2Df operator-() const { Vector2Df v; v.x = -x; v.y = -y; return v; }
+};
+
 struct Vector3Df
 {
 	union {

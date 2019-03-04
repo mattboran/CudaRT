@@ -115,6 +115,9 @@ void Scene::loadTriangles() {
 			p_current->_n1 = Vector3Df(v1.Normal);
 			p_current->_n2 = Vector3Df(v2.Normal);
 			p_current->_n3 = Vector3Df(v3.Normal);
+			p_current->_uv1 = Vector2Df(v1.TextureCoordinate);
+			p_current->_uv2 = Vector2Df(v2.TextureCoordinate);
+			p_current->_uv3 = Vector2Df(v3.TextureCoordinate);
 			p_current->_e1 = _v2 - _v1;
 			p_current->_e2 = _v3 - _v1;
 
