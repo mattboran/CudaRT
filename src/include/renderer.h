@@ -15,7 +15,11 @@
 #include <curand_kernel.h>
 #include <cuda_runtime.h>
 
-typedef uint pixels_t;
+#define TRIANGLES_OFFSET 0
+#define NORMALS_OFFSET 0
+#define TEXTURES_OFFSET 1
+
+typedef unsigned int pixels_t;
 
 struct LightsData {
 	Triangle* lightsPtr;
@@ -23,19 +27,32 @@ struct LightsData {
 	float totalSurfaceArea;
 };
 
-struct TrianglesData {
+struct SceneData {
 	Triangle* p_triangles;
 	LinearBVHNode* p_bvh;
 	Material* p_materials;
+	cudaTextureObject_t* p_cudaTexObjects;
+	Vector3Df* p_textureData;
+	pixels_t* p_textureDimensions;
+	pixels_t* p_textureOffsets;
 	uint numTriangles;
 	uint numBVHNodes;
 	uint numMaterials;
+	uint numTextures;
 };
 
 struct SettingsData {
 	uint width;
 	uint height;
 	uint samples;
+};
+
+struct TextureContainer {
+	__host__ __device__ TextureContainer(Vector3Df* p_texData, pixels_t* p_texDims, cudaTextureObject_t* p_texObject) :
+		p_textureData(p_texData), p_textureDimensions(p_texDims), p_textureObject(p_texObject) {}
+	Vector3Df* p_textureData = NULL;
+	pixels_t* p_textureDimensions = NULL;
+	cudaTextureObject_t* p_textureObject = NULL;
 };
 
 struct Sampler {
@@ -45,9 +62,9 @@ struct Sampler {
 	__host__ __device__ float getNextFloat();
 };
 
-__host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, TrianglesData* p_trianglesData, LightsData *p_lightsData, Material* p_materials, Sampler* p_sampler);
+__host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneData* p_SceneData, LightsData *p_lightsData, Material* p_materials, Sampler* p_sampler);
 __host__ __device__ void gammaCorrectPixel(uchar4 &p);
-__host__ Vector3Df sampleTexture(uint idx, float u, float v);
+__host__ __device__ Vector3Df sampleTexture(TextureContainer* p_textureContainer, float u, float v);
 
 class Renderer {
 public:
@@ -57,16 +74,21 @@ public:
 	__host__ virtual void renderOneSamplePerPixel(uchar4* p_img) = 0;
 	__host__ virtual void copyImageBytes(uchar4* p_img) = 0;
 	__host__ virtual uchar4* getImgBytesPointer() = 0;
+	__host__ cudaTextureObject_t* getCudaTextureObjectPtr() { return NULL; }
 	__host__ Scene* getScenePtr() { return p_scene; }
 	__host__ pixels_t getWidth() { return width; }
 	__host__ pixels_t getHeight() { return height; }
 	__host__ int getSamples() { return samples; }
 	__host__ int getSamplesRendered() { return samplesRendered; }
 	__host__ void createSettingsData(SettingsData* p_settingsData);
-	__host__ void createTrianglesData(TrianglesData* p_trianglesData, Triangle* p_triangles, LinearBVHNode* p_bvh, Material* p_materials);
+	__host__ void createSceneData(SceneData* p_SceneData,
+                                  Triangle* p_triangles,
+                                  LinearBVHNode* p_bvh,
+                                  Material* p_materials,
+                                  Vector3Df* p_textureData,
+                                  pixels_t* p_textureDimensions,
+                                  pixels_t* p_textureOffsets);
 	__host__ void createLightsData(LightsData* p_lightsData, Triangle* p_triangles);
-	__host__ void allocateTextures(pixels_t* p_texDimensions, uint numTextures);
-	__host__ void loadTextures(Vector3Df** pp_tex, pixels_t* p_texDimensions, uint numTextures);
 protected:
 	__host__ Renderer() {}
 	__host__ Renderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, uint _samples);
@@ -75,20 +97,6 @@ protected:
 	pixels_t height;
 	uint samples;
 	uint samplesRendered;
-};
-
-// This class is used to debug loading of textures by displaying them on-screen
-class TextureRenderer: public Renderer {
-public:
-    __host__ TextureRenderer() : Renderer() {}
-    __host__ TextureRenderer(Vector3Df* p_texture, pixels_t texWidth, pixels_t texHeight, pixels_t _width, pixels_t _height);
-    __host__ void renderOneSamplePerPixel(uchar4* p_img);
-    __host__ void copyImageBytes(uchar4* p_img);
-    __host__ uchar4* getImgBytesPointer() { return h_imgPtr; }
-    ~TextureRenderer() {};
-    pixels_t* h_dimensions;
-private:
-	Vector3Df* h_texture;
 };
 
 class ParallelRenderer : public Renderer {
@@ -103,12 +111,14 @@ private:
 	Vector3Df* d_imgVectorPtr;
 	uchar4* d_imgBytesPtr;
 	LightsData* d_lightsData;
-	TrianglesData* d_trianglesData;
+	SceneData* d_sceneData;
 	SettingsData d_settingsData;
 	Triangle* d_triPtr;
 	LinearBVHNode* d_bvhPtr;
 	Triangle* d_lightsPtr;
 	Material* d_materials;
+	pixels_t* d_textureOffsets;
+	cudaTextureObject_t* d_cudaTexObjects;
 	Camera* d_camPtr;
 	curandState* d_curandStatePtr;
 	// TODO: Consider storing block, grid instead
@@ -116,6 +126,7 @@ private:
 	uint gridBlocks;
 	__host__ void copyMemoryToCuda();
 	__host__ void initializeCurand();
+	__host__ cudaTextureObject_t* createTextureObjects();
 };
 
 class SequentialRenderer : public Renderer {
@@ -130,7 +141,7 @@ private:
 	uchar4* h_imgBytesPtr;
 	Vector3Df* h_imgVectorPtr;
 	SettingsData h_settingsData;
-	TrianglesData* h_trianglesData;
+	SceneData* h_sceneData;
 	LightsData* h_lightsData;
 };
 

@@ -5,6 +5,25 @@
 #include <math.h>
 #include "obj_load.h"
 
+struct Vector2Df
+{
+	union {
+		struct { float x, y; };
+		float _v[2];
+	};
+
+	__host__ Vector2Df(const objl::Vector2& v): x(v.X), y(v.Y) {}
+
+	__host__ __device__ Vector2Df(float _x = 0, float _y = 0) : x(_x), y(_y) {}
+	__host__ __device__ Vector2Df(const Vector2Df& v) : x(v.x), y(v.y) {}
+	inline __host__ __device__ Vector2Df operator*(float a) const{ return Vector2Df(x*a, y*a); }
+	inline __host__ __device__ Vector2Df operator/(float a) const{ return Vector2Df(x/a, y/a); }
+	inline __host__ __device__ Vector2Df operator*(const Vector2Df& v) const{ return Vector2Df(x * v.x, y * v.y); }
+	inline __host__ __device__ Vector2Df operator+(const Vector2Df& v) const{ return Vector2Df(x + v.x, y + v.y); }
+	inline __host__ __device__ Vector2Df operator-(const Vector2Df& v) const{ return Vector2Df(x - v.x, y - v.y); }
+	inline __host__ __device__ Vector2Df operator-() const { Vector2Df v; v.x = -x; v.y = -y; return v; }
+};
+
 struct Vector3Df
 {
 	union {
@@ -38,6 +57,8 @@ struct Vector3Df
 	inline __host__ __device__ bool operator!=(const Vector3Df& v){ return x != v.x || y != v.y || z != v.z; }
 	inline __host__ __device__ bool operator!=(const Vector3Df& v) const{ return x != v.x || y != v.y || z != v.z; }
 };
+
+inline __host__ __device__ float4 make_float4(const Vector3Df& v) { return make_float4(v.x, v.y, v.z, 0.0f); }
 
 inline __host__ __device__ Vector3Df normalize(const Vector3Df& v) { float norm = sqrtf(v.x * v.x + v.y*v.y + v.z*v.z); return Vector3Df(v.x/norm, v.y/norm, v.z/norm);}
 inline __host__ __device__ Vector3Df min3(const Vector3Df& v1, const Vector3Df& v2){ return Vector3Df(v1.x < v2.x ? v1.x : v2.x, v1.y < v2.y ? v1.y : v2.y, v1.z < v2.z ? v1.z : v2.z); }

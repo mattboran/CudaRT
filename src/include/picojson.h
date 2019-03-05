@@ -512,7 +512,7 @@ inline std::string value::to_str() const {
     __assume(0);
 #endif
   }
-  return std::string();
+  // return std::string();
 }
 
 template <typename Iter> void copy(const std::string &s, Iter oi) {
@@ -807,7 +807,7 @@ template <typename String, typename Iter> inline bool _parse_string(String &out,
       out.push_back(static_cast<char>(ch));
     }
   }
-  return false;
+  // return false;
 }
 
 template <typename Context, typename Iter> inline bool _parse_array(Context &ctx, input<Iter> &in) {
@@ -1131,7 +1131,7 @@ inline bool operator==(const value &x, const value &y) {
 #ifdef _MSC_VER
   __assume(0);
 #endif
-  return false;
+  // return false;
 }
 
 inline bool operator!=(const value &x, const value &y) {

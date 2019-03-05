@@ -23,10 +23,13 @@ Vector3Df max3(const Vector3Df& a, const Vector3Df& b,
 }
 
 __host__ __device__ Triangle::Triangle(const Triangle &t) :
-		_v1(t._v1), _e1(t._e1), _e2(t._e2), _n1(t._n1), _n2(t._n2), _n3(t._n3), _surfaceArea(t._surfaceArea), _triId(t._triId), _materialId(t._materialId) {
+		_v1(t._v1), _e1(t._e1), _e2(t._e2),
+		_n1(t._n1), _n2(t._n2), _n3(t._n3),
+		_uv1(t._uv1), _uv2(t._uv2), _uv3(t._uv3),
+		_surfaceArea(t._surfaceArea), _triId(t._triId), _materialId(t._materialId) {
 }
 
-__device__ float Triangle::intersect(const Ray& r, float &_u, float &_v) const {
+__device__ float Triangle::intersect(const Ray& r, float &o_u, float &o_v) const {
 	Vector3Df P, Q, T;
 	P = cross(r.dir, _e2);
 	float det = dot(_e1, P);
@@ -48,8 +51,8 @@ __device__ float Triangle::intersect(const Ray& r, float &_u, float &_v) const {
 	}
 	float t = dot(_e2, Q) * inv_det;
 	if (t > EPSILON) {
-		_u = u;
-		_v = v;
+		o_u = u;
+		o_v = v;
 		return t;
 	}
 	return FLT_MAX;

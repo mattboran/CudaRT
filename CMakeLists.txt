@@ -31,7 +31,7 @@ add_library(contextlib STATIC
 	${CONTEXT}/json_loader.cpp
 	${CONTEXT}/launcher.cpp
 	${CONTEXT}/terminal_launcher.cpp
-	${CONTEXT}/texture_loader.cpp
+	${CONTEXT}/texture_store.cpp
 	${CONTEXT}/window.cpp
 	${CONTEXT}/windowed_launcher.cpp)
 target_include_directories(contextlib PUBLIC src/include /usr/include /usr/local/cuda/include)
@@ -41,7 +41,6 @@ set_target_properties(contextlib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(contextlib ${OPENGL_STATIC_LIBRARIES} ${GLEW_STATIC_LIBRARIES} ${GLFW_STATIC_LIBRARIES})
 
 add_library(rendererlib STATIC
-	${RENDERER}/texture_renderer.cu
 	${RENDERER}/parallel_renderer.cu
 	${RENDERER}/renderer.cu
 	${RENDERER}/sequential_renderer.cpp)
@@ -62,6 +61,7 @@ target_include_directories(geometrylib PUBLIC src/include /usr/include /usr/loca
 target_compile_features(geometrylib PUBLIC cxx_std_11)
 set_target_properties(geometrylib PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 set_target_properties(geometrylib PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(geometrylib contextlib)
 
 add_executable(CudaRT src/main.cpp)
 set_property(TARGET CudaRT PROPERTY CUDA_STANDARD 11)

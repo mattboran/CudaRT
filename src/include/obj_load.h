@@ -157,6 +157,7 @@ namespace objl
 			illum = 0;
 			type = "LAMBERT";
 			diffuse = 0.0f;
+			map_Kd = "";
 		}
 
 		// Material Name

@@ -6,7 +6,7 @@
 #include "loaders.h"
 #include "launcher.h"
 #include "renderer.h"
-#include "texture_loader.h"
+#include "loaders.h"
 
 #include <algorithm>
 #include <array>
@@ -34,7 +34,6 @@ int main(int argc, char* argv[]) {
 	string envPath = "../.env";
 	bool executeOnCpu = false;
 	bool renderToScreen = false;
-	bool textureDebug = false;
 	int cudaCapableDevices = 0;
 
 	//
@@ -44,7 +43,7 @@ int main(int argc, char* argv[]) {
 		EnvLoader dotEnvLoader(envPath);
 		objDir = dotEnvLoader.getMeshesPath() + "/";
 		cameraDir = dotEnvLoader.getCameraPath() + "/";
-		texturePath = dotEnvLoader.getTexturesPath();
+		texturePath = dotEnvLoader.getTexturesPath() + "/";
 	} catch (const runtime_error& e) {
 		objDir = "../meshes/";
 		cameraDir = "../settings/";
@@ -117,14 +116,6 @@ int main(int argc, char* argv[]) {
 		outFile = sceneName + ".png";
 	}
 
-
-	// Texture debug
-	if ((find(args.begin(), args.end(), "-t") < args.end() - 1)) {
-		textureDebug = true;
-		executeOnCpu = true;
-		texturePath = *(find(args.begin(), args.end(), "-t") + 1);
-	}
-
 	cout << "Samples: " << samples << endl \
 			<< "Width: " << width << endl \
 			<< "Height: " << height << endl \
@@ -135,11 +126,13 @@ int main(int argc, char* argv[]) {
 	//
 	// Initialize Scene
 	//
-	CameraJsonLoader loader(cameraPath);
-	Scene scene(objPath);
-	Camera camera = loader.getCamera(width, height);
 
-	scene.setCameraPtr(&camera);
+	Scene scene;
+	scene.loadObj(objPath);
+	scene.loadCamera(cameraPath, width, height);
+	scene.loadTextures(texturePath);
+	scene.loadTriangles();
+	scene.constructBvh();
 
 	for (int i = 0; i < scene.getNumMeshes(); i++) {
 		objl::Mesh mesh = scene.getMesh(i);
@@ -151,17 +144,11 @@ int main(int argc, char* argv[]) {
 	Renderer* p_renderer;
 	Launcher* p_launcher;
 
-	TextureLoader textureLoader;
+	TextureStore textureLoader;
 
 	cudaGetDeviceCount(&cudaCapableDevices);
 	if (executeOnCpu || cudaCapableDevices == 0) {
-		if (textureDebug) {
-			int texw, texh, texIdx;
-			Vector3Df* p_tex = textureLoader.load(texturePath, texw, texh, texIdx);
-			p_renderer = new TextureRenderer(p_tex, texw, texh, width, height);
-		} else {
-			p_renderer = new SequentialRenderer(&scene, width, height, samples);
-		}
+		p_renderer = new SequentialRenderer(&scene, width, height, samples);
 	} else {
 		p_renderer = new ParallelRenderer(&scene, width, height, samples);
 	}
@@ -176,9 +163,7 @@ int main(int argc, char* argv[]) {
 	auto stop = high_resolution_clock::now();
 	auto duration = duration_cast<microseconds>(stop - start);
 
-	if (!textureDebug) {
-		p_launcher->saveToImage();
-	}
+	p_launcher->saveToImage();
 
 	float elapsedTime = duration.count()/1000000.0f;
 	int samplesRendered = p_renderer->getSamplesRendered();
