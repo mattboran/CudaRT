@@ -123,6 +123,10 @@ __host__ void Renderer::createLightsData(LightsData* p_lightsData, Triangle* p_t
 }
 
 __host__ __device__ Vector3Df sampleTexture(TextureContainer* p_textureContainer,  float u, float v) {
+#ifdef __CUDA_ARCH__
+	float4 texValue = tex2D<float4>(*p_textureContainer->p_textureObject, u, v);
+	return Vector3Df(texValue);
+#endif
 	pixels_t* p_texDimensions = p_textureContainer->p_textureDimensions;
 	pixels_t width = p_texDimensions[0];
 	pixels_t height = p_texDimensions[1];
@@ -130,10 +134,6 @@ __host__ __device__ Vector3Df sampleTexture(TextureContainer* p_textureContainer
 	float pixelCoordV = v * (float)height;
 	pixels_t i = truncf(pixelCoordU);
 	pixels_t j = truncf(pixelCoordV);
-#ifdef __CUDA_ARCH__
-	float4 texValue = tex1Dfetch<float4>(*p_textureContainer->p_textureObject, j * width + i);
-	return Vector3Df(texValue);
-#endif
 
 	float floorPixelCoordU = floorf(pixelCoordU);
 	float floorPixelCoordV = floorf(pixelCoordV);

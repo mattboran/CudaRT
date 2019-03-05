@@ -155,36 +155,40 @@ __host__ void ParallelRenderer::copyMemoryToCuda() {
 
 __host__ cudaTextureObject_t* ParallelRenderer::createTextureObjects() {
 	uint numTextures = p_scene->getNumTextures();
-	pixels_t* h_textureOffsets = p_scene->getTextureOffsetsPtr();
+	pixels_t* h_textureDimensions = p_scene->getTextureDimensionsPtr();
 	cudaTextureObject_t* p_cudaTexObjects = new cudaTextureObject_t[numTextures];
-
+	cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(32, 32, 32, 32, cudaChannelFormatKindFloat);
 	for (uint i = 0; i < numTextures; i++) {
 		Vector3Df* p_currentTextureData = p_scene->getTexturePtr(i);
-		pixels_t numPixels = h_textureOffsets[i+1] - h_textureOffsets[i];
+		pixels_t width = h_textureDimensions[2*i];
+		pixels_t height = h_textureDimensions[2*i + 1];
+		pixels_t numPixels = width * height;
+		size_t size = numPixels * sizeof(float4);
 		float4* p_currentTextureFormattedData = new float4[numPixels];
 		for (pixels_t j = 0; j < numPixels; j++) {
 			p_currentTextureFormattedData[j] = make_float4(p_currentTextureData[j]);
 		}
-		float4* d_currentTextureData = NULL;
-		CUDA_CHECK_RETURN(cudaMalloc((void**)&d_currentTextureData, sizeof(float4) * numPixels));
-		CUDA_CHECK_RETURN(cudaMemcpy(d_currentTextureData, p_currentTextureFormattedData, sizeof(float4) * numPixels, cudaMemcpyHostToDevice));
+		cudaArray* cuArray = NULL;
+		CUDA_CHECK_RETURN(cudaMallocArray(&cuArray, &channelDesc, width, height));
+		CUDA_CHECK_RETURN(cudaMemcpyToArray(cuArray,
+											0,
+											0,
+											p_currentTextureFormattedData,
+											size,
+											cudaMemcpyHostToDevice));
 
 		cudaResourceDesc resDesc;
 		memset(&resDesc, 0, sizeof(cudaResourceDesc));
-		resDesc.resType = cudaResourceTypeLinear;
-		resDesc.res.linear.devPtr = d_currentTextureData;
-		resDesc.res.linear.desc.f = cudaChannelFormatKindFloat;
-		resDesc.res.linear.desc.x = 32;
-		resDesc.res.linear.desc.z = 32;
-		resDesc.res.linear.desc.y = 32;
-		resDesc.res.linear.desc.w = 32;
-		resDesc.res.linear.sizeInBytes = numPixels * sizeof(float4);
+		resDesc.resType = cudaResourceTypeArray;
+		resDesc.res.array.array = cuArray;
 
 		cudaTextureDesc texDesc;
 		memset(&texDesc, 0, sizeof(cudaTextureDesc));
-		texDesc.readMode = cudaReadModeElementType;
 		texDesc.addressMode[0] = cudaAddressModeWrap;
+		texDesc.addressMode[1] = cudaAddressModeWrap;
 		texDesc.filterMode = cudaFilterModeLinear;
+		texDesc.readMode = cudaReadModeElementType;
+		texDesc.normalizedCoords = 1;
 
 		cudaTextureObject_t currentTexObject = 0;
 		cudaCreateTextureObject(&currentTexObject,

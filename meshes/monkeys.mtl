@@ -13,7 +13,7 @@ Ka 0.00 0.00 0.00
 Tf 1.00 1.00 1.00
 Ni 1.31
 Ks 1.00 1.00 1.00
-map_Kd wood.png
+map_Kd marble.png
 type LAMBERT
 newmtl initialShadingGroup
 illum 4
