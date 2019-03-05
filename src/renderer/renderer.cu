@@ -49,15 +49,15 @@ __host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interacti
 												 Triangle* p_hitTriangle,
 												 Material* p_material);
 __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light,
-													 SceneData* p_SceneData,
+													 SceneData* p_sceneData,
 													 Material* p_material,
 													 const SurfaceInteraction &interaction,
 													 Sampler* p_sampler);
-__host__ __device__ bool intersectBVH(LinearBVHNode* p_bvh, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray);
+__host__ __device__ bool intersectBVH(LinearBVHNode* p_bvhData, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray);
+__device__ bool intersectBVHTexture(cudaTextureObject_t* p_textureObject, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray);
 __host__ __device__ Vector3Df reflect(const Vector3Df& incedent, const Vector3Df& normal);
 __host__ __device__ Fresnel getFresnelReflectance(const SurfaceInteraction& interaction, const float ior, Vector3Df& transmittedDir);
 __host__ __device__ dataPtr_t textureContainerFactory(int i, TEXTURE_CONTAINER_FACTORY_ARGUMENTS);
-
 
 #ifdef USE_SKYBOX
 #ifdef __CUDA_ARCH__
@@ -156,9 +156,13 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneD
     Triangle* p_hitTriangle = NULL;
     refl_t currentBsdf = DIFFUSE;
     refl_t previousBsdf = DIFFUSE;
-    LinearBVHNode* p_bvh = p_sceneData->p_bvh;
     for (unsigned bounces = 0; bounces < 6; bounces++) {
-    	if (!intersectBVH(p_bvh, p_triangles, interaction, ray)) {
+#ifdef __CUDA_ARCH__
+    	if (!intersectBVHTexture(p_sceneData->p_cudaTexObjects, p_triangles, interaction, ray))
+#else
+    	if (!intersectBVH(p_sceneData->p_bvh, p_triangles, interaction, ray))
+#endif
+        {
 #ifdef USE_SKYBOX
     		color += mask * Vector3Df(skybox[0], skybox[1], skybox[2]);
 #endif
@@ -285,8 +289,45 @@ __host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriang
 	return ray.tMax < tInitial;
 }
 
+__device__ bool intersectBVHTexture(cudaTextureObject_t* p_textureObject, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray) {
+	bool hit = false;
+	Vector3Df invDir = Vector3Df(1/ray.dir.x, 1/ray.dir.y, 1/ray.dir.z);
+	int dirIsNeg[3] = { invDir.x < 0, invDir.y < 0, invDir.z < 0 };
+	int toVisitOffset = 0, currentNodeIndex = 0;
+	int stack[16];
+	while(true) {
+		Vector3Df minBound = Vector3Df(tex1Dfetch<float4>(p_textureObject[BVH_BOUNDS_OFFSET], 2*currentNodeIndex));
+		Vector3Df maxBound = Vector3Df(tex1Dfetch<float4>(p_textureObject[BVH_BOUNDS_OFFSET], 2*currentNodeIndex + 1));
+		int2 bvhOffsets = tex1Dfetch<int2>(p_textureObject[BVH_INDEX_OFFSET], currentNodeIndex);
+		if (rayIntersectsBox(ray, minBound, maxBound)) {
+			int16_t numTriangles = (int16_t)((bvhOffsets.y & 0xFFFF0000) >> 16);
+			if (numTriangles > 0) {
+				if (intersectTriangles(&p_triangles[bvhOffsets.x], numTriangles, interaction, ray)) {
+					hit = true;
+				}
+				if (toVisitOffset == 0) break;
+				currentNodeIndex = stack[--toVisitOffset];
+			} else {
+				int16_t axis = (int16_t)(bvhOffsets.y & 0xFFFF);
+				int32_t secondChildOffset = bvhOffsets.x;
+				if (dirIsNeg[axis]) {
+					stack[toVisitOffset++] = currentNodeIndex + 1;
+					currentNodeIndex = secondChildOffset;
+				} else {
+					stack[toVisitOffset++] = secondChildOffset;
+					currentNodeIndex = currentNodeIndex + 1;
+				}
+			}
+		} else {
+			if (toVisitOffset == 0) break;
+			currentNodeIndex = stack[--toVisitOffset];
+		}
+	}
+	return hit;
+}
+
 // Check optimization on p 284 and 128-129
-__host__ __device__ bool intersectBVH(LinearBVHNode* p_bvh, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray) {
+__host__ __device__ bool intersectBVH(LinearBVHNode* p_bvhData, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray) {
 
 	bool hit = false;
 	Vector3Df invDir = Vector3Df(1/ray.dir.x, 1/ray.dir.y, 1/ray.dir.z);
@@ -294,7 +335,7 @@ __host__ __device__ bool intersectBVH(LinearBVHNode* p_bvh, Triangle* p_triangle
 	int toVisitOffset = 0, currentNodeIndex = 0;
 	int stack[16];
 	while(true) {
-		const LinearBVHNode* p_node = &p_bvh[currentNodeIndex];
+		const LinearBVHNode* p_node = &p_bvhData[currentNodeIndex];
 		if (rayIntersectsBox(ray, p_node->min, p_node->max)) {
 			if (p_node->numTriangles > 0) {
 				if (intersectTriangles(&p_triangles[p_node->trianglesOffset], p_node->numTriangles, interaction, ray)) {
@@ -401,7 +442,7 @@ __host__ __device__ Vector3Df reflect(const Vector3Df& incedent, const Vector3Df
 	return incedent - normal * dot(incedent, normal) * 2.f;
 }
 
-__host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, SceneData* p_SceneData, Material* p_material, const SurfaceInteraction &interaction, Sampler* p_sampler) {
+__host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, SceneData* p_sceneData, Material* p_material, const SurfaceInteraction &interaction, Sampler* p_sampler) {
 	Vector3Df directLighting(0.0f, 0.0f, 0.0f);
 	if (sameTriangle(interaction.p_hitTriangle, p_light)) {
 		return directLighting;
@@ -410,9 +451,14 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, SceneDat
 	Ray ray(rayOrigin,  normalize(p_light->getRandomPointOn(p_sampler) - interaction.position));
 	SurfaceInteraction lightInteraction = SurfaceInteraction();
 	// Sample the light
-	Triangle* p_triangles = p_SceneData->p_triangles;
-	LinearBVHNode* p_bvh = p_SceneData->p_bvh;
+	Triangle* p_triangles = p_sceneData->p_triangles;
+#ifdef __CUDA_ARCH__
+	cudaTextureObject_t* p_textureObject = p_sceneData->p_cudaTexObjects;
+	bool intersectsLight = intersectBVHTexture(p_textureObject, p_triangles, lightInteraction, ray);
+#else
+	LinearBVHNode* p_bvh = p_sceneData->p_bvh;
 	bool intersectsLight = intersectBVH(p_bvh, p_triangles, lightInteraction, ray);
+#endif
 	if (intersectsLight && sameTriangle(lightInteraction.p_hitTriangle, p_light)) {
 		float surfaceArea = p_light->_surfaceArea;
 		float distanceSquared = ray.tMax*ray.tMax;

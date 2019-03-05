@@ -152,9 +152,8 @@ __host__ cudaTextureObject_t* ParallelRenderer::createTextureObjects() {
 		size_t size = numBvhNodes * 2 * sizeof(float4);
 		float4* h_buffer = new float4[numBvhNodes * 2];
 		for (uint i = 0; i < numBvhNodes; i++) {
-			h_buffer[2*i] = make_float4(h_bvh->min);
-			h_buffer[2*i + 1] = make_float4(h_bvh->max);
-			h_bvh++;
+			h_buffer[2*i] = make_float4(h_bvh[i].min);
+			h_buffer[2*i + 1] = make_float4(h_bvh[i].max);
 		}
 		float4* d_buffer = NULL;
 		CUDA_CHECK_RETURN(cudaMalloc((void**)&d_buffer, size));
@@ -164,7 +163,7 @@ __host__ cudaTextureObject_t* ParallelRenderer::createTextureObjects() {
 		memset(&resDesc, 0, sizeof(cudaResourceDesc));
 		resDesc.resType = cudaResourceTypeLinear;
 		resDesc.res.linear.devPtr = d_buffer;
-		resDesc.res.linear.desc = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
+		resDesc.res.linear.desc = cudaCreateChannelDesc(32, 32, 32, 32, cudaChannelFormatKindFloat);
 		resDesc.res.linear.sizeInBytes = size;
 
 		cudaTextureDesc texDesc;
@@ -187,7 +186,7 @@ __host__ cudaTextureObject_t* ParallelRenderer::createTextureObjects() {
 		for (uint i = 0; i < numBvhNodes; i++) {
 			h_buffer[i].x = h_bvh->secondChildOffset;
 			//
-			int32_t yValue = ((int32_t)(h_bvh->numTriangles) < 16) | ((int32_t)(h_bvh->axis));
+			int32_t yValue = ((int32_t)(h_bvh->numTriangles) << 16) | ((int32_t)(h_bvh->axis));
 			h_buffer[i].y = yValue;
 			h_bvh++;
 		}
@@ -212,7 +211,7 @@ __host__ cudaTextureObject_t* ParallelRenderer::createTextureObjects() {
 								&resDesc,
 								&texDesc,
 								NULL);
-		p_cudaTexObjects[BVH_BOUNDS_OFFSET] = currentTexObject;
+		p_cudaTexObjects[BVH_INDEX_OFFSET] = currentTexObject;
 		delete h_buffer;
 	}
 
