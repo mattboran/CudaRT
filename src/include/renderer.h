@@ -15,9 +15,9 @@
 #include <curand_kernel.h>
 #include <cuda_runtime.h>
 
-#define TRIANGLES_OFFSET 0
-#define NORMALS_OFFSET 0
-#define TEXTURES_OFFSET 1
+#define BVH_BOUNDS_OFFSET 0
+#define BVH_INDEX_OFFSET 1
+#define TEXTURES_OFFSET 2
 
 typedef unsigned int pixels_t;
 
@@ -48,11 +48,18 @@ struct SettingsData {
 };
 
 struct TextureContainer {
-	__host__ __device__ TextureContainer(Vector3Df* p_texData, pixels_t* p_texDims, cudaTextureObject_t* p_texObject) :
-		p_textureData(p_texData), p_textureDimensions(p_texDims), p_textureObject(p_texObject) {}
+#ifdef __CUDA_ARCH__
+	__host__ __device__ TextureContainer(cudaTextureObject_t* p_texObject) :
+			p_textureObject(p_texObject) {}
+	cudaTextureObject_t* p_textureObject = NULL;
+
+#else
+	__host__ __device__ TextureContainer(Vector3Df* p_texData, pixels_t* p_texDims) :
+				p_textureData(p_texData), p_textureDimensions(p_texDims) {}
+
 	Vector3Df* p_textureData = NULL;
 	pixels_t* p_textureDimensions = NULL;
-	cudaTextureObject_t* p_textureObject = NULL;
+#endif
 };
 
 struct Sampler {
@@ -114,10 +121,8 @@ private:
 	SceneData* d_sceneData;
 	SettingsData d_settingsData;
 	Triangle* d_triPtr;
-	LinearBVHNode* d_bvhPtr;
 	Triangle* d_lightsPtr;
 	Material* d_materials;
-	pixels_t* d_textureOffsets;
 	cudaTextureObject_t* d_cudaTexObjects;
 	Camera* d_camPtr;
 	curandState* d_curandStatePtr;
