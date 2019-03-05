@@ -47,7 +47,6 @@ struct Triangle {
 } __attribute__ ((aligned (128))) ;
 
 struct SurfaceInteraction {
-	int hitTriangleIndex = -1;
 	Triangle* p_hitTriangle = NULL;
 	Vector3Df position;
 	Vector3Df normal;

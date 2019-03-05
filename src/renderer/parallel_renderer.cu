@@ -45,7 +45,6 @@ __host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, pixels_t _width, p
 	pixels_t totalTexturePixels = p_scene->getTotalTexturePixels();
 	size_t trianglesBytes = sizeof(Triangle) * numTris;
 	size_t materialsBytes = sizeof(Material) * numMaterials;
-	size_t bvhBytes = sizeof(LinearBVHNode) * numBvhNodes;
 	size_t lightsBytes = sizeof(Triangle) * numLights;
 	size_t curandBytes = sizeof(curandState) * threadsPerBlock * gridBlocks;
 	size_t textureObjectBytes = sizeof(cudaTextureObject_t) * (numTextures + TEXTURES_OFFSET);
