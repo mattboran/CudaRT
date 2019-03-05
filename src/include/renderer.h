@@ -49,11 +49,18 @@ struct SettingsData {
 };
 
 struct TextureContainer {
-	__host__ __device__ TextureContainer(Vector3Df* p_texData, pixels_t* p_texDims, cudaTextureObject_t* p_texObject) :
-		p_textureData(p_texData), p_textureDimensions(p_texDims), p_textureObject(p_texObject) {}
+#ifdef __CUDA_ARCH__
+	__host__ __device__ TextureContainer(cudaTextureObject_t* p_texObject) :
+			p_textureObject(p_texObject) {}
+	cudaTextureObject_t* p_textureObject = NULL;
+
+#else
+	__host__ __device__ TextureContainer(Vector3Df* p_texData, pixels_t* p_texDims) :
+				p_textureData(p_texData), p_textureDimensions(p_texDims) {}
+
 	Vector3Df* p_textureData = NULL;
 	pixels_t* p_textureDimensions = NULL;
-	cudaTextureObject_t* p_textureObject = NULL;
+#endif
 };
 
 struct Sampler {
