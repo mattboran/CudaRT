@@ -48,6 +48,7 @@ __host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, pixels_t _width, p
 	size_t bvhBytes = sizeof(LinearBVHNode) * numBvhNodes;
 	size_t lightsBytes = sizeof(Triangle) * numLights;
 	size_t curandBytes = sizeof(curandState) * threadsPerBlock * gridBlocks;
+	size_t textureObjectBytes = sizeof(cudaTextureObject_t) * (numTextures + TEXTURES_OFFSET);
 
 	d_imgVectorPtr = NULL;
 	d_imgBytesPtr = NULL;
@@ -73,7 +74,7 @@ __host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, pixels_t _width, p
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_lightsData, sizeof(LightsData)));
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_curandStatePtr, curandBytes));
 
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_cudaTexObjects, sizeof(cudaTextureObject_t) * numTextures));
+	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_cudaTexObjects, textureObjectBytes));
 
 	createSettingsData(&d_settingsData);
 	copyMemoryToCuda();
@@ -107,8 +108,7 @@ __host__ void ParallelRenderer::copyMemoryToCuda() {
 	size_t materialsBytes = sizeof(Material) * numMaterials;
 	size_t bvhBytes = sizeof(LinearBVHNode) * numBvhNodes;
 	size_t lightsBytes = sizeof(Triangle) * numLights;
-	size_t textureBytes = sizeof(Vector3Df) * numTotalTexturePixels;
-	size_t textureObjectBytes = sizeof(cudaTextureObject_t) * numTextures;
+	size_t textureObjectBytes = sizeof(cudaTextureObject_t) * (numTextures + TEXTURES_OFFSET);
 
 	Camera* h_camPtr = p_scene->getCameraPtr();
 	Triangle* h_triPtr = p_scene->getTriPtr();
@@ -126,7 +126,7 @@ __host__ void ParallelRenderer::copyMemoryToCuda() {
 	CUDA_CHECK_RETURN(cudaMemcpy(d_lightsPtr, h_lightsPtr, lightsBytes, cudaMemcpyHostToDevice));
 
 	cudaTextureObject_t* h_textureObjects = createTextureObjects();
-	CUDA_CHECK_RETURN(cudaMemcpy(d_cudaTexObjects, h_textureObjects, sizeof(cudaTextureObject_t) * numTextures, cudaMemcpyHostToDevice));
+	CUDA_CHECK_RETURN(cudaMemcpy(d_cudaTexObjects, h_textureObjects, textureObjectBytes, cudaMemcpyHostToDevice));
 	h_sceneData->p_cudaTexObjects = d_cudaTexObjects;
 
 	createSceneData(h_sceneData, d_triPtr, d_bvhPtr, d_materials, NULL, NULL, NULL);
@@ -140,16 +140,86 @@ __host__ void ParallelRenderer::copyMemoryToCuda() {
 }
 
 __host__ cudaTextureObject_t* ParallelRenderer::createTextureObjects() {
+	uint numTextures = p_scene->getNumTextures();
+	cudaTextureObject_t* p_cudaTexObjects = new cudaTextureObject_t[numTextures + TEXTURES_OFFSET];
 	//
-	// Triangles
+	// BVH
 	//
+	LinearBVHNode* h_bvh = p_scene->getBvhPtr();
+	size_t numBvhNodes = p_scene->getNumBvhNodes();
+	// Copy min and max
+	{
+		size_t size = numBvhNodes * 2 * sizeof(float4);
+		float4* h_buffer = new float4[numBvhNodes * 2];
+		for (uint i = 0; i < numBvhNodes; i++) {
+			h_buffer[2*i] = make_float4(h_bvh->min);
+			h_buffer[2*i + 1] = make_float4(h_bvh->max);
+			h_bvh++;
+		}
+		float4* d_buffer = NULL;
+		CUDA_CHECK_RETURN(cudaMalloc((void**)&d_buffer, size));
+		CUDA_CHECK_RETURN(cudaMemcpy(d_buffer, h_buffer, size, cudaMemcpyHostToDevice));
+
+		cudaResourceDesc resDesc;
+		memset(&resDesc, 0, sizeof(cudaResourceDesc));
+		resDesc.resType = cudaResourceTypeLinear;
+		resDesc.res.linear.devPtr = d_buffer;
+		resDesc.res.linear.desc = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
+		resDesc.res.linear.sizeInBytes = size;
+
+		cudaTextureDesc texDesc;
+		memset(&texDesc, 0, sizeof(cudaTextureDesc));
+		texDesc.addressMode[0] = cudaAddressModeClamp;
+		texDesc.filterMode = cudaFilterModePoint;
+
+		cudaTextureObject_t currentTexObject = 0;
+		cudaCreateTextureObject(&currentTexObject,
+								&resDesc,
+								&texDesc,
+								NULL);
+		p_cudaTexObjects[BVH_BOUNDS_OFFSET] = currentTexObject;
+		delete h_buffer;
+	}
+	// Copy indexes, numTriangles, and axis
+	{
+		size_t size = numBvhNodes * sizeof(int2);
+		int2* h_buffer = new int2[numBvhNodes];
+		for (uint i = 0; i < numBvhNodes; i++) {
+			h_buffer[i].x = h_bvh->secondChildOffset;
+			//
+			int32_t yValue = ((int32_t)(h_bvh->numTriangles) < 16) | ((int32_t)(h_bvh->axis));
+			h_buffer[i].y = yValue;
+			h_bvh++;
+		}
+		int2* d_buffer = NULL;
+		CUDA_CHECK_RETURN(cudaMalloc((void**)&d_buffer, size));
+		CUDA_CHECK_RETURN(cudaMemcpy(d_buffer, h_buffer, size, cudaMemcpyHostToDevice));
+
+		cudaResourceDesc resDesc;
+		memset(&resDesc, 0, sizeof(cudaResourceDesc));
+		resDesc.resType = cudaResourceTypeLinear;
+		resDesc.res.linear.devPtr = d_buffer;
+		resDesc.res.linear.desc = cudaCreateChannelDesc(32, 32, 0, 0, cudaChannelFormatKindSigned);
+		resDesc.res.linear.sizeInBytes = size;
+
+		cudaTextureDesc texDesc;
+		memset(&texDesc, 0, sizeof(cudaTextureDesc));
+		texDesc.addressMode[0] = cudaAddressModeClamp;
+		texDesc.filterMode = cudaFilterModePoint;
+
+		cudaTextureObject_t currentTexObject = 0;
+		cudaCreateTextureObject(&currentTexObject,
+								&resDesc,
+								&texDesc,
+								NULL);
+		p_cudaTexObjects[BVH_BOUNDS_OFFSET] = currentTexObject;
+		delete h_buffer;
+	}
 
 	//
 	// Actual Textures
 	//
-	uint numTextures = p_scene->getNumTextures();
 	pixels_t* h_textureDimensions = p_scene->getTextureDimensionsPtr();
-	cudaTextureObject_t* p_cudaTexObjects = new cudaTextureObject_t[numTextures];
 	cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(32, 32, 32, 32, cudaChannelFormatKindFloat);
 	for (uint i = 0; i < numTextures; i++) {
 		Vector3Df* p_currentTextureData = p_scene->getTexturePtr(i);
@@ -188,7 +258,7 @@ __host__ cudaTextureObject_t* ParallelRenderer::createTextureObjects() {
 								&resDesc,
 								&texDesc,
 								NULL);
-		p_cudaTexObjects[i] = currentTexObject;
+		p_cudaTexObjects[i + TEXTURES_OFFSET] = currentTexObject;
 		delete p_currentTextureFormattedData;
 	}
 	return p_cudaTexObjects;

@@ -48,27 +48,6 @@ __host__ __device__ TextureContainer* textureContainerFactory(int i,
 															  pixels_t* p_texOffsets,
 															  cudaTextureObject_t* p_texObject);
 
-__host__ __device__ TextureContainer* textureContainerFactory(int i,
-															  Vector3Df* p_texData,
-															  pixels_t* p_texDimensions,
-															  pixels_t* p_texOffsets,
-															  cudaTextureObject_t* p_texObject)
-{
-	if (i == NO_TEXTURE) {
-		return NULL;
-	}
-	cudaTextureObject_t* p_textureObject = NULL;
-	Vector3Df* p_textureData = NULL;
-	pixels_t* p_textureDimensions = NULL;
-#ifdef __CUDA_ARCH__
-	p_textureObject = &p_texObject[i];
-#else
-	p_textureData = &p_texData[p_texOffsets[i]];
-	p_textureDimensions = &p_texDimensions[2 * i];
-#endif
-	return new TextureContainer(p_textureData, p_textureDimensions, p_textureObject);
-}
-
 
 #ifdef USE_SKYBOX
 #ifdef __CUDA_ARCH__
@@ -434,6 +413,26 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, SceneDat
 		directLighting += p_material->ka * weightFactor;
 	}
 	return directLighting;
+}
+
+__host__ __device__ TextureContainer* textureContainerFactory(int i,
+															  Vector3Df* p_texData,
+															  pixels_t* p_texDimensions,
+															  pixels_t* p_texOffsets,
+															  cudaTextureObject_t* p_texObject) {
+	if (i == NO_TEXTURE) {
+		return NULL;
+	}
+	cudaTextureObject_t* p_textureObject = NULL;
+	Vector3Df* p_textureData = NULL;
+	pixels_t* p_textureDimensions = NULL;
+#ifdef __CUDA_ARCH__
+	p_textureObject = &p_texObject[i + TEXTURES_OFFSET];
+#else
+	p_textureData = &p_texData[p_texOffsets[i]];
+	p_textureDimensions = &p_texDimensions[2 * i];
+#endif
+	return new TextureContainer(p_textureData, p_textureDimensions, p_textureObject);
 }
 
 __host__ __device__ Fresnel getFresnelReflectance(const SurfaceInteraction& interaction, const float ior, Vector3Df& transmittedDir) {

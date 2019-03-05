@@ -22,8 +22,7 @@ struct LinearBVHNode {
 		int secondChildOffset;
 	};
 	int16_t numTriangles = 0;
-	uint8_t axis;
-	int8_t pad = 0;
+	int16_t axis;
 };
 
 #endif /* BVH_H_ */

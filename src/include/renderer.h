@@ -15,9 +15,10 @@
 #include <curand_kernel.h>
 #include <cuda_runtime.h>
 
-#define TRIANGLES_OFFSET 0
+#define BVH_BOUNDS_OFFSET 0
+#define BVH_INDEX_OFFSET 1
 #define NORMALS_OFFSET 0
-#define TEXTURES_OFFSET 1
+#define TEXTURES_OFFSET 2
 
 typedef unsigned int pixels_t;
 
