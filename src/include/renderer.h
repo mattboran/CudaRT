@@ -15,6 +15,10 @@
 #include <curand_kernel.h>
 #include <cuda_runtime.h>
 
+#define TRIANGLES_OFFSET 0
+#define NORMALS_OFFSET 0
+#define TEXTURES_OFFSET 1
+
 typedef unsigned int pixels_t;
 
 struct LightsData {
@@ -113,8 +117,6 @@ private:
 	LinearBVHNode* d_bvhPtr;
 	Triangle* d_lightsPtr;
 	Material* d_materials;
-	Vector3Df* d_textureData;
-	pixels_t* d_textureDimensions;
 	pixels_t* d_textureOffsets;
 	cudaTextureObject_t* d_cudaTexObjects;
 	Camera* d_camPtr;

@@ -57,11 +57,14 @@ __host__ __device__ TextureContainer* textureContainerFactory(int i,
 	if (i == NO_TEXTURE) {
 		return NULL;
 	}
-	Vector3Df* p_textureData = &p_texData[p_texOffsets[i]];
-	pixels_t* p_textureDimensions = &p_texDimensions[2 * i];
 	cudaTextureObject_t* p_textureObject = NULL;
+	Vector3Df* p_textureData = NULL;
+	pixels_t* p_textureDimensions = NULL;
 #ifdef __CUDA_ARCH__
 	p_textureObject = &p_texObject[i];
+#else
+	p_textureData = &p_texData[p_texOffsets[i]];
+	p_textureDimensions = &p_texDimensions[2 * i];
 #endif
 	return new TextureContainer(p_textureData, p_textureDimensions, p_textureObject);
 }
