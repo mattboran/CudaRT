@@ -181,7 +181,6 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneD
         interaction.normal = p_hitTriangle->getNormal(interaction.u, interaction.v);
         interaction.position = ray.origin + ray.dir * ray.tMax;
         interaction.outputDirection = normalize(ray.dir);
-        interaction.p_hitTriangle = p_hitTriangle;
 
         // SHADING CALCULATIONS
         currentBsdf = p_material->bsdf;
@@ -280,7 +279,7 @@ __host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriang
 		t = p_current->intersect(ray, u, v);
 		if (t < ray.tMax && t > ray.tMin) {
 			ray.tMax = t;
-			interaction.hitTriangleIndex = i + firstOffset;
+			interaction.hitTriangleIndex = p_current->_triId;
 			interaction.p_hitTriangle = p_current;
 			interaction.u = u;
 			interaction.v = v;
@@ -423,10 +422,10 @@ __host__ __device__ Vector3Df reflect(const Vector3Df& incedent, const Vector3Df
 }
 
 __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, SceneData* p_sceneData, Material* p_material, const SurfaceInteraction &interaction, Sampler* p_sampler) {
-	Vector3Df directLighting(0.0f, 0.0f, 0.0f);
-	if (sameTriangle(interaction.p_hitTriangle, p_light)) {
-		return directLighting;
+	if (interaction.hitTriangleIndex == p_light->_triId) {
+		return Vector3Df(0.0f, 0.0f, 0.0f);
 	}
+	Vector3Df directLighting(0.0f, 0.0f, 0.0f);
 	Vector3Df rayOrigin = interaction.position + interaction.normal * EPSILON;
 	Ray ray(rayOrigin,  normalize(p_light->getRandomPointOn(p_sampler) - interaction.position));
 	SurfaceInteraction lightInteraction = SurfaceInteraction();
@@ -438,7 +437,7 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, SceneDat
 	dataPtr_t p_bvh = (dataPtr_t)p_sceneData->p_bvh;
 #endif
 	bool intersectsLight = intersectBVH(p_bvh, p_triangles, lightInteraction, ray);
-	if (intersectsLight && sameTriangle(lightInteraction.p_hitTriangle, p_light)) {
+	if (intersectsLight && lightInteraction.hitTriangleIndex == p_light->_triId) {
 		float surfaceArea = p_light->_surfaceArea;
 		float distanceSquared = ray.tMax*ray.tMax;
 		// For directional lights also consider light direction

@@ -17,8 +17,11 @@
 
 #define BVH_BOUNDS_OFFSET 0
 #define BVH_INDEX_OFFSET 1
-#define NORMALS_OFFSET 0
-#define TEXTURES_OFFSET 2
+#define TRIANGLE_IDS_AND_MATERIALS_OFFSET 2
+#define TRIANGLE_EDGES_OFFSET 3
+#define TRIANGLE_UVS_OFFSET 4
+#define TRIANGLE_NORMALS_OFFSET 5
+#define TEXTURES_OFFSET 6
 
 typedef unsigned int pixels_t;
 
@@ -122,10 +125,8 @@ private:
 	SceneData* d_sceneData;
 	SettingsData d_settingsData;
 	Triangle* d_triPtr;
-	LinearBVHNode* d_bvhPtr;
 	Triangle* d_lightsPtr;
 	Material* d_materials;
-	pixels_t* d_textureOffsets;
 	cudaTextureObject_t* d_cudaTexObjects;
 	Camera* d_camPtr;
 	curandState* d_curandStatePtr;
