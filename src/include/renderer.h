@@ -124,7 +124,7 @@ private:
 	uint gridBlocks;
 	__host__ void copyMemoryToCuda();
 	__host__ void initializeCurand();
-//	__host__ void createTextureObjects(SceneData* h_sceneData);
+	__host__ cudaTextureObject_t* createTextureObjects();
 };
 
 class SequentialRenderer : public Renderer {
