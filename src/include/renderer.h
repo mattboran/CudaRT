@@ -102,7 +102,6 @@ public:
 	__host__ void renderOneSamplePerPixel(uchar4* p_img);
 	__host__ void copyImageBytes(uchar4* p_img);
 	__host__ uchar4* getImgBytesPointer() { return d_imgBytesPtr; }
-	__host__ cudaTextureObject_t* getCudaTextureObjectPtr() { return p_cudaTexObjects; }
 	~ParallelRenderer();
 private:
 	Vector3Df* d_imgVectorPtr;
@@ -117,7 +116,7 @@ private:
 	Vector3Df* d_textureData;
 	pixels_t* d_textureDimensions;
 	pixels_t* d_textureOffsets;
-	cudaTextureObject_t* p_cudaTexObjects;
+	cudaTextureObject_t* d_cudaTexObjects;
 	Camera* d_camPtr;
 	curandState* d_curandStatePtr;
 	// TODO: Consider storing block, grid instead
