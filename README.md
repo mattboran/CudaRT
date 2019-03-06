@@ -1,5 +1,7 @@
 This CUDA-Accelerated Path Tracer was written by Tudor Matei Boran
-for CS-GA: 3801 - GPU Programming for the Fall 2018 semester at NYU Courant
+originally for CS-GA: 3801 - GPU Programming for the Fall 2018 semester at NYU Courant
+
+It continued on as a personal project where I added many more features and optimizations.
 
 To compile, you need CMake and libraries for OpenGL, GLFW, and glew3 installed.
 Conditional compilation will be included in a future release where CMake will compile 
@@ -11,24 +13,25 @@ Create a folder called `build` with `mkdir build` and `cd build`
 
 Then run `cmake ..` and `make all`
 
-To run this program, the following pattern should be used while still in the `CudaRT/Release` directory
+To run this program, the following pattern should be used while still in the `CudaRT/build` directory
 `./CudaRT <parameters>`
 
-To see the parameters that this program accepts, simply run 
-`./CudaRT`
+CudaRT comes with a Maya plugin, whose source code can be found at https://github.com/mattboran/CudaRT-Maya-Plugin
+
+Ensure that you have the `.env` file in the parent directory containing the paths:
+
+`MESHES_PATH`: the scene to be loaded references `<scene>.obj` and `<scene>.mtl`
+Note that the .mtl files used are different. They will be named `.cmtl` at some point soon
+because they contain ray-tracing specific material properties that are exported from Maya
+
+`CAMERA_PATH`: the directory that contains the `<scene>-camera.json` file describing the camera,
+also exported from Maya. 
+
+`TEXTURES_PATH`: the directory containing the textures referenced by `<scene>.mtl`
 
 Required Parameter:
-`-o <output file.png>`: the PNG file that the output should be written to
-
+`-f <scene>`: the scene that should be loaded
 Optional Parameters:
-`-f <path to mesh to render>` : the .obj file that will be loaded and rendered
-				note: the available files are in CudaRT/meshes/
-				so this path should take the form '../meshes/<file>`
-				
-`-c`:  	 			this flag tells the engine whether or not to use 
-				camera information stored at '../settings/camera.json'
-				during ray-scene traversal
-				
 `-s <samples per pixel>`:	number of samples per pixel. Default = 10. 
 				reccommendation is to use at least 128, but
 				512 generates a fairly variance/noise-free image
@@ -39,4 +42,4 @@ Optional Parameters:
 
 `--cpu`:			flag to use sequential CPU version instead of parallel GPU version
 
-`--X`: 				flag to use OpenGL to render to window. Saves to output file on close.
+`--x`: 				flag to use OpenGL to render to window. Saves to output file on close.
