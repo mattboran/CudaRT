@@ -46,8 +46,7 @@ __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interactio
 												dataPtr_t p_textureContainer,
 												Sampler* p_sampler);
 __host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction,
-												 Triangle* p_hitTriangle,
-												 Material* p_material);
+												 const Vector3Df& specularColor);
 __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light,
 													 SceneData* p_sceneData,
 													 const Vector3Df& lightColor,
@@ -247,7 +246,8 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneD
 
         // PURE SPECULAR BSDF
         if (currentBsdf == SPECULAR) {
-        	Vector3Df perfectSpecularSample = sampleSpecularBSDF(&interaction, p_hitTriangle, p_material);
+			Vector3Df specularColor = p_materials[p_hitTriangle->_materialId].ks;
+        	Vector3Df perfectSpecularSample = sampleSpecularBSDF(&interaction, specularColor);
 			mask = mask * perfectSpecularSample / interaction.pdf;
         }
 
@@ -410,10 +410,10 @@ __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interactio
    return kd * cosineWeight;
 }
 
-__host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction, Triangle* p_hitTriangle, Material* p_material) {
+__host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction, const Vector3Df& specularColor) {
 	p_interaction->inputDirection = reflect(p_interaction->outputDirection,  p_interaction->normal);
 	p_interaction->pdf = 1.0f;
-	return p_material->ks;
+	return specularColor;
 }
 
 __host__ __device__ Vector3Df reflect(const Vector3Df& incedent, const Vector3Df& normal) {
