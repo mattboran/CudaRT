@@ -6,6 +6,9 @@
  #include <omp.h>
 #endif
 
+// Sequential version of constant memory for materials
+// float4
+
 SequentialRenderer::SequentialRenderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, uint _samples) :
   Renderer(_scenePtr, _width, _height, _samples)
 {

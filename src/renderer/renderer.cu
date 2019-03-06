@@ -50,7 +50,7 @@ __host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interacti
 												 Material* p_material);
 __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light,
 													 SceneData* p_sceneData,
-													 Material* p_material,
+													 const Vector3Df& lightColor,
 													 const SurfaceInteraction &interaction,
 													 Sampler* p_sampler);
 __host__ __device__ bool intersectBVH(dataPtr_t p_bvhData, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray);
@@ -234,8 +234,8 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneD
 			float randomNumber = p_sampler->getNextFloat() * ((float)p_lightsData->numLights - .00001f);
 			int selectedLightIdx = truncf(randomNumber);
 			Triangle* p_light = &p_lightsData->lightsPtr[selectedLightIdx];
-			Material* p_lightMaterial = &p_materials[p_light->_materialId];
-			Vector3Df directLighting = estimateDirectLighting(p_light, p_sceneData, p_lightMaterial, interaction, p_sampler);
+			Vector3Df lightColor = p_materials[p_light->_materialId].ka;
+			Vector3Df directLighting = estimateDirectLighting(p_light, p_sceneData, lightColor, interaction, p_sampler);
 
 #ifndef UNBIASED
 			directLighting.x = clamp(directLighting.x, 0.0f, 1.0f);
@@ -420,7 +420,7 @@ __host__ __device__ Vector3Df reflect(const Vector3Df& incedent, const Vector3Df
 	return incedent - normal * dot(incedent, normal) * 2.f;
 }
 
-__host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, SceneData* p_sceneData, Material* p_material, const SurfaceInteraction &interaction, Sampler* p_sampler) {
+__host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, SceneData* p_sceneData, const Vector3Df& lightColor, const SurfaceInteraction &interaction, Sampler* p_sampler) {
 	if (interaction.p_hitTriangle->_triId == p_light->_triId) {
 		return Vector3Df(0.0f, 0.0f, 0.0f);
 	}
@@ -444,7 +444,7 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, SceneDat
 		// Otherwise direct lighting is based on the diffuse term and obey Lambert's cosine law
 		float cosTheta = fabs(dot(ray.dir, interaction.normal));
 		float weightFactor = surfaceArea/distanceSquared * cosTheta;
-		directLighting += p_material->ka * weightFactor;
+		directLighting += lightColor * weightFactor;
 	}
 	return directLighting;
 }
