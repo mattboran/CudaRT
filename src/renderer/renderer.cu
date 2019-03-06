@@ -401,13 +401,13 @@ __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interactio
    float cosineWeight = dot(p_interaction->inputDirection, p_interaction->normal);
 
    Vector3Df kd = diffuseColor;
-  if (p_textureContainer != NULL) {
-	  float u = p_interaction->u;
-	  float v = p_interaction->v;
-	  float w = 1.f - u - v;
-	  Vector2Df uv = p_hitTriangle->_uv1 * w + p_hitTriangle->_uv2 * u + p_hitTriangle->_uv3 * v;
-	  kd = sampleTexture(p_textureContainer, uv.x, uv.y);
-  }
+   if (p_textureContainer != NULL) {
+	   float u = p_interaction->u;
+	   float v = p_interaction->v;
+	   float w = 1.f - u - v;
+	   Vector2Df uv = p_hitTriangle->_uv1 * w + p_hitTriangle->_uv2 * u + p_hitTriangle->_uv3 * v;
+	   kd = sampleTexture(p_textureContainer, uv.x, uv.y);
+   }
    return kd * cosineWeight;
 }
 
