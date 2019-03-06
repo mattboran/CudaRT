@@ -42,7 +42,7 @@ __host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriang
 __host__ __device__ bool rayIntersectsBox(Ray& ray, const Vector3Df& min, const Vector3Df& max);
 __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction,
 												Triangle* p_hitTriangle,
-												Material* p_material,
+												const Vector3Df& diffuseColor,
 												dataPtr_t p_textureContainer,
 												Sampler* p_sampler);
 __host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction,
@@ -224,7 +224,8 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneD
         if (currentBsdf == DIFFUSE) {
         	dataPtr_t p_texContainer = textureContainerFactory(p_material->texKdIdx,
         												   	   TEXTURE_CONTAINER_FACTOR_PARAMETERS(p_sceneData));
-        	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, p_material, p_texContainer, p_sampler);
+			Vector3Df diffuseColor = p_material->kd;
+        	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, diffuseColor, p_texContainer, p_sampler);
 			mask = mask * diffuseSample / interaction.pdf;
 #ifndef __CUDA_ARCH__
         	delete (TextureContainer*)p_texContainer;
@@ -383,7 +384,7 @@ __host__ __device__ bool rayIntersectsBox(Ray& ray, const Vector3Df& min, const 
 
 __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction,
 												Triangle* p_hitTriangle,
-												Material* p_material,
+												const Vector3Df& diffuseColor,
 												dataPtr_t p_textureContainer,
 												Sampler* p_sampler) {
    float r1 = 2 * M_PI * p_sampler->getNextFloat();
@@ -399,7 +400,7 @@ __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interactio
    p_interaction->pdf = 0.5f;
    float cosineWeight = dot(p_interaction->inputDirection, p_interaction->normal);
 
-   Vector3Df kd = p_material->kd;
+   Vector3Df kd = diffuseColor;
   if (p_textureContainer != NULL) {
 	  float u = p_interaction->u;
 	  float v = p_interaction->v;
