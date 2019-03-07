@@ -42,14 +42,21 @@ configure_file(
 	"${PROJECT_SOURCE_DIR}/include/config.h"
 )
 
+
 add_library(contextlib STATIC
 	${CONTEXT}/env_loader.cpp
 	${CONTEXT}/json_loader.cpp
 	${CONTEXT}/launcher.cpp
 	${CONTEXT}/terminal_launcher.cpp
 	${CONTEXT}/texture_store.cpp
+)
+
+if (NOT SKIP_OPENGL)
+add_library(contextlib STATIC
 	${CONTEXT}/window.cpp
-	${CONTEXT}/windowed_launcher.cpp)
+	${CONTEXT}/windowed_launcher.cpp
+)
+endif()
 target_include_directories(contextlib PUBLIC ${CUDA_RT_INCLUDE} ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 target_compile_features(contextlib PUBLIC cxx_std_11)
 target_link_libraries(contextlib ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${GLFW_LIBRARIES})
