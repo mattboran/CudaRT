@@ -1,6 +1,7 @@
+#cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
+project(CudaRT)
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
-project(CudaRT
-	DESCRIPTION "CUDART")
+set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 
 set(CUDA_RT_VERSION_MAJOR 0)
 set(CUDA_RT_VERSION_MINOR 1)
@@ -20,6 +21,8 @@ set(CUDA_NVCC_FLAGS
 	${CUDA_NVCC_FLAGS};
 	-O3 -gencode arch=compute_52,code=sm_52
 )
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+#message("CUDA include dirs: ${CUDA_INCLUDE_DIRS}")
 set(OpenGL_GL_PREFERENCE "GLVND")
 find_package(OpenGL)
 find_package(glfw3)
@@ -72,7 +75,7 @@ cuda_add_library(contextlib STATIC
 )
 endif()
 
-target_compile_features(contextlib PUBLIC cxx_std_11)
+add_compile_options(-std=c++11)
 target_link_libraries(contextlib ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${GLFW_LIBRARIES})
 
 cuda_add_executable(CudaRT 
