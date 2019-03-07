@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 project(CudaRT
-	VERSION 0.1
 	DESCRIPTION "CUDART"
 	LANGUAGES CXX CUDA)
+
+set(CUDA_RT_VERSION_MAJOR 0)
+set(CUDA_RT_VERSION_MINOR 1)
 
 message("source: ${PROJECT_SOURCE_DIR}")
 message("binary: ${PROJECT_BINARY_DIR}")
@@ -24,7 +26,9 @@ find_package(GLEW)
 if (OPENGL_FOUND AND GLFW_FOUND AND GLEW_FOUND)
     include_directories(${OPENGL_INCLUDE_DIR})
     include_directories(${GLFW_INCLUDE_DIRS})
+	set(SKIP_OPENGL "#define SKIP_OPENGL")
 else()
+	set(SKIP_OPENGL "#define SKIP_OPENGL")
     message("One of the OpenGL libraries was not found!")
 endif()
 
@@ -32,6 +36,11 @@ set(CONTEXT "context")
 set(GEOMETRY "geometry")
 set(RENDERER "renderer")
 set(CUDA_RT_INCLUDE "include")
+
+configure_file(
+	"${PROJECT_SOURCE_DIR}/include/config.h.in"
+	"${PROJECT_SOURCE_DIR}/include/config.h"
+)
 
 add_library(contextlib STATIC
 	${CONTEXT}/env_loader.cpp

@@ -1,6 +1,7 @@
 // This file is responsible for parsing command line arguments,
 // getting the scene set up, and launching the pathtrace kernel
 
+#include "config.h"
 #include "scene.h"
 #include "camera.h"
 #include "loaders.h"
@@ -140,7 +141,7 @@ int main(int argc, char* argv[]) {
 				<< "\t" << mesh.Vertices.size() << " vertices | \t" << mesh.Vertices.size() / 3 << " triangles" << endl;
 	}
 	cout << "Total number of triangles:\t" << scene.getNumTriangles() << endl;
-
+	cout << "Launching CudaRT version " << CUDA_RT_VERSION_MAJOR << "." << CUDA_RT_VERSION_MINOR << endl;
 	Renderer* p_renderer;
 	Launcher* p_launcher;
 
