@@ -16,12 +16,16 @@ if (OPENMP_FOUND)
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
-find_package(CUDA REQUIRED)
+find_package(CUDA 9.0 REQUIRED)
 set(CUDA_NVCC_FLAGS
-	"${CUDA_NVCC_FLAGS} -O3 -gencode arch=compute_52,code=sm_52"
+	"${CUDA_NVCC_FLAGS} -O3 -gencode arch=compute_35,code=sm_35"
 )
+set(CUDA_NVCC_FLAGS   ${CUDA_NVCC_FLAGS}    " -std=c++11")
+
+set(CUDA_NVLINK_FLAGS "${CUDA_NVLINK_FLAGS} -gencode arch=compute_35,code=sm_35")
+message("CUDA NVCC FLAGS: ${CUDA_NVCC_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-#message("CUDA include dirs: ${CUDA_INCLUDE_DIRS}")
+
 set(OpenGL_GL_PREFERENCE "GLVND")
 find_package(OpenGL)
 find_package(glfw3)
@@ -46,10 +50,10 @@ configure_file(
 )
 
 include_directories(${CUDA_RT_INCLUDE}
-					${CUDA_INCLUDE_DIRS}
-					${CONTEXT}
-					${GEOMETRY}
-					${RENDERER})
+				${CUDA_INCLUDE_DIRS}
+				${CONTEXT}
+				${GEOMETRY}
+				${RENDERER})
 
 set(CUDA_SEPARABLE_COMPILATION ON)
 set(CUDA_STANDARD 11)
@@ -75,6 +79,7 @@ cuda_add_library(contextlib STATIC
 endif()
 
 add_compile_options(-std=c++11)
+
 target_link_libraries(contextlib ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${GLFW_LIBRARIES})
 
 cuda_add_executable(CudaRT 
@@ -85,9 +90,10 @@ cuda_add_executable(CudaRT
 					${RENDERER}/parallel_renderer.cu
 					${RENDERER}/renderer.cu
 					${RENDERER}/sequential_renderer.cu
-					main.cpp)
+					main.cpp
+					OPTIONS -arch=sm_35)
 set_target_properties( CudaRT
-						PROPERTIES CUDA_SEPARABLE_COMPILATION ON
-						CUDA_STANDARD 11)
+			PROPERTIES CUDA_SEPARABLE_COMPILATION ON
+			CUDA_STANDARD 11)
 target_link_libraries(CudaRT contextlib
-							 ${CUDA_LIBRARIES})
+		 ${CUDA_LIBRARIES})
