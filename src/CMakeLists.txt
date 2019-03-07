@@ -18,8 +18,7 @@ endif()
 
 find_package(CUDA REQUIRED)
 set(CUDA_NVCC_FLAGS
-	${CUDA_NVCC_FLAGS};
-	-O3 -gencode arch=compute_52,code=sm_52
+	"${CUDA_NVCC_FLAGS} -O3 -gencode arch=compute_52,code=sm_52"
 )
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 #message("CUDA include dirs: ${CUDA_INCLUDE_DIRS}")
