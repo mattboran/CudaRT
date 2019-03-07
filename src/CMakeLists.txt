@@ -18,17 +18,30 @@ if (OPENMP_FOUND)
 endif()
 
 find_package(CUDA REQUIRED)
-find_package(OpenGL REQUIRED)
-pkg_search_module(GLFW REQUIRED glfw3)
-if (GL_FOUND)
-    include_directories(${GLFW_INCLUDE_DIRS})
+
+find_package(OpenGL)
+if (OPENGL_FOUND)
+    include_directories(${OPENGL_INCLUDE_DIR})
+else()
+    message("OpenGL is not found!")
 endif()
-include_directories(${OPENGL_INCLUDE_DIR} ${GLEW_INCLUDE_DIRS})
+
+find_package(glfw3)
+if (GLFW_FOUND)
+    include_directories(${GLFW_INCLUDE_DIRS})
+else()
+    message("GLFW is not found!")
+endif()
+
+find_package(GLEW)
+if (!GLEW_FOUND)
+    message("GLEW is not found!")
+endif()
 
 set(CONTEXT "context")
 set(GEOMETRY "geometry")
 set(RENDERER "renderer")
-set(INCLUDE "include")
+set(CUDA_RT_INCLUDE "include")
 
 add_library(contextlib STATIC
 	${CONTEXT}/env_loader.cpp
@@ -38,20 +51,19 @@ add_library(contextlib STATIC
 	${CONTEXT}/texture_store.cpp
 	${CONTEXT}/window.cpp
 	${CONTEXT}/windowed_launcher.cpp)
-target_include_directories(contextlib PUBLIC include /usr/include /usr/local/cuda/include)
+target_include_directories(contextlib PUBLIC ${CUDA_RT_INCLUDE} /usr/include ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 target_compile_features(contextlib PUBLIC cxx_std_11)
-target_link_libraries(contextlib ${OPENGL_STATIC_LIBRARIES} ${GLEW_STATIC_LIBRARIES} ${GLFW_STATIC_LIBRARIES} GLEW GL)
+target_link_libraries(contextlib ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${GLFW_LIBRARIES})
 
 add_library(rendererlib STATIC
 	${RENDERER}/parallel_renderer.cu
 	${RENDERER}/renderer.cu
 	${RENDERER}/sequential_renderer.cpp)
 
-target_include_directories(rendererlib PUBLIC include /usr/include ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+target_include_directories(rendererlib PUBLIC ${CUDA_RT_INCLUDE} /usr/include ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 target_compile_features(rendererlib PUBLIC cxx_std_11)
 target_compile_options(rendererlib PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:-gencode arch=compute_52,code=sm_52>)
 set_target_properties(rendererlib PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-set_target_properties(rendererlib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(geometrylib STATIC
 	${GEOMETRY}/bvh.cpp
@@ -59,7 +71,7 @@ add_library(geometrylib STATIC
 	${GEOMETRY}/camera.cu
 	${GEOMETRY}/geometry.cu)
 
-target_include_directories(geometrylib PUBLIC include /usr/include /usr/local/cuda/include)
+target_include_directories(geometrylib PUBLIC ${CUDA_RT_INCLUDE} /usr/include ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 target_compile_features(geometrylib PUBLIC cxx_std_11)
 set_target_properties(geometrylib PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 set_target_properties(geometrylib PROPERTIES POSITION_INDEPENDENT_CODE ON)

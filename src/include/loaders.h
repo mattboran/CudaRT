@@ -1,9 +1,8 @@
 #ifndef LOADERS_H
 #define LOADERS_H
 
-#include "picojson.h"
 #include "camera.h"
-#include "material.h"
+#include "picojson.h"
 
 #include <exception>
 #include <fstream>
