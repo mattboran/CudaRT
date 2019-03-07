@@ -1,4 +1,3 @@
-#cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 project(CudaRT)
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
@@ -17,12 +16,7 @@ if (OPENMP_FOUND)
 endif()
 
 find_package(CUDA 9.0 REQUIRED)
-set(CUDA_NVCC_FLAGS
-	"${CUDA_NVCC_FLAGS} -O3 -gencode arch=compute_35,code=sm_35"
-)
-set(CUDA_NVCC_FLAGS   ${CUDA_NVCC_FLAGS}    " -std=c++11")
 
-set(CUDA_NVLINK_FLAGS "${CUDA_NVLINK_FLAGS} -gencode arch=compute_35,code=sm_35")
 message("CUDA NVCC FLAGS: ${CUDA_NVCC_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 

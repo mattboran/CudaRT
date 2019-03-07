@@ -156,13 +156,13 @@ int main(int argc, char* argv[]) {
 		p_renderer = new ParallelRenderer(&scene, width, height, samples);
 	}
 	if (renderToScreen) {
-	#ifndef SKIP_OPENGL
+#ifndef SKIP_OPENGL
+		cout << "Rendering to window!\n";
 		p_launcher = new WindowedLauncher(p_renderer, outFile.c_str());
-	#endif
+#endif
 	} else {
 		p_launcher = new TerminalLauncher(p_renderer, outFile.c_str());
 	}
-	p_launcher = new TerminalLauncher(p_renderer, outFile.c_str());
 
 	auto start = high_resolution_clock::now();
 	p_launcher->render();
