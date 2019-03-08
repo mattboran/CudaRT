@@ -1,9 +1,13 @@
 project(CudaRT)
+set(CMAKE_PROJECT_VERSION 0)
+set(CMAKE_PROJECT_VERSION_MAJOR 0)
+set(CMAKE_PROJECT_VERSION_MINOR 1)
+
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 
-set(CUDA_RT_VERSION_MAJOR 0)
-set(CUDA_RT_VERSION_MINOR 1)
+set(CUDA_RT_VERSION_MAJOR ${CMAKE_PROJECT_VERSION_MAJOR})
+set(CUDA_RT_VERSION_MINOR ${CMAKE_PROJECT_VERSION_MINOR})
 
 message("source: ${PROJECT_SOURCE_DIR}")
 message("binary: ${PROJECT_BINARY_DIR}")
@@ -52,31 +56,22 @@ include_directories(${CUDA_RT_INCLUDE}
 set(CUDA_SEPARABLE_COMPILATION ON)
 set(CUDA_STANDARD 11)
 
-if (SKIP_OPENGL)
-cuda_add_library(contextlib STATIC
-	${CONTEXT}/env_loader.cpp
-	${CONTEXT}/json_loader.cpp
-	${CONTEXT}/launcher.cpp
-	${CONTEXT}/terminal_launcher.cpp
-	${CONTEXT}/texture_store.cpp
-)
-else ()
-cuda_add_library(contextlib STATIC
-	${CONTEXT}/env_loader.cpp
-	${CONTEXT}/json_loader.cpp
-	${CONTEXT}/launcher.cpp
-	${CONTEXT}/terminal_launcher.cpp
-	${CONTEXT}/texture_store.cpp
-	${CONTEXT}/window.cpp
-	${CONTEXT}/windowed_launcher.cpp
-)
+list (APPEND CONTEXTLIB_FILES ${CONTEXT}/env_loader.cpp
+                        ${CONTEXT}/json_loader.cpp
+                        ${CONTEXT}/launcher.cpp
+                        ${CONTEXT}/terminal_launcher.cpp
+                        ${CONTEXT}/texture_store.cpp)
+if (NOT SKIP_OPENGL)
+	list(APPEND CONTEXTLIB_FILES ${CONTEXT}/window.cpp ${CONTEXT}/windowed_launcher.cpp)
 endif()
+
+cuda_add_library(contextlib STATIC ${CONTEXTLIB_FILES})
 
 add_compile_options(-std=c++11)
 
 target_link_libraries(contextlib ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${GLFW_LIBRARIES})
 
-cuda_add_executable(CudaRT 
+cuda_add_executable(CudaRT
 					${GEOMETRY}/bvh.cpp
 					${GEOMETRY}/scene.cpp
 					${GEOMETRY}/camera.cu
