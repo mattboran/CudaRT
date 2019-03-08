@@ -153,6 +153,9 @@ int main(int argc, char* argv[]) {
 	if (executeOnCpu || cudaCapableDevices == 0) {
 		p_renderer = new SequentialRenderer(&scene, width, height, samples);
 	} else {
+		if (cudaCapableDevices > 1) {
+			cudaSetDevice(1);
+		}
 		p_renderer = new ParallelRenderer(&scene, width, height, samples);
 	}
 	if (renderToScreen) {
