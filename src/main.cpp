@@ -1,6 +1,7 @@
 // This file is responsible for parsing command line arguments,
 // getting the scene set up, and launching the pathtrace kernel
 
+#include "config.h"
 #include "scene.h"
 #include "camera.h"
 #include "loaders.h"
@@ -62,10 +63,10 @@ int main(int argc, char* argv[]) {
 				"-w \t<width>\tdefault:480px\n" \
 				"-h \t<height>\tdefault:320px\n" \
 				"-f \t<scene>\tdefault: cornell\n" \
-				"--cpu \t<flag to run sequential code on CPU only>\tdefault: false\n" \
-				"--X \t<flag to render to screen>\tdefault: false\n" \
-				"Note: BVH has bugs in both CUDA and CPU version. CPU version is worse.\n"\
-				;
+				"--cpu \t<flag to run sequential code on CPU only>\tdefault: false\n";
+#ifndef SKIP_OPENGL
+		cerr << "--x \t<flag to render to screen>\tdefault: false\n";
+#endif
 		return(1);
 	}
 	vector<string> args(argv + 1, argv + argc);
@@ -103,10 +104,12 @@ int main(int argc, char* argv[]) {
 	}
 
 
+#ifndef SKIP_OPENGL
 	// Render To Screen flag
 	if ((find(args.begin(), args.end(), "--x") < args.end())) {
 		renderToScreen = true;
 	}
+#endif
 
 	// .obj path
 	if ((find(args.begin(), args.end(), "-f") < args.end() - 1)) {
@@ -140,7 +143,7 @@ int main(int argc, char* argv[]) {
 				<< "\t" << mesh.Vertices.size() << " vertices | \t" << mesh.Vertices.size() / 3 << " triangles" << endl;
 	}
 	cout << "Total number of triangles:\t" << scene.getNumTriangles() << endl;
-
+	cout << "Launching CudaRT version " << CUDA_RT_VERSION_MAJOR << "." << CUDA_RT_VERSION_MINOR << endl;
 	Renderer* p_renderer;
 	Launcher* p_launcher;
 
@@ -153,7 +156,10 @@ int main(int argc, char* argv[]) {
 		p_renderer = new ParallelRenderer(&scene, width, height, samples);
 	}
 	if (renderToScreen) {
+#ifndef SKIP_OPENGL
+		cout << "Rendering to window!\n";
 		p_launcher = new WindowedLauncher(p_renderer, outFile.c_str());
+#endif
 	} else {
 		p_launcher = new TerminalLauncher(p_renderer, outFile.c_str());
 	}
