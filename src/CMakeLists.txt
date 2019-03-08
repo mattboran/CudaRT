@@ -71,6 +71,10 @@ add_compile_options(-std=c++11)
 
 target_link_libraries(contextlib ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${GLFW_LIBRARIES})
 
+if (${CMAKE_VERSION} VERSION_LESS "3.0.0")
+	set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11")
+endif()
+
 cuda_add_executable(CudaRT
 					${GEOMETRY}/bvh.cpp
 					${GEOMETRY}/scene.cpp
