@@ -19,6 +19,13 @@
 #define BVH_INDEX_OFFSET 1
 #define TEXTURES_OFFSET 2
 
+#define MAX_MATERIALS 256
+#define KD_OFFSET 0
+#define KA_OFFSET 1
+#define KS_OFFSET 2
+#define AUX_OFFSET 3
+#define MATERIALS_FLOAT_COMPONENTS (AUX_OFFSET + 1)
+
 typedef unsigned int pixels_t;
 
 struct LightsData {
@@ -81,6 +88,7 @@ public:
 	__host__ virtual void renderOneSamplePerPixel(uchar4* p_img) = 0;
 	__host__ virtual void copyImageBytes(uchar4* p_img) = 0;
 	__host__ virtual uchar4* getImgBytesPointer() = 0;
+    __host__ virtual void createMaterialsData(float3* matFloats, int2* matIndices) = 0;
 	__host__ cudaTextureObject_t* getCudaTextureObjectPtr() { return NULL; }
 	__host__ Scene* getScenePtr() { return p_scene; }
 	__host__ pixels_t getWidth() { return width; }
@@ -113,6 +121,7 @@ public:
 	__host__ void renderOneSamplePerPixel(uchar4* p_img);
 	__host__ void copyImageBytes(uchar4* p_img);
 	__host__ uchar4* getImgBytesPointer() { return d_imgBytesPtr; }
+    __host__ void createMaterialsData(float3* matFloats, int2* matIndices) {};
 	~ParallelRenderer();
 private:
 	Vector3Df* d_imgVectorPtr;
@@ -141,6 +150,7 @@ public:
 	__host__ void renderOneSamplePerPixel(uchar4* p_img);
 	__host__ void copyImageBytes(uchar4* p_img);
 	__host__ uchar4* getImgBytesPointer() { return h_imgBytesPtr; }
+    __host__ void createMaterialsData(float3* matFloats, int2* matIndices);
 	~SequentialRenderer();
 private:
 	uchar4* h_imgBytesPtr;
