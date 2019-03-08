@@ -84,7 +84,7 @@ cuda_add_executable(CudaRT
 					${RENDERER}/renderer.cu
 					${RENDERER}/sequential_renderer.cu
 					main.cpp
-					OPTIONS -arch=sm_52)
+					OPTIONS -arch=sm_52 -maxrregcount 64)
 set_target_properties( CudaRT
 			PROPERTIES CUDA_SEPARABLE_COMPILATION ON
 			CUDA_STANDARD 11)
