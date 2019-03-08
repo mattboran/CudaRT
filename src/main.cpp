@@ -150,6 +150,7 @@ int main(int argc, char* argv[]) {
 	TextureStore textureLoader;
 
 	cudaGetDeviceCount(&cudaCapableDevices);
+	cout << "Got " << cudaCapableDevices << " CUDA-capable devices" << endl;
 	if (executeOnCpu || cudaCapableDevices == 0) {
 		p_renderer = new SequentialRenderer(&scene, width, height, samples);
 	} else {
