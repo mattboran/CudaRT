@@ -318,7 +318,7 @@ __global__ void renderKernel(SettingsData settings,
 	uint idx = y * settings.width + x;
 	curandState* p_threadCurand = &p_curandState[idx];
 	Sampler sampler(p_threadCurand);
-	Vector3Df color = samplePixel(x, y, p_camera, p_tris, p_lights, d_materials, &sampler);
+	Vector3Df color = samplePixel(x, y, p_camera, p_tris, p_lights, d_materials, &sampler, NULL, NULL);
 	p_imgBuffer[idx] += color;
 	p_outImg[idx] = vector3ToUchar4(p_imgBuffer[idx]/(float)sampleNumber);
 }

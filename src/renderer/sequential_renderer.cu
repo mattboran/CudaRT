@@ -85,7 +85,14 @@ void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
     for (pixels_t x = 0; x < width; x++) {
         for (pixels_t y = 0; y < height; y++) {
             int idx = y * width + x;
-            Vector3Df sample = samplePixel(x, y, p_camera, h_sceneData, h_lightsData, p_materials, p_sampler);
+            Vector3Df sample = samplePixel(x, y,
+                                           p_camera,
+                                           h_sceneData,
+                                           h_lightsData,
+                                           p_materials,
+                                           p_sampler,
+                                           materialFloats,
+                                           materialIndices);
             h_imgVectorPtr[idx] += sample;
             p_img[idx] = vector3ToUchar4(h_imgVectorPtr[idx]/samplesRendered);
         }

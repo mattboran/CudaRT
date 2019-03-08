@@ -144,7 +144,14 @@ __host__ __device__ Vector3Df sampleTexture(dataPtr_t p_textureContainer,  float
 #endif
 }
 
-__host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneData* p_sceneData, LightsData *p_lightsData, Material* p_materials, Sampler* p_sampler) {
+__host__ __device__ Vector3Df samplePixel(int x, int y,
+										  Camera* p_camera,
+										  SceneData* p_sceneData,
+										  LightsData *p_lightsData,
+										  Material* p_materials,
+										  Sampler* p_sampler,
+                                          float3* p_matFloats,
+                                          int2* p_matIndices) {
 	Ray ray = p_camera->computeCameraRay(x, y, p_sampler);
 
     Vector3Df color = Vector3Df(0.f, 0.f, 0.f);
@@ -154,6 +161,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneD
     Triangle* p_hitTriangle = NULL;
     refl_t currentBsdf = DIFFUSE;
     refl_t previousBsdf = DIFFUSE;
+	uint materialId;
 #ifdef __CUDA_ARCH__
     dataPtr_t p_bvh = (dataPtr_t)p_sceneData->p_cudaTexObjects;
 #else
@@ -172,9 +180,11 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneD
 #ifdef SHOW_NORMALS
         return p_hitTriangle->getNormal(interaction.u, interaction.v);
 #endif
-        Material* p_material = &p_materials[p_hitTriangle->_materialId];
+		materialId = p_hitTriangle->_materialId;
+        // Material* p_material = &p_materials[p_hitTriangle->_materialId];
         if (bounces == 0 || previousBsdf == SPECULAR || previousBsdf == REFRACTIVE) {
-        	color += mask * p_material->ka;
+			color += mask * Vector3Df(p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KA_OFFSET]);
+        	// color += mask * p_material->ka;
         }
 
         interaction.normal = p_hitTriangle->getNormal(interaction.u, interaction.v);
@@ -182,12 +192,12 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneD
         interaction.outputDirection = normalize(ray.dir);
 
         // SHADING CALCULATIONS
-        currentBsdf = p_material->bsdf;
+        currentBsdf = (refl_t)p_matIndices[materialId].x;
 
         // DIFFUSE AND SPECULAR BSDF
         if (currentBsdf == DIFFSPEC) {
 			// use Russian roulette to decide whether to evaluate diffuse or specular BSDF
-        	float p = p_material->diffuseCoefficient;
+        	float p = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + AUX_OFFSET].z;
         	if (p_sampler->getNextFloat() < p) {
         		currentBsdf = DIFFUSE;
 				mask *= 1.0f / p;
@@ -199,7 +209,8 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneD
 
         if (currentBsdf == REFRACTIVE) {
 			Vector3Df reflectedDir, transmittedDir;
-			Fresnel fresnel = getFresnelReflectance(interaction, p_material->ni, transmittedDir);
+			float ni = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + AUX_OFFSET].y;
+			Fresnel fresnel = getFresnelReflectance(interaction, ni, transmittedDir);
 			if (fresnel.probReflection == 1.0f) {
 				currentBsdf = SPECULAR;
 			}
@@ -212,7 +223,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneD
 				// Reason dictates that this should be Re
 				if (p_sampler->getNextFloat() > unknownMagicNumber) {
 					interaction.inputDirection = transmittedDir;
-					mask *= p_material->ks * TP;
+					mask *= Vector3Df(p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KS_OFFSET]) * TP;
 				} else {
 					mask *= RP;
 					currentBsdf = SPECULAR;
@@ -222,9 +233,9 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneD
 
         // DIFFUSE BSDF
         if (currentBsdf == DIFFUSE) {
-        	dataPtr_t p_texContainer = textureContainerFactory(p_material->texKdIdx,
+        	dataPtr_t p_texContainer = textureContainerFactory(p_matIndices[materialId].y,
         												   	   TEXTURE_CONTAINER_FACTOR_PARAMETERS(p_sceneData));
-			Vector3Df diffuseColor = p_material->kd;
+			Vector3Df diffuseColor = Vector3Df(p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KD_OFFSET]);
         	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, diffuseColor, p_texContainer, p_sampler);
 			mask = mask * diffuseSample / interaction.pdf;
 #ifndef __CUDA_ARCH__
@@ -234,7 +245,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneD
 			float randomNumber = p_sampler->getNextFloat() * ((float)p_lightsData->numLights - .00001f);
 			int selectedLightIdx = truncf(randomNumber);
 			Triangle* p_light = &p_lightsData->lightsPtr[selectedLightIdx];
-			Vector3Df lightColor = p_materials[p_light->_materialId].ka;
+			Vector3Df lightColor = Vector3Df(p_matFloats[p_light->_materialId*MATERIALS_FLOAT_COMPONENTS + KA_OFFSET]);
 			Vector3Df directLighting = estimateDirectLighting(p_light, p_sceneData, lightColor, interaction, p_sampler);
 
 #ifndef UNBIASED
@@ -247,7 +258,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneD
 
         // PURE SPECULAR BSDF
         if (currentBsdf == SPECULAR) {
-			Vector3Df specularColor = p_materials[p_hitTriangle->_materialId].ks;
+			Vector3Df specularColor = Vector3Df(p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KS_OFFSET]);
         	Vector3Df perfectSpecularSample = sampleSpecularBSDF(&interaction, specularColor);
 			mask = mask * perfectSpecularSample / interaction.pdf;
         }
