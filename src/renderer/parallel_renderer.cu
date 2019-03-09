@@ -48,7 +48,7 @@ __host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, pixels_t _width, p
 	size_t trianglesBytes = sizeof(Triangle) * numTris;
 	size_t materialsBytes = sizeof(Material) * numMaterials;
 	size_t lightsBytes = sizeof(Triangle) * numLights;
-	size_t curandBytes = sizeof(curandState) * threadsPerBlock * gridBlocks;
+	size_t curandBytes = sizeof(curandState) * threadsPerBlock;
 	size_t textureObjectBytes = sizeof(cudaTextureObject_t) * (numTextures + TEXTURES_OFFSET);
 
 	d_imgVectorPtr = NULL;
@@ -286,7 +286,7 @@ __host__ void ParallelRenderer::initializeCurand() {
 	dim3 block = dim3(BLOCK_WIDTH, BLOCK_WIDTH, 1);
 	dim3 grid = dim3(width/BLOCK_WIDTH, height/BLOCK_WIDTH, 1);
 
-	initializeCurandKernel<<<grid, block, 0>>>(d_curandStatePtr);
+	initializeCurandKernel<<<1, block, 0>>>(d_curandStatePtr);
 }
 
 __host__ void ParallelRenderer::renderOneSamplePerPixel(uchar4* p_img) {
@@ -329,8 +329,9 @@ __global__ void renderKernel(SettingsData settings,
 
 	uint x = blockIdx.x * blockDim.x + threadIdx.x;
 	uint y = blockIdx.y * blockDim.y + threadIdx.y;
+	uint blockOnlyIdx = threadIdx.x * blockDim.x + threadIdx.y;
 	uint idx = y * settings.width + x;
-	curandState* p_threadCurand = &p_curandState[idx];
+	curandState* p_threadCurand = &p_curandState[blockOnlyIdx];
 	Sampler sampler(p_threadCurand);
 	Vector3Df color = samplePixel(x, y,
 								  p_camera,
