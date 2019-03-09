@@ -36,21 +36,16 @@ struct LightsData {
 
 struct SceneData {
 	Triangle* p_triangles;
-	LinearBVHNode* p_bvh;
 	cudaTextureObject_t* p_cudaTexObjects;
+#ifndef __CUDA_ARCH__
+	LinearBVHNode* p_bvh;
 	Vector3Df* p_textureData;
 	pixels_t* p_textureDimensions;
 	pixels_t* p_textureOffsets;
-	uint numTriangles;
 	uint numBVHNodes;
 	uint numTextures;
-};
-
-struct SettingsData {
-	uint width;
-	uint height;
-	uint samples;
-};
+#endif
+}__attribute((aligned(8)));
 
 struct TextureContainer {
 #ifdef __CUDA_ARCH__
@@ -75,7 +70,7 @@ struct Sampler {
 };
 
 __host__ __device__ Vector3Df samplePixel(int x, int y,
-                                          Camera* p_camera,
+                                          Camera p_camera,
                                           SceneData* p_SceneData,
                                           LightsData *p_lightsData,
                                           Sampler* p_sampler,
@@ -99,7 +94,6 @@ public:
 	__host__ pixels_t getHeight() { return height; }
 	__host__ int getSamples() { return samples; }
 	__host__ int getSamplesRendered() { return samplesRendered; }
-	__host__ void createSettingsData(SettingsData* p_settingsData);
 	__host__ void createSceneData(SceneData* p_SceneData,
                                   Triangle* p_triangles,
                                   LinearBVHNode* p_bvh,
@@ -131,7 +125,6 @@ private:
 	uchar4* d_imgBytesPtr;
 	LightsData* d_lightsData;
 	SceneData* d_sceneData;
-	SettingsData d_settingsData;
 	Triangle* d_triPtr;
 	Triangle* d_lightsPtr;
 	cudaTextureObject_t* d_cudaTexObjects;
@@ -157,7 +150,6 @@ public:
 private:
 	uchar4* h_imgBytesPtr;
 	Vector3Df* h_imgVectorPtr;
-	SettingsData h_settingsData;
 	SceneData* h_sceneData;
 	LightsData* h_lightsData;
 };

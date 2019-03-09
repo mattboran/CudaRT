@@ -31,20 +31,20 @@ Camera CameraJsonLoader::getCamera(pixels_t width, pixels_t height) {
 	picojson::array d = cameraValue.get("viewDirection").get<picojson::array>();
 	picojson::array u = cameraValue.get("upDirection").get<picojson::array>();
 
-	Camera camera;
-	camera.xpixels = width;
-	camera.ypixels = height;
-	camera.fov = tanf(f * 0.5f * M_PI/180.0f);
-	camera.eye = vector3FromArray(e);
+	Camera* p_camera = (Camera*)malloc(sizeof(Camera));
+	p_camera->xpixels = width;
+	p_camera->ypixels = height;
+	p_camera->fov = tanf(f * 0.5f * M_PI/180.0f);
+	p_camera->eye = vector3FromArray(e);
 	Vector3Df dir = vector3FromArray(d);
-	camera.focusDistance = dir.length();
-	camera.dir = normalize(dir);
-	camera.up = normalize(vector3FromArray(u));
-	camera.right = normalize(cross(camera.dir,camera.up));
-	camera.apertureWidth = focalLength/fStop;
-	camera.aspect = (float)width / (float)height;
+	p_camera->focusDistance = dir.length();
+	p_camera->dir = normalize(dir);
+	p_camera->up = normalize(vector3FromArray(u));
+	p_camera->right = normalize(cross(p_camera->dir, p_camera->up));
+	p_camera->apertureWidth = focalLength/fStop;
+	p_camera->aspect = (float)width / (float)height;
 
-	return camera;
+	return *p_camera;
 }
 
 Vector3Df vector3FromArray(picojson::array arr) {

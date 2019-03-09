@@ -9,16 +9,6 @@
 
 using namespace std;
 
-__host__ Camera::Camera(Vector3Df pos, Vector3Df target, Vector3Df upv, float _fov, int x, int y) :
-		eye(pos), dir(target), up(upv), fov(tanf(_fov/2.0f * M_PI/180.0f)), xpixels(x), ypixels(y)
-{
-	aspect = (float)xpixels / (float)ypixels;
-	up = normalize(up);
-	focusDistance = (dir-eye).length();
-	dir = normalize(dir - eye);
-	right = normalize(cross(dir,up));
-}
-
 
 __host__ __device__ void tentFilter(float &i, float &j, Sampler* p_sampler) {
 	float r1, r2;
