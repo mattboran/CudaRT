@@ -19,6 +19,13 @@
 #define BVH_INDEX_OFFSET 1
 #define TEXTURES_OFFSET 2
 
+#define MAX_MATERIALS 128
+#define KD_OFFSET 0
+#define KA_OFFSET 1
+#define KS_OFFSET 2
+#define AUX_OFFSET 3
+#define MATERIALS_FLOAT_COMPONENTS (AUX_OFFSET + 1)
+
 typedef unsigned int pixels_t;
 
 struct LightsData {
@@ -30,14 +37,12 @@ struct LightsData {
 struct SceneData {
 	Triangle* p_triangles;
 	LinearBVHNode* p_bvh;
-	Material* p_materials;
 	cudaTextureObject_t* p_cudaTexObjects;
 	Vector3Df* p_textureData;
 	pixels_t* p_textureDimensions;
 	pixels_t* p_textureOffsets;
 	uint numTriangles;
 	uint numBVHNodes;
-	uint numMaterials;
 	uint numTextures;
 };
 
@@ -69,7 +74,13 @@ struct Sampler {
 	__host__ __device__ float getNextFloat();
 };
 
-__host__ __device__ Vector3Df samplePixel(int x, int y, Camera* p_camera, SceneData* p_SceneData, LightsData *p_lightsData, Material* p_materials, Sampler* p_sampler);
+__host__ __device__ Vector3Df samplePixel(int x, int y,
+                                          Camera* p_camera,
+                                          SceneData* p_SceneData,
+                                          LightsData *p_lightsData,
+                                          Sampler* p_sampler,
+                                          float3* p_matFloats,
+                                          int2* p_matIndices);
 __host__ __device__ void gammaCorrectPixel(uchar4 &p);
 __host__ __device__ Vector3Df sampleTexture(TextureContainer* p_textureContainer, float u, float v);
 
@@ -81,6 +92,7 @@ public:
 	__host__ virtual void renderOneSamplePerPixel(uchar4* p_img) = 0;
 	__host__ virtual void copyImageBytes(uchar4* p_img) = 0;
 	__host__ virtual uchar4* getImgBytesPointer() = 0;
+    __host__ virtual void createMaterialsData(float3* matFloats, int2* matIndices) = 0;
 	__host__ cudaTextureObject_t* getCudaTextureObjectPtr() { return NULL; }
 	__host__ Scene* getScenePtr() { return p_scene; }
 	__host__ pixels_t getWidth() { return width; }
@@ -91,7 +103,6 @@ public:
 	__host__ void createSceneData(SceneData* p_SceneData,
                                   Triangle* p_triangles,
                                   LinearBVHNode* p_bvh,
-                                  Material* p_materials,
                                   Vector3Df* p_textureData,
                                   pixels_t* p_textureDimensions,
                                   pixels_t* p_textureOffsets);
@@ -113,6 +124,7 @@ public:
 	__host__ void renderOneSamplePerPixel(uchar4* p_img);
 	__host__ void copyImageBytes(uchar4* p_img);
 	__host__ uchar4* getImgBytesPointer() { return d_imgBytesPtr; }
+    __host__ void createMaterialsData(float3* matFloats, int2* matIndices);
 	~ParallelRenderer();
 private:
 	Vector3Df* d_imgVectorPtr;
@@ -122,7 +134,6 @@ private:
 	SettingsData d_settingsData;
 	Triangle* d_triPtr;
 	Triangle* d_lightsPtr;
-	Material* d_materials;
 	cudaTextureObject_t* d_cudaTexObjects;
 	Camera* d_camPtr;
 	curandState* d_curandStatePtr;
@@ -141,6 +152,7 @@ public:
 	__host__ void renderOneSamplePerPixel(uchar4* p_img);
 	__host__ void copyImageBytes(uchar4* p_img);
 	__host__ uchar4* getImgBytesPointer() { return h_imgBytesPtr; }
+    __host__ void createMaterialsData(float3* matFloats, int2* matIndices);
 	~SequentialRenderer();
 private:
 	uchar4* h_imgBytesPtr;
