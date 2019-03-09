@@ -94,13 +94,15 @@ __host__ void Renderer::createSceneData(SceneData* p_sceneData,
 										pixels_t* p_textureDimensions,
 										pixels_t* p_textureOffsets) {
 	p_sceneData->p_triangles = p_triangles;
+	p_sceneData->numTriangles = p_scene->getNumTriangles();
+#ifndef __CUDA_ARCH__
 	p_sceneData->p_bvh = p_bvh;
 	p_sceneData->p_textureData = p_textureData;
 	p_sceneData->p_textureDimensions = p_textureDimensions;
 	p_sceneData->p_textureOffsets = p_textureOffsets;
-	p_sceneData->numTriangles = p_scene->getNumTriangles();
 	p_sceneData->numBVHNodes = p_scene->getNumBvhNodes();
 	p_sceneData->numTextures = p_scene->getNumTextures();
+#endif
 }
 
 __host__ void Renderer::createLightsData(LightsData* p_lightsData, Triangle* p_triangles) {
@@ -142,13 +144,13 @@ __host__ __device__ Vector3Df sampleTexture(dataPtr_t p_textureContainer,  float
 }
 
 __host__ __device__ Vector3Df samplePixel(int x, int y,
-										  Camera* p_camera,
+										  Camera camera,
 										  SceneData* p_sceneData,
 										  LightsData *p_lightsData,
 										  Sampler* p_sampler,
                                           float3* p_matFloats,
                                           int2* p_matIndices) {
-	Ray ray = p_camera->computeCameraRay(x, y, p_sampler);
+	Ray ray = camera.computeCameraRay(x, y, p_sampler);
 
     Vector3Df color = Vector3Df(0.f, 0.f, 0.f);
     Vector3Df mask = Vector3Df(1.f, 1.f, 1.f);

@@ -36,15 +36,17 @@ struct LightsData {
 
 struct SceneData {
 	Triangle* p_triangles;
-	LinearBVHNode* p_bvh;
+	uint numTriangles;
 	cudaTextureObject_t* p_cudaTexObjects;
+#ifndef __CUDA_ARCH__
+	LinearBVHNode* p_bvh;
 	Vector3Df* p_textureData;
 	pixels_t* p_textureDimensions;
 	pixels_t* p_textureOffsets;
-	uint numTriangles;
 	uint numBVHNodes;
 	uint numTextures;
-};
+#endif
+}__attribute((aligned(16)));
 
 struct SettingsData {
 	uint width;
@@ -75,7 +77,7 @@ struct Sampler {
 };
 
 __host__ __device__ Vector3Df samplePixel(int x, int y,
-                                          Camera* p_camera,
+                                          Camera p_camera,
                                           SceneData* p_SceneData,
                                           LightsData *p_lightsData,
                                           Sampler* p_sampler,
