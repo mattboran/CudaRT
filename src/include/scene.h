@@ -51,10 +51,11 @@ public:
 	void loadCamera(std::string cameraPath, pixels_t width, pixels_t height);
 	void loadTriangles();
 	void loadTextures(std::string texturesPath);
-	void constructBvh();
 
 	// For bvh construction
 	void allocateBvhArray(const uint n) { p_bvh = new LinearBVHNode[n](); numBvhNodes = n; }
+	void constructBvh();
+	void constructLightList();
 
 private:
 	// Geometry - todo: phase these out if possible
@@ -63,6 +64,7 @@ private:
 	objl::Vertex* p_vertices;
 	Triangle* p_triangles;
 	std::vector<Triangle> lightsList;
+	std::vector<uint> lightsIndices;
 	Camera* p_camera;
 
 	LinearBVHNode* p_bvh;
