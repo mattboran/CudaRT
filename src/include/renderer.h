@@ -19,7 +19,7 @@
 #define BVH_INDEX_OFFSET 1
 #define TEXTURES_OFFSET 2
 
-#define MAX_MATERIALS 256
+#define MAX_MATERIALS 128
 #define KD_OFFSET 0
 #define KA_OFFSET 1
 #define KS_OFFSET 2
@@ -128,7 +128,7 @@ public:
 	__host__ void renderOneSamplePerPixel(uchar4* p_img);
 	__host__ void copyImageBytes(uchar4* p_img);
 	__host__ uchar4* getImgBytesPointer() { return d_imgBytesPtr; }
-    __host__ void createMaterialsData(float3* matFloats, int2* matIndices) {};
+    __host__ void createMaterialsData(float3* matFloats, int2* matIndices);
 	~ParallelRenderer();
 private:
 	Vector3Df* d_imgVectorPtr;

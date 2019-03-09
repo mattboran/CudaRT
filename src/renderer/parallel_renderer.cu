@@ -18,13 +18,16 @@ using std::cout;
 #define USE_SHARED_MEMORY
 #define BLOCK_WIDTH 16u
 
+__constant__ float3 c_materialFloats[MAX_MATERIALS * MATERIALS_FLOAT_COMPONENTS];
+__constant__ int2 c_materialIndices[MAX_MATERIALS];
+
 // Kernels
 __global__ void initializeCurandKernel(curandState* p_curandState);
 __global__ void renderKernel(SettingsData settings,
 		Vector3Df* p_imgBuffer,
 		uchar4* p_outImg,
 		Camera* p_camera,
-		SceneData* p_tris,
+		SceneData* p_sceneData,
 		LightsData* p_lights,
 		curandState *p_curandState,
 		int sampleNumber);
@@ -127,6 +130,7 @@ __host__ void ParallelRenderer::copyMemoryToCuda() {
 	createLightsData(h_lightsData, d_lightsPtr);
 	CUDA_CHECK_RETURN(cudaMemcpy(d_lightsData, h_lightsData, sizeof(LightsData), cudaMemcpyHostToDevice));
 
+	createMaterialsData(NULL, NULL);
 	free(h_sceneData);
 	free(h_lightsData);
 }
@@ -255,6 +259,35 @@ __host__ cudaTextureObject_t* ParallelRenderer::createTextureObjects() {
 	return p_cudaTexObjects;
 }
 
+__host__ void ParallelRenderer::createMaterialsData(float3* matFloats, int2* matIndices) {
+	Material* p_materials = p_scene->getMaterialsPtr();
+	uint numMaterials = p_scene->getNumMaterials();
+	float3* p_floatBuffer = new float3[MAX_MATERIALS * MATERIALS_FLOAT_COMPONENTS];
+	int2* p_intBuffer = new int2[MAX_MATERIALS];
+	float3* p_currentFloat = p_floatBuffer;
+	int2* p_currentIndex = p_intBuffer;
+	for (uint i = 0; i < numMaterials; i++) {
+		*p_currentFloat++ = make_float3(p_materials[i].kd);
+		*p_currentFloat++ = make_float3(p_materials[i].ka);
+		*p_currentFloat++ = make_float3(p_materials[i].ks);
+		*p_currentFloat++ = make_float3(p_materials[i].ns,
+										p_materials[i].ni,
+										p_materials[i].diffuseCoefficient);
+		*p_currentIndex++ = make_int2((int32_t)p_materials[i].bsdf,
+									  (int32_t)p_materials[i].texKdIdx);
+
+	}
+	cudaMemcpyToSymbol(c_materialFloats,
+					   p_floatBuffer,
+					   numMaterials * MATERIALS_FLOAT_COMPONENTS * sizeof(float3));
+	cudaMemcpyToSymbol(c_materialIndices,
+					   p_intBuffer,
+					   numMaterials * sizeof(int2));
+
+	delete p_floatBuffer;
+	delete p_intBuffer;
+}
+
 __host__ void ParallelRenderer::initializeCurand() {
 	dim3 block = dim3(BLOCK_WIDTH, BLOCK_WIDTH, 1);
 	dim3 grid = dim3(width/BLOCK_WIDTH, height/BLOCK_WIDTH, 1);
@@ -296,29 +329,36 @@ __global__ void renderKernel(SettingsData settings,
 		Vector3Df* p_imgBuffer,
 		uchar4* p_outImg,
 		Camera* p_camera,
-		SceneData* p_tris,
+		SceneData* p_sceneData,
 		LightsData* p_lights,
 		curandState *p_curandState,
 		int sampleNumber) {
 
 #ifdef USE_SHARED_MEMORY
-	unsigned int numMaterials = p_tris->numMaterials;
+	unsigned int numMaterials = p_sceneData->numMaterials;
 	extern __shared__ Material d_materials[];
 	if (threadIdx.x + threadIdx.y == 0) {
 		for (int i = 0; i < numMaterials; i++) {
-			d_materials[i] = p_tris->p_materials[i];
+			d_materials[i] = p_sceneData->p_materials[i];
 		}
 	}
 	__syncthreads();
 #else
-	Material* d_materials = p_tris->p_materials;
+	Material* d_materials = p_sceneData->p_materials;
 #endif
 	uint x = blockIdx.x * blockDim.x + threadIdx.x;
 	uint y = blockIdx.y * blockDim.y + threadIdx.y;
 	uint idx = y * settings.width + x;
 	curandState* p_threadCurand = &p_curandState[idx];
 	Sampler sampler(p_threadCurand);
-	Vector3Df color = samplePixel(x, y, p_camera, p_tris, p_lights, d_materials, &sampler, NULL, NULL);
+	Vector3Df color = samplePixel(x, y,
+								  p_camera,
+								  p_sceneData,
+								  p_lights,
+								  d_materials,
+								  &sampler,
+								  c_materialFloats,
+								  c_materialIndices);
 	p_imgBuffer[idx] += color;
 	p_outImg[idx] = vector3ToUchar4(p_imgBuffer[idx]/(float)sampleNumber);
 }

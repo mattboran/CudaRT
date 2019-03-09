@@ -143,7 +143,9 @@ int main(int argc, char* argv[]) {
 				<< "\t" << mesh.Vertices.size() << " vertices | \t" << mesh.Vertices.size() / 3 << " triangles" << endl;
 	}
 	cout << "Total number of triangles:\t" << scene.getNumTriangles() << endl;
-	cout << "Launching CudaRT version " << CUDA_RT_VERSION_MAJOR << "." << CUDA_RT_VERSION_MINOR << endl;
+	cout << "\nLaunching CudaRT version " << CUDA_RT_VERSION
+										<< "." << CUDA_RT_VERSION_MAJOR
+										<< "." << CUDA_RT_VERSION_MINOR << endl;
 	Renderer* p_renderer;
 	Launcher* p_launcher;
 
@@ -160,7 +162,6 @@ int main(int argc, char* argv[]) {
 	}
 	if (renderToScreen) {
 #ifndef SKIP_OPENGL
-		cout << "Rendering to window!\n";
 		p_launcher = new WindowedLauncher(p_renderer, outFile.c_str());
 #endif
 	} else {
