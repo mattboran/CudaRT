@@ -22,6 +22,7 @@
 #ifdef __CUDA_ARCH__
 #define TEXTURE_CONTAINER_FACTORY_ARGUMENTS cudaTextureObject_t* p_texObject
 #define TEXTURE_CONTAINER_FACTOR_PARAMETERS(p_sceneData) p_sceneData->p_cudaTexObjects
+__constant__ uint c_maxBounces = 6;
 #else
 #define TEXTURE_CONTAINER_FACTORY_ARGUMENTS Vector3Df* p_texData, \
 											pixels_t* p_texDimensions, \
@@ -29,6 +30,10 @@
 #define TEXTURE_CONTAINER_FACTOR_PARAMETERS(p_sceneData) p_sceneData->p_textureData, \
 														 p_sceneData->p_textureDimensions, \
 														 p_sceneData->p_textureOffsets
+static const uint c_maxBounces = 6;
+static pixels_t c_width;
+static pixels_t c_height;
+static uint c_samples;
 #endif
 
 typedef void* dataPtr_t;
@@ -80,19 +85,13 @@ __host__ Renderer::Renderer(Scene* _scenePtr, pixels_t _width, pixels_t _height,
 	samplesRendered = 0;
 }
 
-
-__host__ void Renderer::createSettingsData(SettingsData* p_settingsData){
-	p_settingsData->width = getWidth();
-	p_settingsData->height = getHeight();
-	p_settingsData->samples = getSamples();
-}
-
 __host__ void Renderer::createSceneData(SceneData* p_sceneData,
 										Triangle* p_triangles,
 										LinearBVHNode* p_bvh,
 										Vector3Df* p_textureData,
 										pixels_t* p_textureDimensions,
 										pixels_t* p_textureOffsets) {
+	// Note: cudaTextureObjects are assigned in copyMemoryToCuda for ParallelRenderer
 	p_sceneData->p_triangles = p_triangles;
 #ifndef __CUDA_ARCH__
 	p_sceneData->p_bvh = p_bvh;
@@ -164,7 +163,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
 #else
     dataPtr_t p_bvh = (dataPtr_t)p_sceneData->p_bvh;
 #endif
-    for (unsigned bounces = 0; bounces < 6; bounces++) {
+    for (unsigned bounces = 0; bounces < c_maxBounces; bounces++) {
     	if (!intersectBVH(p_bvh, p_triangles, interaction, ray))
         {
 #ifdef USE_SKYBOX

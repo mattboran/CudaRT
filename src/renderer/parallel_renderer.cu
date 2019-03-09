@@ -19,17 +19,17 @@ using std::cout;
 
 __constant__ float3 c_materialFloats[MAX_MATERIALS * MATERIALS_FLOAT_COMPONENTS];
 __constant__ int2 c_materialIndices[MAX_MATERIALS];
+__constant__ pixels_t c_width;
 
 // Kernels
 __global__ void initializeCurandKernel(curandState* p_curandState);
-__global__ void renderKernel(SettingsData settings,
-		Vector3Df* p_imgBuffer,
-		uchar4* p_outImg,
-		Camera camera,
-		SceneData* p_sceneData,
-		LightsData* p_lights,
-		curandState *p_curandState,
-		int sampleNumber);
+__global__ void renderKernel(Vector3Df* p_imgBuffer,
+							uchar4* p_outImg,
+							Camera camera,
+							SceneData* p_sceneData,
+							LightsData* p_lights,
+							curandState *p_curandState,
+							int sampleNumber);
 
 __host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, uint _samples) :
 	Renderer(_scenePtr, _width, _height, _samples) {
@@ -71,7 +71,6 @@ __host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, pixels_t _width, p
 
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_cudaTexObjects, textureObjectBytes));
 
-	createSettingsData(&d_settingsData);
 	copyMemoryToCuda();
 
 	initializeCurand();
@@ -124,6 +123,8 @@ __host__ void ParallelRenderer::copyMemoryToCuda() {
 	CUDA_CHECK_RETURN(cudaMemcpy(d_lightsData, h_lightsData, sizeof(LightsData), cudaMemcpyHostToDevice));
 
 	createMaterialsData(NULL, NULL);
+
+	cudaMemcpyToSymbol(c_width, &width, sizeof(pixels_t));
 	free(h_sceneData);
 	free(h_lightsData);
 }
@@ -294,14 +295,13 @@ __host__ void ParallelRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 	samplesRendered++;
 	Camera camera = *p_scene->getCameraPtr();
 	size_t sharedBytes = sizeof(Sampler) * BLOCK_WIDTH * BLOCK_WIDTH;
-	renderKernel<<<grid, block, sharedBytes>>>(d_settingsData,
-			d_imgVectorPtr,
-			p_img,
-			camera,
-			d_sceneData,
-			d_lightsData,
-			d_curandStatePtr,
-			samplesRendered);
+	renderKernel<<<grid, block, sharedBytes>>>(d_imgVectorPtr,
+												p_img,
+												camera,
+												d_sceneData,
+												d_lightsData,
+												d_curandStatePtr,
+												samplesRendered);
 }
 
 __host__ void ParallelRenderer::copyImageBytes(uchar4* p_img) {
@@ -319,19 +319,18 @@ __global__ void initializeCurandKernel(curandState* p_curandState) {
 	curand_init(1234, idx, 0, &p_curandState[idx]);
 }
 
-__global__ void renderKernel(SettingsData settings,
-		Vector3Df* p_imgBuffer,
-		uchar4* p_outImg,
-		Camera camera,
-		SceneData* p_sceneData,
-		LightsData* p_lights,
-		curandState *p_curandState,
-		int sampleNumber) {
+__global__ void renderKernel(Vector3Df* p_imgBuffer,
+							uchar4* p_outImg,
+							Camera camera,
+							SceneData* p_sceneData,
+							LightsData* p_lights,
+							curandState *p_curandState,
+							int sampleNumber) {
 	extern __shared__ Sampler p_samplers[];
 	uint x = (blockIdx.x * blockDim.x + threadIdx.x);
 	uint y = (blockIdx.y * blockDim.y + threadIdx.y);
 	uint blockOnlyIdx = threadIdx.x * blockDim.x + threadIdx.y;
-	uint idx = y * settings.width + x;
+	uint idx = y * c_width + x;
 	p_samplers[blockOnlyIdx] = Sampler(&p_curandState[blockOnlyIdx]);
 	Vector3Df color = samplePixel(x, y,
 								  camera,

@@ -46,7 +46,6 @@ SequentialRenderer::SequentialRenderer(Scene* _scenePtr, pixels_t _width, pixels
 
     createSceneData(h_sceneData, p_triangles, p_bvh, p_textureData, p_textureDimensions, p_textureOffsets);
     createLightsData(h_lightsData, p_lights);
-    createSettingsData(&h_settingsData);
 
     createMaterialsData(materialFloats, materialIndices);
 }
