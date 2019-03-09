@@ -36,7 +36,6 @@ struct LightsData {
 
 struct SceneData {
 	Triangle* p_triangles;
-	uint numTriangles;
 	cudaTextureObject_t* p_cudaTexObjects;
 #ifndef __CUDA_ARCH__
 	LinearBVHNode* p_bvh;
@@ -46,7 +45,7 @@ struct SceneData {
 	uint numBVHNodes;
 	uint numTextures;
 #endif
-}__attribute((aligned(16)));
+}__attribute((aligned(8)));
 
 struct SettingsData {
 	uint width;

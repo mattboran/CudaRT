@@ -94,7 +94,6 @@ __host__ void Renderer::createSceneData(SceneData* p_sceneData,
 										pixels_t* p_textureDimensions,
 										pixels_t* p_textureOffsets) {
 	p_sceneData->p_triangles = p_triangles;
-	p_sceneData->numTriangles = p_scene->getNumTriangles();
 #ifndef __CUDA_ARCH__
 	p_sceneData->p_bvh = p_bvh;
 	p_sceneData->p_textureData = p_textureData;
