@@ -44,7 +44,7 @@ SequentialRenderer::SequentialRenderer(Scene* _scenePtr, pixels_t _width, pixels
     h_imgBytesPtr = new uchar4[width * height]();
     h_imgVectorPtr = new Vector3Df[width * height]();
 
-    createSceneData(h_sceneData, p_triangles, p_bvh, p_materials, p_textureData, p_textureDimensions, p_textureOffsets);
+    createSceneData(h_sceneData, p_triangles, p_bvh, p_textureData, p_textureDimensions, p_textureOffsets);
     createLightsData(h_lightsData, p_lights);
     createSettingsData(&h_settingsData);
 
@@ -79,7 +79,6 @@ SequentialRenderer::~SequentialRenderer() {
 void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 	samplesRendered++;
 	Camera* p_camera = p_scene->getCameraPtr();
-	Material* p_materials = p_scene->getMaterialsPtr();
 	Sampler* p_sampler = new Sampler();
     #pragma omp parallel for
     for (pixels_t x = 0; x < width; x++) {
@@ -89,7 +88,6 @@ void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
                                            p_camera,
                                            h_sceneData,
                                            h_lightsData,
-                                           p_materials,
                                            p_sampler,
                                            materialFloats,
                                            materialIndices);

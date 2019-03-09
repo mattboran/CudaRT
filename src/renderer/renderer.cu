@@ -90,19 +90,16 @@ __host__ void Renderer::createSettingsData(SettingsData* p_settingsData){
 __host__ void Renderer::createSceneData(SceneData* p_sceneData,
 										Triangle* p_triangles,
 										LinearBVHNode* p_bvh,
-										Material* p_materials,
 										Vector3Df* p_textureData,
 										pixels_t* p_textureDimensions,
 										pixels_t* p_textureOffsets) {
 	p_sceneData->p_triangles = p_triangles;
 	p_sceneData->p_bvh = p_bvh;
-	p_sceneData->p_materials = p_materials;
 	p_sceneData->p_textureData = p_textureData;
 	p_sceneData->p_textureDimensions = p_textureDimensions;
 	p_sceneData->p_textureOffsets = p_textureOffsets;
 	p_sceneData->numTriangles = p_scene->getNumTriangles();
 	p_sceneData->numBVHNodes = p_scene->getNumBvhNodes();
-	p_sceneData->numMaterials = p_scene->getNumMaterials();
 	p_sceneData->numTextures = p_scene->getNumTextures();
 }
 
@@ -148,7 +145,6 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
 										  Camera* p_camera,
 										  SceneData* p_sceneData,
 										  LightsData *p_lightsData,
-										  Material* p_materials,
 										  Sampler* p_sampler,
                                           float3* p_matFloats,
                                           int2* p_matIndices) {
@@ -181,10 +177,8 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
         return p_hitTriangle->getNormal(interaction.u, interaction.v);
 #endif
 		materialId = p_hitTriangle->_materialId;
-        // Material* p_material = &p_materials[p_hitTriangle->_materialId];
         if (bounces == 0 || previousBsdf == SPECULAR || previousBsdf == REFRACTIVE) {
 			color += mask * Vector3Df(p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KA_OFFSET]);
-        	// color += mask * p_material->ka;
         }
 
         interaction.normal = p_hitTriangle->getNormal(interaction.u, interaction.v);

@@ -37,14 +37,12 @@ struct LightsData {
 struct SceneData {
 	Triangle* p_triangles;
 	LinearBVHNode* p_bvh;
-	Material* p_materials;
 	cudaTextureObject_t* p_cudaTexObjects;
 	Vector3Df* p_textureData;
 	pixels_t* p_textureDimensions;
 	pixels_t* p_textureOffsets;
 	uint numTriangles;
 	uint numBVHNodes;
-	uint numMaterials;
 	uint numTextures;
 };
 
@@ -80,7 +78,6 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
                                           Camera* p_camera,
                                           SceneData* p_SceneData,
                                           LightsData *p_lightsData,
-                                          Material* p_materials,
                                           Sampler* p_sampler,
                                           float3* p_matFloats,
                                           int2* p_matIndices);
@@ -106,7 +103,6 @@ public:
 	__host__ void createSceneData(SceneData* p_SceneData,
                                   Triangle* p_triangles,
                                   LinearBVHNode* p_bvh,
-                                  Material* p_materials,
                                   Vector3Df* p_textureData,
                                   pixels_t* p_textureDimensions,
                                   pixels_t* p_textureOffsets);
@@ -138,7 +134,6 @@ private:
 	SettingsData d_settingsData;
 	Triangle* d_triPtr;
 	Triangle* d_lightsPtr;
-	Material* d_materials;
 	cudaTextureObject_t* d_cudaTexObjects;
 	Camera* d_camPtr;
 	curandState* d_curandStatePtr;

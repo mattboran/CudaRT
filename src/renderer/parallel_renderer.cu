@@ -15,7 +15,6 @@
 
 using std::cout;
 
-#define USE_SHARED_MEMORY
 #define BLOCK_WIDTH 16u
 
 __constant__ float3 c_materialFloats[MAX_MATERIALS * MATERIALS_FLOAT_COMPONENTS];
@@ -56,7 +55,6 @@ __host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, pixels_t _width, p
 	d_imgBytesPtr = NULL;
 	d_camPtr = NULL;
 	d_triPtr = NULL;
-	d_materials = NULL;
 	d_cudaTexObjects = NULL;
 	d_lightsPtr = NULL;
 	d_sceneData = NULL;
@@ -67,7 +65,6 @@ __host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, pixels_t _width, p
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_imgBytesPtr, sizeof(uchar4) * pixels));
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_camPtr, sizeof(Camera)));
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_triPtr, trianglesBytes));
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_materials, materialsBytes));
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_lightsPtr, lightsBytes));
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_sceneData, sizeof(SceneData)));
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_lightsData, sizeof(LightsData)));
@@ -85,7 +82,6 @@ __host__ ParallelRenderer::~ParallelRenderer() {
 	cudaFree(d_imgVectorPtr);
 	cudaFree(d_camPtr);
 	cudaFree(d_triPtr);
-	cudaFree(d_materials);
 	cudaFree(d_cudaTexObjects);
 	cudaFree(d_lightsPtr);
 	cudaFree(d_sceneData);
@@ -103,7 +99,6 @@ __host__ void ParallelRenderer::copyMemoryToCuda() {
 
 	float lightsSurfaceArea = p_scene->getLightsSurfaceArea();
 	size_t trianglesBytes = sizeof(Triangle) * numTris;
-	size_t materialsBytes = sizeof(Material) * numMaterials;
 	size_t lightsBytes = sizeof(Triangle) * numLights;
 	size_t textureObjectBytes = sizeof(cudaTextureObject_t) * (numTextures + TEXTURES_OFFSET);
 
@@ -117,14 +112,13 @@ __host__ void ParallelRenderer::copyMemoryToCuda() {
 
 	CUDA_CHECK_RETURN(cudaMemcpy(d_camPtr, h_camPtr, sizeof(Camera), cudaMemcpyHostToDevice));
 	CUDA_CHECK_RETURN(cudaMemcpy(d_triPtr, h_triPtr, trianglesBytes, cudaMemcpyHostToDevice));
-	CUDA_CHECK_RETURN(cudaMemcpy(d_materials, h_materialsPtr, materialsBytes, cudaMemcpyHostToDevice));
 	CUDA_CHECK_RETURN(cudaMemcpy(d_lightsPtr, h_lightsPtr, lightsBytes, cudaMemcpyHostToDevice));
 
 	cudaTextureObject_t* h_textureObjects = createTextureObjects();
 	CUDA_CHECK_RETURN(cudaMemcpy(d_cudaTexObjects, h_textureObjects, textureObjectBytes, cudaMemcpyHostToDevice));
 	h_sceneData->p_cudaTexObjects = d_cudaTexObjects;
 
-	createSceneData(h_sceneData, d_triPtr, NULL, d_materials, NULL, NULL, NULL);
+	createSceneData(h_sceneData, d_triPtr, NULL, NULL, NULL, NULL);
 	CUDA_CHECK_RETURN(cudaMemcpy(d_sceneData, h_sceneData, sizeof(SceneData), cudaMemcpyHostToDevice));
 
 	createLightsData(h_lightsData, d_lightsPtr);
@@ -299,8 +293,7 @@ __host__ void ParallelRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 	dim3 block = dim3(BLOCK_WIDTH, BLOCK_WIDTH, 1);
 	dim3 grid = dim3(width/BLOCK_WIDTH, height/BLOCK_WIDTH, 1);
 	samplesRendered++;
-	size_t sharedMemory = sizeof(Material) * p_scene->getNumMaterials();
-	renderKernel<<<grid, block, sharedMemory>>>(d_settingsData,
+	renderKernel<<<grid, block, 0>>>(d_settingsData,
 			d_imgVectorPtr,
 			p_img,
 			d_camPtr,
@@ -334,18 +327,6 @@ __global__ void renderKernel(SettingsData settings,
 		curandState *p_curandState,
 		int sampleNumber) {
 
-#ifdef USE_SHARED_MEMORY
-	unsigned int numMaterials = p_sceneData->numMaterials;
-	extern __shared__ Material d_materials[];
-	if (threadIdx.x + threadIdx.y == 0) {
-		for (int i = 0; i < numMaterials; i++) {
-			d_materials[i] = p_sceneData->p_materials[i];
-		}
-	}
-	__syncthreads();
-#else
-	Material* d_materials = p_sceneData->p_materials;
-#endif
 	uint x = blockIdx.x * blockDim.x + threadIdx.x;
 	uint y = blockIdx.y * blockDim.y + threadIdx.y;
 	uint idx = y * settings.width + x;
@@ -355,7 +336,6 @@ __global__ void renderKernel(SettingsData settings,
 								  p_camera,
 								  p_sceneData,
 								  p_lights,
-								  d_materials,
 								  &sampler,
 								  c_materialFloats,
 								  c_materialIndices);
