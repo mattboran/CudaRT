@@ -85,12 +85,6 @@ __host__ Renderer::Renderer(Scene* _scenePtr, pixels_t _width, pixels_t _height,
 	samplesRendered = 0;
 }
 
-__host__ void Renderer::createLightsData(LightsData* p_lightsData, Triangle* p_triangles) {
-	p_lightsData->lightsPtr = p_triangles;
-	p_lightsData->numLights = p_scene->getNumLights();
-	p_lightsData->totalSurfaceArea = p_scene->getLightsSurfaceArea();
-}
-
 __host__ __device__ Vector3Df sampleTexture(dataPtr_t p_textureContainer,  float u, float v) {
 #ifdef __CUDA_ARCH__
 	float4 texValue = tex2D<float4>(*(cudaTextureObject_t*)p_textureContainer, u, v);
@@ -126,7 +120,6 @@ __host__ __device__ Vector3Df sampleTexture(dataPtr_t p_textureContainer,  float
 __host__ __device__ Vector3Df samplePixel(int x, int y,
 										  Camera camera,
 										  SceneData* p_sceneData,
-										  LightsData *p_lightsData,
 										  uint* p_lightsIndices,
 				  	  				      uint numLights,
 				  					      float lightsSurfaceArea,
@@ -221,7 +214,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
         	delete (TextureContainer*)p_texContainer;
 #endif
 
-			float randomNumber = p_sampler->getNextFloat() * ((float)p_lightsData->numLights - .00001f);
+			float randomNumber = p_sampler->getNextFloat() * ((float)numLights - .00001f);
 			int selectedLightIdx = truncf(randomNumber);
 			Triangle* p_light = p_triangles + p_lightsIndices[selectedLightIdx];
 			Vector3Df lightColor = Vector3Df(p_matFloats[p_light->_materialId*MATERIALS_FLOAT_COMPONENTS + KA_OFFSET]);

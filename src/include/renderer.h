@@ -28,12 +28,6 @@
 
 typedef unsigned int pixels_t;
 
-struct LightsData {
-	Triangle* lightsPtr;
-	uint numLights;
-	float totalSurfaceArea;
-};
-
 struct SceneData {
 	Triangle* p_triangles;
 	cudaTextureObject_t* p_cudaTexObjects;
@@ -72,7 +66,6 @@ struct Sampler {
 __host__ __device__ Vector3Df samplePixel(int x, int y,
                                           Camera p_camera,
                                           SceneData* p_SceneData,
-                                          LightsData *p_lightsData,
                                           uint* p_lightsIndices,
                   	  				      uint numLights,
                   					      float lightsSurfaceArea,
@@ -96,7 +89,6 @@ public:
 	__host__ pixels_t getHeight() { return height; }
 	__host__ int getSamples() { return samples; }
 	__host__ int getSamplesRendered() { return samplesRendered; }
-	__host__ void createLightsData(LightsData* p_lightsData, Triangle* p_triangles);
 protected:
 	__host__ Renderer() {}
 	__host__ Renderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, uint _samples);
@@ -119,10 +111,8 @@ public:
 private:
 	Vector3Df* d_imgVectorPtr;
 	uchar4* d_imgBytesPtr;
-	LightsData* d_lightsData;
 	SceneData* d_sceneData;
 	Triangle* d_triPtr;
-	Triangle* d_lightsPtr;
     uint* d_lightsIndices;
 	cudaTextureObject_t* d_cudaTexObjects;
 	Camera* d_camPtr;
@@ -154,7 +144,6 @@ private:
 	uchar4* h_imgBytesPtr;
 	Vector3Df* h_imgVectorPtr;
 	SceneData* h_sceneData;
-	LightsData* h_lightsData;
 };
 
 __host__ __device__ inline uchar4 vector3ToUchar4(const Vector3Df& v) {
