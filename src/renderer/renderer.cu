@@ -85,24 +85,6 @@ __host__ Renderer::Renderer(Scene* _scenePtr, pixels_t _width, pixels_t _height,
 	samplesRendered = 0;
 }
 
-__host__ void Renderer::createSceneData(SceneData* p_sceneData,
-										Triangle* p_triangles,
-										LinearBVHNode* p_bvh,
-										Vector3Df* p_textureData,
-										pixels_t* p_textureDimensions,
-										pixels_t* p_textureOffsets) {
-	// Note: cudaTextureObjects are assigned in copyMemoryToCuda for ParallelRenderer
-	p_sceneData->p_triangles = p_triangles;
-#ifndef __CUDA_ARCH__
-	p_sceneData->p_bvh = p_bvh;
-	p_sceneData->p_textureData = p_textureData;
-	p_sceneData->p_textureDimensions = p_textureDimensions;
-	p_sceneData->p_textureOffsets = p_textureOffsets;
-	p_sceneData->numBVHNodes = p_scene->getNumBvhNodes();
-	p_sceneData->numTextures = p_scene->getNumTextures();
-#endif
-}
-
 __host__ void Renderer::createLightsData(LightsData* p_lightsData, Triangle* p_triangles) {
 	p_lightsData->lightsPtr = p_triangles;
 	p_lightsData->numLights = p_scene->getNumLights();
@@ -145,6 +127,9 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
 										  Camera camera,
 										  SceneData* p_sceneData,
 										  LightsData *p_lightsData,
+										  uint* p_lightsIndices,
+				  	  				      uint numLights,
+				  					      float lightsSurfaceArea,
 										  Sampler* p_sampler,
                                           float3* p_matFloats,
                                           int2* p_matIndices) {
@@ -238,7 +223,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
 
 			float randomNumber = p_sampler->getNextFloat() * ((float)p_lightsData->numLights - .00001f);
 			int selectedLightIdx = truncf(randomNumber);
-			Triangle* p_light = &p_lightsData->lightsPtr[selectedLightIdx];
+			Triangle* p_light = p_triangles + p_lightsIndices[selectedLightIdx];
 			Vector3Df lightColor = Vector3Df(p_matFloats[p_light->_materialId*MATERIALS_FLOAT_COMPONENTS + KA_OFFSET]);
 			Vector3Df directLighting = estimateDirectLighting(p_light, p_sceneData, lightColor, interaction, p_sampler);
 

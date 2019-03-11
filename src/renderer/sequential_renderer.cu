@@ -10,7 +10,7 @@
 static float3 materialFloats[MAX_MATERIALS * MATERIALS_FLOAT_COMPONENTS];
 static int2 materialIndices[MAX_MATERIALS];
 
-SequentialRenderer::SequentialRenderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, uint _samples) :
+__host__ SequentialRenderer::SequentialRenderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, uint _samples) :
   Renderer(_scenePtr, _width, _height, _samples)
 {
     uint numTriangles = p_scene->getNumTriangles();
@@ -47,14 +47,14 @@ SequentialRenderer::SequentialRenderer(Scene* _scenePtr, pixels_t _width, pixels
     createSceneData(h_sceneData, p_triangles, p_bvh, p_textureData, p_textureDimensions, p_textureOffsets);
     createLightsData(h_lightsData, p_lights);
 
-    createMaterialsData(materialFloats, materialIndices);
+    createMaterialsData();
 }
 
-__host__ void SequentialRenderer::createMaterialsData(float3* matFloats, int2* matIndices) {
+__host__ void SequentialRenderer::createMaterialsData() {
     Material* p_materials = p_scene->getMaterialsPtr();
     uint numMaterials = p_scene->getNumMaterials();
-    float3* p_currentFloat = matFloats;
-    int2* p_currentIndex = matIndices;
+    float3* p_currentFloat = materialFloats;
+    int2* p_currentIndex = materialIndices;
     for (uint i = 0; i < numMaterials; i++) {
         *p_currentFloat++ = make_float3(p_materials[i].kd);
         *p_currentFloat++ = make_float3(p_materials[i].ka);
@@ -68,17 +68,39 @@ __host__ void SequentialRenderer::createMaterialsData(float3* matFloats, int2* m
     }
 }
 
-SequentialRenderer::~SequentialRenderer() {
+__host__ SequentialRenderer::~SequentialRenderer() {
     free(h_lightsData);
     free(h_sceneData);
     delete[] h_imgBytesPtr;
     delete[] h_imgVectorPtr;
 }
 
-void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
+
+__host__ void SequentialRenderer::createSceneData(SceneData* p_sceneData,
+        									      Triangle* p_triangles,
+        										  LinearBVHNode* p_bvh,
+        										  Vector3Df* p_textureData,
+        										  pixels_t* p_textureDimensions,
+        										  pixels_t* p_textureOffsets) {
+	// Note: cudaTextureObjects are assigned in copyMemoryToCuda for ParallelRenderer
+	p_sceneData->p_triangles = p_triangles;
+#ifndef __CUDA_ARCH__
+	p_sceneData->p_bvh = p_bvh;
+	p_sceneData->p_textureData = p_textureData;
+	p_sceneData->p_textureDimensions = p_textureDimensions;
+	p_sceneData->p_textureOffsets = p_textureOffsets;
+	p_sceneData->numBVHNodes = p_scene->getNumBvhNodes();
+	p_sceneData->numTextures = p_scene->getNumTextures();
+#endif
+}
+
+__host__ void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 	samplesRendered++;
 	Camera camera = *p_scene->getCameraPtr();
 	Sampler* p_sampler = new Sampler();
+    uint* p_lightsIndices = p_scene->getLightsIndicesPtr();
+    uint numLights = p_scene->getNumLights();
+    float lightsSurfaceArea = p_scene->getLightsSurfaceArea();
     #pragma omp parallel for
     for (pixels_t x = 0; x < width; x++) {
         for (pixels_t y = 0; y < height; y++) {
@@ -87,6 +109,9 @@ void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
                                            camera,
                                            h_sceneData,
                                            h_lightsData,
+                                           p_lightsIndices,
+                                           numLights,
+                                           lightsSurfaceArea,
                                            p_sampler,
                                            materialFloats,
                                            materialIndices);
@@ -97,7 +122,7 @@ void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 	delete p_sampler;
 }
 
-void SequentialRenderer::copyImageBytes(uchar4* p_img) {
+__host__ void SequentialRenderer::copyImageBytes(uchar4* p_img) {
 	pixels_t pixels = width * height;
 	size_t imgBytes = sizeof(uchar4) * pixels;
 	memcpy(h_imgPtr, p_img, imgBytes);

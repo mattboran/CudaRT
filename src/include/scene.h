@@ -24,13 +24,14 @@ public:
 	// Get methods
 	int getNumMeshes() { return meshLoader.LoadedMeshes.size(); }
 	int getNumTriangles() { return getNumVertices() / 3; }
-	int getNumLights() { return lightsList.size(); }
+	int getNumLights() { return lightsIndices.size(); }
 	uint getNumVertices() { return meshLoader.LoadedVertices.size(); }
 	uint getNumBvhNodes() { return numBvhNodes; }
 	uint getNumMaterials() { return numMaterials; }
 	float getLightsSurfaceArea();
 	Triangle* getTriPtr() { return p_triangles; }
 	Triangle* getLightsPtr() { return &lightsList[0]; }
+	uint* getLightsIndicesPtr() { return &lightsIndices[0]; }
 	objl::Vertex* getVertexPtr() { return p_vertices; }
 	uint* getVertexIndicesPtr() { return p_vertexIndices; }
 	LinearBVHNode* getBvhPtr() { return p_bvh; }
