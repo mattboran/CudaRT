@@ -16,10 +16,13 @@ Vector3Df max3(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c);
 struct Ray {
 	Vector3Df origin;
 	Vector3Df dir;
+	uint pixelIdx = 0;
 	float tMin = EPSILON;
 	float tMax = FLT_MAX;
 
-	__host__ __device__ Ray(Vector3Df o, Vector3Df d) : origin(o), dir(normalize(d)) { }
+	__host__ __device__ Ray() {}
+	__host__ __device__ Ray(Vector3Df o, Vector3Df d, uint idx=0) : origin(o), dir(normalize(d)), pixelIdx(idx) { }
+	__host__ __device__ Ray(const Ray& r) : origin(r.origin), dir(r.dir), pixelIdx(r.pixelIdx) {}
 };
 
 

@@ -6,9 +6,13 @@
  #include <omp.h>
 #endif
 
+using std::vector;
+
 // Sequential version of constant memory for materials
 static float3 materialFloats[MAX_MATERIALS * MATERIALS_FLOAT_COMPONENTS];
 static int2 materialIndices[MAX_MATERIALS];
+
+static vector<Ray> rays;
 
 SequentialRenderer::SequentialRenderer(Scene* _scenePtr, pixels_t _width, pixels_t _height, uint _samples) :
   Renderer(_scenePtr, _width, _height, _samples)
@@ -48,6 +52,7 @@ SequentialRenderer::SequentialRenderer(Scene* _scenePtr, pixels_t _width, pixels
     createLightsData(h_lightsData, p_lights);
 
     createMaterialsData(materialFloats, materialIndices);
+    rays.reserve(width * height);
 }
 
 __host__ void SequentialRenderer::createMaterialsData(float3* matFloats, int2* matIndices) {
@@ -79,11 +84,19 @@ void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 	samplesRendered++;
 	Camera camera = *p_scene->getCameraPtr();
 	Sampler* p_sampler = new Sampler();
+	#pragma opmp parallel for
+	for (pixels_t x = 0; x < width; x++) {
+		for (pixels_t y = 0; y < height; y++) {
+			uint idx = y * width + x;
+			Ray ray = camera.computeCameraRay(x, y, p_sampler);
+			rays.push_back(ray);
+		}
+	}
     #pragma omp parallel for
     for (pixels_t x = 0; x < width; x++) {
         for (pixels_t y = 0; y < height; y++) {
-            int idx = y * width + x;
-            Vector3Df sample = samplePixel(x, y,
+            uint idx = y * width + x;
+            Vector3Df sample = sampleRay(rays[idx],
                                            camera,
                                            h_sceneData,
                                            h_lightsData,

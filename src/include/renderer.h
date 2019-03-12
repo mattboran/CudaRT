@@ -69,7 +69,7 @@ struct Sampler {
 	__host__ __device__ float getNextFloat();
 };
 
-__host__ __device__ Vector3Df samplePixel(int x, int y,
+__host__ __device__ Vector3Df sampleRay(Ray ray,
                                           Camera p_camera,
                                           SceneData* p_SceneData,
                                           LightsData *p_lightsData,

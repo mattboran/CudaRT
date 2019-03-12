@@ -141,15 +141,13 @@ __host__ __device__ Vector3Df sampleTexture(dataPtr_t p_textureContainer,  float
 #endif
 }
 
-__host__ __device__ Vector3Df samplePixel(int x, int y,
+__host__ __device__ Vector3Df sampleRay(Ray ray,
 										  Camera camera,
 										  SceneData* p_sceneData,
 										  LightsData *p_lightsData,
 										  Sampler* p_sampler,
                                           float3* p_matFloats,
                                           int2* p_matIndices) {
-	Ray ray = camera.computeCameraRay(x, y, p_sampler);
-
     Vector3Df color = Vector3Df(0.f, 0.f, 0.f);
     Vector3Df mask = Vector3Df(1.f, 1.f, 1.f);
     SurfaceInteraction interaction = SurfaceInteraction();

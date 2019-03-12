@@ -4,6 +4,8 @@
  *  Created on: Dec 22, 2018
  *      Author: matt
  */
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
 
 #include "renderer.h"
 #include "cuda_error_check.h"
@@ -21,9 +23,13 @@ __constant__ float3 c_materialFloats[MAX_MATERIALS * MATERIALS_FLOAT_COMPONENTS]
 __constant__ int2 c_materialIndices[MAX_MATERIALS];
 __constant__ pixels_t c_width;
 
+thrust::device_vector<Ray> d_rays;
+
 // Kernels
 __global__ void initializeCurandKernel(curandState* p_curandState);
-__global__ void renderKernel(Vector3Df* p_imgBuffer,
+__global__ void generateRaysKernel(Ray* p_rays, Camera camera, curandState* p_curandState);
+__global__ void renderKernel(Ray* p_rays,
+							Vector3Df* p_imgBuffer,
 							uchar4* p_outImg,
 							Camera camera,
 							SceneData* p_sceneData,
@@ -70,6 +76,8 @@ __host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, pixels_t _width, p
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_curandStatePtr, curandBytes));
 
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_cudaTexObjects, textureObjectBytes));
+
+	d_rays.resize(width * height);
 
 	copyMemoryToCuda();
 
@@ -294,8 +302,10 @@ __host__ void ParallelRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 	dim3 grid = dim3(width/BLOCK_WIDTH, height/BLOCK_WIDTH, 1);
 	samplesRendered++;
 	Camera camera = *p_scene->getCameraPtr();
+	generateRaysKernel<<<grid, block, 0>>>(thrust::raw_pointer_cast(&d_rays[0]), camera, d_curandStatePtr);
 	size_t sharedBytes = sizeof(Sampler) * BLOCK_WIDTH * BLOCK_WIDTH;
-	renderKernel<<<grid, block, sharedBytes>>>(d_imgVectorPtr,
+	renderKernel<<<grid, block, sharedBytes>>>(thrust::raw_pointer_cast(&d_rays[0]),
+												d_imgVectorPtr,
 												p_img,
 												camera,
 												d_sceneData,
@@ -319,7 +329,18 @@ __global__ void initializeCurandKernel(curandState* p_curandState) {
 	curand_init(1234, idx, 0, &p_curandState[idx]);
 }
 
-__global__ void renderKernel(Vector3Df* p_imgBuffer,
+__global__ void generateRaysKernel(Ray* p_rays, Camera camera, curandState* p_curandState) {
+	uint x = (blockIdx.x * blockDim.x + threadIdx.x);
+	uint y = (blockIdx.y * blockDim.y + threadIdx.y);
+	uint blockOnlyIdx = threadIdx.x * blockDim.x + threadIdx.y;
+	uint idx = y * c_width + x;
+	Sampler sampler(&p_curandState[blockOnlyIdx]);
+	Ray ray = camera.computeCameraRay(x, y, &sampler);
+	p_rays[idx] = ray;
+}
+
+__global__ void renderKernel(Ray* p_rays,
+							Vector3Df* p_imgBuffer,
 							uchar4* p_outImg,
 							Camera camera,
 							SceneData* p_sceneData,
@@ -332,7 +353,8 @@ __global__ void renderKernel(Vector3Df* p_imgBuffer,
 	uint blockOnlyIdx = threadIdx.x * blockDim.x + threadIdx.y;
 	uint idx = y * c_width + x;
 	p_samplers[blockOnlyIdx] = Sampler(&p_curandState[blockOnlyIdx]);
-	Vector3Df color = samplePixel(x, y,
+	Ray ray = *(p_rays + idx);
+	Vector3Df color = sampleRay(ray,
 								  camera,
 								  p_sceneData,
 								  p_lights,
