@@ -105,9 +105,9 @@ void Scene::loadTriangles() {
 		vector<objl::Vertex> vertices = mesh.Vertices;
 		vector<unsigned> indices = mesh.Indices;
 		for (unsigned int i = 0; i < vertices.size()/3; i++) {
-			p_current->_id1 = indices[i*3];
-			p_current->_id2 = indices[i*3 + 1];
-			p_current->_id3 = indices[i*3 + 2];
+//			p_current->_id1 = indices[i*3];
+//			p_current->_id2 = indices[i*3 + 1];
+//			p_current->_id3 = indices[i*3 + 2];
 			objl::Vertex v1 = vertices[indices[i*3]];
 			objl::Vertex v2 = vertices[indices[i*3 + 1]];
 			objl::Vertex v3 = vertices[indices[i*3 + 2]];

@@ -155,8 +155,4 @@ __host__ __device__ inline uchar4 vector3ToUchar4(const Vector3Df& v) {
 	return retVal;
 }
 
-__host__ __device__ inline bool sameTriangle(Triangle* p_a, Triangle* p_b) {
-	return p_a->_triId == p_b->_triId;
-}
-
 #endif /* RENDERER_H_ */
