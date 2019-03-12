@@ -7,6 +7,7 @@
 #include <cuda.h>
 
 #define EPSILON 0.00001f
+#define EPSILON_2 0.000005f
 
 struct Sampler;
 

@@ -31,9 +31,6 @@ __constant__ uint c_maxBounces = 6;
 														 p_sceneData->p_textureDimensions, \
 														 p_sceneData->p_textureOffsets
 static const uint c_maxBounces = 6;
-static pixels_t c_width;
-static pixels_t c_height;
-static uint c_samples;
 #endif
 
 typedef void* dataPtr_t;
@@ -55,6 +52,7 @@ __host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interacti
 __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light,
 													 SceneData* p_sceneData,
 													 const Vector3Df& lightColor,
+													 const float lightsSurfaceArea,
 													 const SurfaceInteraction &interaction,
 													 Sampler* p_sampler);
 __host__ __device__ bool intersectBVH(dataPtr_t p_bvhData, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray);
@@ -136,6 +134,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
     refl_t currentBsdf = DIFFUSE;
     refl_t previousBsdf = DIFFUSE;
 	uint materialId;
+	float oneOverLightsSA = 1.f/lightsSurfaceArea;
 #ifdef __CUDA_ARCH__
     dataPtr_t p_bvh = (dataPtr_t)p_sceneData->p_cudaTexObjects;
 #else
@@ -156,11 +155,11 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
 #endif
 		materialId = p_hitTriangle->_materialId;
         if (bounces == 0 || previousBsdf == SPECULAR || previousBsdf == REFRACTIVE) {
-			color += mask * Vector3Df(p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KA_OFFSET]);
+			color += mask * Vector3Df(p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KA_OFFSET]) * oneOverLightsSA;
         }
 
         interaction.normal = p_hitTriangle->getNormal(interaction.u, interaction.v);
-        interaction.position = ray.origin + ray.dir * ray.tMax;
+        interaction.position = ray.origin + ray.dir * ray.tMax + interaction.normal * EPSILON_2;
         interaction.outputDirection = normalize(ray.dir);
 
         // SHADING CALCULATIONS
@@ -218,7 +217,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
 			int selectedLightIdx = truncf(randomNumber);
 			Triangle* p_light = p_triangles + p_lightsIndices[selectedLightIdx];
 			Vector3Df lightColor = Vector3Df(p_matFloats[p_light->_materialId*MATERIALS_FLOAT_COMPONENTS + KA_OFFSET]);
-			Vector3Df directLighting = estimateDirectLighting(p_light, p_sceneData, lightColor, interaction, p_sampler);
+			Vector3Df directLighting = estimateDirectLighting(p_light, p_sceneData, lightColor, lightsSurfaceArea, interaction, p_sampler);
 
 #ifndef UNBIASED
 			directLighting.x = clamp(directLighting.x, 0.0f, 1.0f);
@@ -404,7 +403,12 @@ __host__ __device__ Vector3Df reflect(const Vector3Df& incedent, const Vector3Df
 	return incedent - normal * dot(incedent, normal) * 2.f;
 }
 
-__host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, SceneData* p_sceneData, const Vector3Df& lightColor, const SurfaceInteraction &interaction, Sampler* p_sampler) {
+__host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light,
+													 SceneData* p_sceneData,
+													 const Vector3Df& lightColor,
+													 const float lightsSurfaceArea,
+													 const SurfaceInteraction &interaction,
+													 Sampler* p_sampler) {
 	if (interaction.p_hitTriangle->_triId == p_light->_triId) {
 		return Vector3Df(0.0f, 0.0f, 0.0f);
 	}
@@ -424,10 +428,10 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, SceneDat
 		float surfaceArea = p_light->_surfaceArea;
 		float distanceSquared = ray.tMax*ray.tMax;
 		// For directional lights also consider light direction
-		// float incidenceAngle = fabs(dot(p_light->getNormal(lightInteraction.u, lightInteraction.v), -ray.dir));
+		 float cosTheta = fabs(dot(p_light->getNormal(lightInteraction.u, lightInteraction.v), -ray.dir));
 		// Otherwise direct lighting is based on the diffuse term and obey Lambert's cosine law
-		float cosTheta = fabs(dot(ray.dir, interaction.normal));
-		float weightFactor = surfaceArea/distanceSquared * cosTheta;
+//		float cosTheta = fabs(dot(ray.dir, interaction.normal));
+		float weightFactor = surfaceArea/(distanceSquared * lightsSurfaceArea) * cosTheta;
 		directLighting += lightColor * weightFactor;
 	}
 	return directLighting;

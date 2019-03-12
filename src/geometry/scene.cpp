@@ -156,6 +156,12 @@ void Scene::constructLightList() {
 		}
 		p_currentTri++;
 	}
+
+	// Process lights for surface area sampling
+	float lightsSurfaceArea = getLightsSurfaceArea();
+	for (uint i = 0; i < numMaterials; i++) {
+		p_materials[i].ka *= lightsSurfaceArea;
+	}
 }
 
 float Scene::getLightsSurfaceArea() {

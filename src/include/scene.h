@@ -56,6 +56,8 @@ public:
 	// For bvh construction
 	void allocateBvhArray(const uint n) { p_bvh = new LinearBVHNode[n](); numBvhNodes = n; }
 	void constructBvh();
+
+	// Misc scene construction
 	void constructLightList();
 
 private:
