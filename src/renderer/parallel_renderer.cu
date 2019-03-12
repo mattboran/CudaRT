@@ -5,8 +5,9 @@
  *      Author: matt
  */
 
-#include "renderer.h"
 #include "cuda_error_check.h"
+#include "renderer.h"
+#include "scene.h"
 
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
@@ -21,7 +22,7 @@ __constant__ float3 c_materialFloats[MAX_MATERIALS * MATERIALS_FLOAT_COMPONENTS]
 __constant__ int2 c_materialIndices[MAX_MATERIALS];
 __constant__ pixels_t c_width;
 __constant__ float c_lightsSurfaceArea;
-__constant__ float c_numLights;
+__constant__ uint c_numLights;
 
 // Kernels
 __global__ void initializeCurandKernel(curandState* p_curandState);
