@@ -336,6 +336,7 @@ __global__ void generateRaysKernel(Ray* p_rays, Camera camera, curandState* p_cu
 	uint idx = y * c_width + x;
 	Sampler sampler(&p_curandState[blockOnlyIdx]);
 	Ray ray = camera.computeCameraRay(x, y, &sampler);
+	ray.pixelIdx = idx;
 	p_rays[idx] = ray;
 }
 
