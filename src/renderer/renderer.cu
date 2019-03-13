@@ -31,9 +31,6 @@ __constant__ uint c_maxBounces = 6;
 														 p_sceneData->p_textureDimensions, \
 														 p_sceneData->p_textureOffsets
 static const uint c_maxBounces = 6;
-static pixels_t c_width;
-static pixels_t c_height;
-static uint c_samples;
 #endif
 
 typedef void* dataPtr_t;
@@ -43,7 +40,7 @@ struct Fresnel {
 	float probTransmission;
 };
 
-__host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriangles, SurfaceInteraction &interaction, Ray& ray);
+__host__ __device__ bool intersectTriangles(Triangle* p_triangles, int16_t numTriangles, uint offset, SurfaceInteraction &interaction, Ray& ray);
 __host__ __device__ bool rayIntersectsBox(Ray& ray, const Vector3Df& min, const Vector3Df& max);
 __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction,
 												Triangle* p_hitTriangle,
@@ -53,8 +50,10 @@ __host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interactio
 __host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction,
 												 const Vector3Df& specularColor);
 __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light,
+													 uint lightIdx,
 													 SceneData* p_sceneData,
 													 const Vector3Df& lightColor,
+													 const float lightsSurfaceArea,
 													 const SurfaceInteraction &interaction,
 													 Sampler* p_sampler);
 __host__ __device__ bool intersectBVH(dataPtr_t p_bvhData, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray);
@@ -83,30 +82,6 @@ __host__ Renderer::Renderer(Scene* _scenePtr, pixels_t _width, pixels_t _height,
 {
 	h_imgPtr = new uchar4[width*height]();
 	samplesRendered = 0;
-}
-
-__host__ void Renderer::createSceneData(SceneData* p_sceneData,
-										Triangle* p_triangles,
-										LinearBVHNode* p_bvh,
-										Vector3Df* p_textureData,
-										pixels_t* p_textureDimensions,
-										pixels_t* p_textureOffsets) {
-	// Note: cudaTextureObjects are assigned in copyMemoryToCuda for ParallelRenderer
-	p_sceneData->p_triangles = p_triangles;
-#ifndef __CUDA_ARCH__
-	p_sceneData->p_bvh = p_bvh;
-	p_sceneData->p_textureData = p_textureData;
-	p_sceneData->p_textureDimensions = p_textureDimensions;
-	p_sceneData->p_textureOffsets = p_textureOffsets;
-	p_sceneData->numBVHNodes = p_scene->getNumBvhNodes();
-	p_sceneData->numTextures = p_scene->getNumTextures();
-#endif
-}
-
-__host__ void Renderer::createLightsData(LightsData* p_lightsData, Triangle* p_triangles) {
-	p_lightsData->lightsPtr = p_triangles;
-	p_lightsData->numLights = p_scene->getNumLights();
-	p_lightsData->totalSurfaceArea = p_scene->getLightsSurfaceArea();
 }
 
 __host__ __device__ Vector3Df sampleTexture(dataPtr_t p_textureContainer,  float u, float v) {
@@ -144,7 +119,9 @@ __host__ __device__ Vector3Df sampleTexture(dataPtr_t p_textureContainer,  float
 __host__ __device__ Vector3Df samplePixel(int x, int y,
 										  Camera camera,
 										  SceneData* p_sceneData,
-										  LightsData *p_lightsData,
+										  uint* p_lightsIndices,
+				  	  				      uint numLights,
+				  					      float lightsSurfaceArea,
 										  Sampler* p_sampler,
                                           float3* p_matFloats,
                                           int2* p_matIndices) {
@@ -158,6 +135,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
     refl_t currentBsdf = DIFFUSE;
     refl_t previousBsdf = DIFFUSE;
 	uint materialId;
+	float oneOverLightsSA = 1.f/lightsSurfaceArea;
 #ifdef __CUDA_ARCH__
     dataPtr_t p_bvh = (dataPtr_t)p_sceneData->p_cudaTexObjects;
 #else
@@ -172,17 +150,17 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
     		break;
     	}
 
-        p_hitTriangle = interaction.p_hitTriangle;
+        p_hitTriangle = p_triangles + interaction.hitTriIdx;
 #ifdef SHOW_NORMALS
         return p_hitTriangle->getNormal(interaction.u, interaction.v);
 #endif
 		materialId = p_hitTriangle->_materialId;
         if (bounces == 0 || previousBsdf == SPECULAR || previousBsdf == REFRACTIVE) {
-			color += mask * Vector3Df(p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KA_OFFSET]);
+			color += mask * Vector3Df(p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KA_OFFSET]) * oneOverLightsSA;
         }
 
         interaction.normal = p_hitTriangle->getNormal(interaction.u, interaction.v);
-        interaction.position = ray.origin + ray.dir * ray.tMax;
+        interaction.position = ray.origin + ray.dir * ray.tMax + interaction.normal * EPSILON_2;
         interaction.outputDirection = normalize(ray.dir);
 
         // SHADING CALCULATIONS
@@ -236,11 +214,17 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
         	delete (TextureContainer*)p_texContainer;
 #endif
 
-			float randomNumber = p_sampler->getNextFloat() * ((float)p_lightsData->numLights - .00001f);
-			int selectedLightIdx = truncf(randomNumber);
-			Triangle* p_light = &p_lightsData->lightsPtr[selectedLightIdx];
+			float randomNumber = p_sampler->getNextFloat() * ((float)numLights - .00001f);
+			uint selectedLightIdx = p_lightsIndices[(uint)truncf(randomNumber)];
+			Triangle* p_light = p_triangles + selectedLightIdx;
 			Vector3Df lightColor = Vector3Df(p_matFloats[p_light->_materialId*MATERIALS_FLOAT_COMPONENTS + KA_OFFSET]);
-			Vector3Df directLighting = estimateDirectLighting(p_light, p_sceneData, lightColor, interaction, p_sampler);
+			Vector3Df directLighting = estimateDirectLighting(p_light,
+															  selectedLightIdx,
+															  p_sceneData,
+															  lightColor,
+															  lightsSurfaceArea,
+															  interaction,
+															  p_sampler);
 
 #ifndef UNBIASED
 			directLighting.x = clamp(directLighting.x, 0.0f, 1.0f);
@@ -276,16 +260,16 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
     return color;
 }
 
-__host__ __device__ bool intersectTriangles(Triangle* p_triangles, int numTriangles, SurfaceInteraction &interaction, Ray& ray) {
+__host__ __device__ bool intersectTriangles(Triangle* p_triangles, int16_t numTriangles, uint offset, SurfaceInteraction &interaction, Ray& ray) {
 	const float tInitial = ray.tMax;
 	float t;
 	float u, v;
 	Triangle* p_current = p_triangles;
-	for(int i = 0; i < numTriangles; i++) {
+	for(uint i = 0; i < numTriangles; i++) {
 		t = p_current->intersect(ray, u, v);
 		if (t < ray.tMax && t > ray.tMin) {
 			ray.tMax = t;
-			interaction.p_hitTriangle = p_current;
+			interaction.hitTriIdx = offset + i;
 			interaction.u = u;
 			interaction.v = v;
 		}
@@ -322,7 +306,7 @@ __host__ __device__ bool intersectBVH(dataPtr_t p_bvhData, Triangle* p_triangles
 #endif
 		if (rayIntersectsBox(ray, minBound, maxBound)) {
 			if (numTriangles > 0) {
-				if (intersectTriangles(&p_triangles[offset], numTriangles, interaction, ray)) {
+				if (intersectTriangles(&p_triangles[offset], numTriangles, offset, interaction, ray)) {
 					hit = true;
 				}
 				if (toVisitOffset == 0) break;
@@ -426,14 +410,20 @@ __host__ __device__ Vector3Df reflect(const Vector3Df& incedent, const Vector3Df
 	return incedent - normal * dot(incedent, normal) * 2.f;
 }
 
-__host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, SceneData* p_sceneData, const Vector3Df& lightColor, const SurfaceInteraction &interaction, Sampler* p_sampler) {
-	if (interaction.p_hitTriangle->_triId == p_light->_triId) {
+__host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light,
+													 uint lightIdx,
+													 SceneData* p_sceneData,
+													 const Vector3Df& lightColor,
+													 const float lightsSurfaceArea,
+													 const SurfaceInteraction &interaction,
+													 Sampler* p_sampler) {
+	if (interaction.hitTriIdx == lightIdx) {
 		return Vector3Df(0.0f, 0.0f, 0.0f);
 	}
 	Vector3Df directLighting(0.0f, 0.0f, 0.0f);
 	Vector3Df rayOrigin = interaction.position + interaction.normal * EPSILON;
 	Ray ray(rayOrigin,  normalize(p_light->getRandomPointOn(p_sampler) - interaction.position));
-	SurfaceInteraction lightInteraction = SurfaceInteraction();
+	SurfaceInteraction lightInteraction;
 	// Sample the light
 	Triangle* p_triangles = p_sceneData->p_triangles;
 #ifdef __CUDA_ARCH__
@@ -442,14 +432,12 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light, SceneDat
 	dataPtr_t p_bvh = (dataPtr_t)p_sceneData->p_bvh;
 #endif
 	bool intersectsLight = intersectBVH(p_bvh, p_triangles, lightInteraction, ray);
-	if (intersectsLight && lightInteraction.p_hitTriangle->_triId == p_light->_triId) {
+	if (intersectsLight && lightInteraction.hitTriIdx == lightIdx) {
 		float surfaceArea = p_light->_surfaceArea;
 		float distanceSquared = ray.tMax*ray.tMax;
 		// For directional lights also consider light direction
-		// float incidenceAngle = fabs(dot(p_light->getNormal(lightInteraction.u, lightInteraction.v), -ray.dir));
-		// Otherwise direct lighting is based on the diffuse term and obey Lambert's cosine law
-		float cosTheta = fabs(dot(ray.dir, interaction.normal));
-		float weightFactor = surfaceArea/distanceSquared * cosTheta;
+		float cosTheta = fabs(dot(p_light->getNormal(lightInteraction.u, lightInteraction.v), -ray.dir));
+		float weightFactor = surfaceArea/(distanceSquared * lightsSurfaceArea) * cosTheta;
 		directLighting += lightColor * weightFactor;
 	}
 	return directLighting;

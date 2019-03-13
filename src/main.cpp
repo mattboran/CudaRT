@@ -136,7 +136,8 @@ int main(int argc, char* argv[]) {
 	scene.loadTextures(texturePath);
 	scene.loadTriangles();
 	scene.constructBvh();
-
+	scene.constructLightList();
+	
 	for (int i = 0; i < scene.getNumMeshes(); i++) {
 		objl::Mesh mesh = scene.getMesh(i);
 		cout << "Mesh " << i << ": `" << mesh.MeshName << "`"<< endl \

@@ -24,13 +24,14 @@ public:
 	// Get methods
 	int getNumMeshes() { return meshLoader.LoadedMeshes.size(); }
 	int getNumTriangles() { return getNumVertices() / 3; }
-	int getNumLights() { return lightsList.size(); }
+	int getNumLights() { return lightsIndices.size(); }
 	uint getNumVertices() { return meshLoader.LoadedVertices.size(); }
 	uint getNumBvhNodes() { return numBvhNodes; }
 	uint getNumMaterials() { return numMaterials; }
 	float getLightsSurfaceArea();
 	Triangle* getTriPtr() { return p_triangles; }
 	Triangle* getLightsPtr() { return &lightsList[0]; }
+	uint* getLightsIndicesPtr() { return &lightsIndices[0]; }
 	objl::Vertex* getVertexPtr() { return p_vertices; }
 	uint* getVertexIndicesPtr() { return p_vertexIndices; }
 	LinearBVHNode* getBvhPtr() { return p_bvh; }
@@ -51,10 +52,13 @@ public:
 	void loadCamera(std::string cameraPath, pixels_t width, pixels_t height);
 	void loadTriangles();
 	void loadTextures(std::string texturesPath);
-	void constructBvh();
 
 	// For bvh construction
 	void allocateBvhArray(const uint n) { p_bvh = new LinearBVHNode[n](); numBvhNodes = n; }
+	void constructBvh();
+
+	// Misc scene construction
+	void constructLightList();
 
 private:
 	// Geometry - todo: phase these out if possible
@@ -63,6 +67,7 @@ private:
 	objl::Vertex* p_vertices;
 	Triangle* p_triangles;
 	std::vector<Triangle> lightsList;
+	std::vector<uint> lightsIndices;
 	Camera* p_camera;
 
 	LinearBVHNode* p_bvh;

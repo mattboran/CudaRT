@@ -105,9 +105,9 @@ void Scene::loadTriangles() {
 		vector<objl::Vertex> vertices = mesh.Vertices;
 		vector<unsigned> indices = mesh.Indices;
 		for (unsigned int i = 0; i < vertices.size()/3; i++) {
-			p_current->_id1 = indices[i*3];
-			p_current->_id2 = indices[i*3 + 1];
-			p_current->_id3 = indices[i*3 + 2];
+//			p_current->_id1 = indices[i*3];
+//			p_current->_id2 = indices[i*3 + 1];
+//			p_current->_id3 = indices[i*3 + 2];
 			objl::Vertex v1 = vertices[indices[i*3]];
 			objl::Vertex v2 = vertices[indices[i*3 + 1]];
 			objl::Vertex v3 = vertices[indices[i*3 + 2]];
@@ -130,17 +130,10 @@ void Scene::loadTriangles() {
 			p_current->_surfaceArea = cross(p_current->_e1, p_current->_e2).length()/2.0f;
 			p_current->_triId = triId++;
 
-			if (m.bsdf == EMISSIVE) {
-				lightsList.push_back(*p_current);
-			}
-
 			p_current++;
 		}
 	}
-	std::sort(lightsList.begin(), lightsList.end(),
-			[](const Triangle &a, const Triangle &b) -> bool {
-		return a._surfaceArea > b._surfaceArea;
-	});
+
 	p_triangles = p_tris;
 }
 
@@ -150,6 +143,25 @@ void Scene::constructBvh() {
 	// This is a hook into bvh.cpp.
 	// todo: find a more graceful way to do this
 	constructBVH(this);
+}
+
+void Scene::constructLightList() {
+	Triangle* p_currentTri = p_triangles;
+	for (uint i = 0; i < getNumTriangles(); i++) {
+		uint materialId = p_currentTri->_materialId;
+		if (p_materials[materialId].bsdf == EMISSIVE) {
+			p_currentTri->_triId = i;
+			lightsList.push_back(*p_currentTri);
+			lightsIndices.push_back(i);
+		}
+		p_currentTri++;
+	}
+
+	// Process lights for surface area sampling
+	float lightsSurfaceArea = getLightsSurfaceArea();
+	for (uint i = 0; i < numMaterials; i++) {
+		p_materials[i].ka *= lightsSurfaceArea;
+	}
 }
 
 float Scene::getLightsSurfaceArea() {

@@ -7,6 +7,7 @@
 #include <cuda.h>
 
 #define EPSILON 0.00001f
+#define EPSILON_2 0.000005f
 
 struct Sampler;
 
@@ -29,7 +30,7 @@ struct Triangle {
 	unsigned _materialId;
 
 	// Vertex indices will be used for intersection soon (see github issues)
-	unsigned _id1, _id2, _id3;
+//	unsigned _id1, _id2, _id3;
 	// Unoptimized triangles for moller-trombore
 	Vector3Df _v1;
 	Vector3Df _e1, _e2;
@@ -47,12 +48,12 @@ struct Triangle {
 } __attribute__ ((aligned (128))) ;
 
 struct SurfaceInteraction {
-	Triangle* p_hitTriangle = NULL;
 	Vector3Df position;
 	Vector3Df normal;
 	Vector3Df inputDirection;
 	Vector3Df outputDirection;
 	float pdf, u, v, t;
+	uint hitTriIdx;
 };
 
 #endif
