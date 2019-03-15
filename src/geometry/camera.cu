@@ -36,10 +36,10 @@ __host__ __device__ Ray Camera::computeCameraRay(int i, int j, Sampler* p_sample
 	float normalized_i = (((float)i + dx) / (float)xpixels) - 0.5;
 	float normalized_j = 0.5f - (((float)j + dy) / (float)ypixels);
 
-	Vector3Df direction = dir;
+	float3 direction = dir;
 	float rightJitter = 1.0f;
 	float upJitter = 1.0f;
-	Vector3Df origin = eye;
+	float3 origin = eye;
 	direction += (right * fov * aspect * normalized_i);
 	direction += (up * fov * normalized_j);
 
@@ -49,7 +49,7 @@ __host__ __device__ Ray Camera::computeCameraRay(int i, int j, Sampler* p_sample
 		rightJitter = cosf(r1) * r2 * apertureWidth;
 		upJitter = sinf(r1)* r2 * apertureWidth;
 		origin += ((right * rightJitter) + (up * upJitter));
-		Vector3Df focalPoint = eye + direction * focusDistance;
+		float3 focalPoint = eye + direction * focusDistance;
 		direction = focalPoint - origin;
 	}
 

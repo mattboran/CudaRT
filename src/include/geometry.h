@@ -15,12 +15,15 @@ Vector3Df min3(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c);
 Vector3Df max3(const Vector3Df& a, const Vector3Df& b, const Vector3Df& c);
 
 struct Ray {
-	Vector3Df origin;
-	Vector3Df dir;
+	float3 origin;
+	float3 dir;
 	float tMin = EPSILON;
 	float tMax = FLT_MAX;
 
-	__host__ __device__ Ray(Vector3Df o, Vector3Df d) : origin(o), dir(normalize(d)) { }
+	__host__ __device__ Ray(float3 o, float3 d) {
+		origin = make_float3(o);
+		dir = make_float3(d);
+	}
 };
 
 
