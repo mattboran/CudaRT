@@ -23,14 +23,14 @@ __host__ SequentialRenderer::SequentialRenderer(Scene* _scenePtr, pixels_t _widt
     Triangle* p_triangles = p_scene->getTriPtr();
     LinearBVHNode* p_bvh = p_scene->getBvhPtr();
     Material* p_materials = p_scene->getMaterialsPtr();
-    Vector3Df* p_textureData = p_scene->getTexturePtr();
+    float3* p_textureData = p_scene->getTexturePtr();
     pixels_t* p_textureDimensions = p_scene->getTextureDimensionsPtr();
     pixels_t* p_textureOffsets = p_scene->getTextureOffsetsPtr();
 
     size_t trianglesBytes = sizeof(Triangle) * numTriangles;
     size_t bvhBytes = sizeof(LinearBVHNode) * numBvhNodes;
     size_t materialsBytes = sizeof(Material) * numMaterials;
-    size_t texturePixelsBytes = sizeof(Vector3Df) * numTexturePixels;
+    size_t texturePixelsBytes = sizeof(float3) * numTexturePixels;
     size_t textureOffsetsBytes = sizeof(pixels_t) * numTextures + sizeof(pixels_t);
     size_t textureDimensionsBytes = textureOffsetsBytes * 2;
     size_t totalTextureBytes = texturePixelsBytes + textureOffsetsBytes + textureDimensionsBytes;
@@ -38,7 +38,7 @@ __host__ SequentialRenderer::SequentialRenderer(Scene* _scenePtr, pixels_t _widt
     size_t SceneDataBytes = sizeof(SceneData) + trianglesBytes + bvhBytes + materialsBytes + totalTextureBytes;
     h_sceneData = (SceneData*)malloc(SceneDataBytes);
     h_imgBytesPtr = new uchar4[width * height]();
-    h_imgVectorPtr = new Vector3Df[width * height]();
+    h_imgVectorPtr = new float3[width * height]();
 
     createSceneData(h_sceneData, p_triangles, p_bvh, p_textureData, p_textureDimensions, p_textureOffsets);
 
@@ -51,9 +51,9 @@ __host__ void SequentialRenderer::createMaterialsData() {
     float3* p_currentFloat = materialFloats;
     int2* p_currentIndex = materialIndices;
     for (uint i = 0; i < numMaterials; i++) {
-        *p_currentFloat++ = make_float3(p_materials[i].kd);
-        *p_currentFloat++ = make_float3(p_materials[i].ka);
-        *p_currentFloat++ = make_float3(p_materials[i].ks);
+        *p_currentFloat++ = p_materials[i].kd;
+        *p_currentFloat++ = p_materials[i].ka;
+        *p_currentFloat++ = p_materials[i].ks;
         *p_currentFloat++ = make_float3(p_materials[i].ns,
                                         p_materials[i].ni,
                                         p_materials[i].diffuseCoefficient);
@@ -73,7 +73,7 @@ __host__ SequentialRenderer::~SequentialRenderer() {
 __host__ void SequentialRenderer::createSceneData(SceneData* p_sceneData,
         									      Triangle* p_triangles,
         										  LinearBVHNode* p_bvh,
-        										  Vector3Df* p_textureData,
+        										  float3* p_textureData,
         										  pixels_t* p_textureDimensions,
         										  pixels_t* p_textureOffsets) {
 	// Note: cudaTextureObjects are assigned in copyMemoryToCuda for ParallelRenderer
@@ -99,17 +99,17 @@ __host__ void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
     for (pixels_t x = 0; x < width; x++) {
         for (pixels_t y = 0; y < height; y++) {
             int idx = y * width + x;
-            Vector3Df sample = samplePixel(x, y,
-                                           camera,
-                                           h_sceneData,
-                                           p_lightsIndices,
-                                           numLights,
-                                           lightsSurfaceArea,
-                                           p_sampler,
-                                           materialFloats,
-                                           materialIndices);
-            h_imgVectorPtr[idx] += sample;
-            p_img[idx] = vector3ToUchar4(h_imgVectorPtr[idx]/samplesRendered);
+            float3 sample = samplePixel(x, y,
+									    camera,
+									    h_sceneData,
+									    p_lightsIndices,
+									    numLights,
+									    lightsSurfaceArea,
+									    p_sampler,
+									    materialFloats,
+									    materialIndices);
+            h_imgVectorPtr[idx] = h_imgVectorPtr[idx] + sample;
+            p_img[idx] = float3ToUchar4(h_imgVectorPtr[idx]/samplesRendered);
         }
     }
 	delete p_sampler;

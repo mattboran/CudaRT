@@ -8,13 +8,13 @@
 struct Sampler;
 struct Camera {
 	__host__ Camera() {}
-	
+
 	__host__ __device__ Ray computeCameraRay(int i, int j, Sampler* p_sampler) const;
 
-	Vector3Df eye;
-	Vector3Df dir;
-	Vector3Df up;
-	Vector3Df right;
+	float3 eye;
+	float3 dir;
+	float3 up;
+	float3 right;
 	float fov, aspect;
 	float apertureWidth = 0.032f;
 	float focusDistance;

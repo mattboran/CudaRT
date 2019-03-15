@@ -8,6 +8,7 @@
 #ifndef BVH_H_
 #define BVH_H_
 #include "linalg.h"
+#include <stdint.h>
 
 
 class Scene;
@@ -15,8 +16,8 @@ class Scene;
 void constructBVH(Scene* p_scene);
 
 struct LinearBVHNode {
-	Vector3Df min;
-	Vector3Df max;
+	float3 min;
+	float3 max;
 	union {
 		int trianglesOffset;
 		int secondChildOffset;

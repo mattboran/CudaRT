@@ -26,7 +26,7 @@ __constant__ uint c_numLights;
 
 // Kernels
 __global__ void initializeCurandKernel(curandState* p_curandState);
-__global__ void renderKernel(Vector3Df* p_imgBuffer,
+__global__ void renderKernel(float3* p_imgBuffer,
 							 uchar4* p_outImg,
 							 Camera camera,
 							 SceneData* p_sceneData,
@@ -61,7 +61,7 @@ __host__ ParallelRenderer::ParallelRenderer(Scene* _scenePtr, pixels_t _width, p
 	d_sceneData = NULL;
 	d_curandStatePtr = NULL;
 
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_imgVectorPtr, sizeof(Vector3Df) * pixels));
+	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_imgVectorPtr, sizeof(float3) * pixels));
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_imgBytesPtr, sizeof(uchar4) * pixels));
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_camPtr, sizeof(Camera)));
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&d_triPtr, trianglesBytes));
@@ -104,7 +104,6 @@ __host__ void ParallelRenderer::copyMemoryToCuda() {
 	Material* h_materialsPtr = p_scene->getMaterialsPtr();
 	SceneData* h_sceneData = (SceneData*)malloc(sizeof(SceneData));
 	uint* h_lightsIndices = p_scene->getLightsIndicesPtr();
-	Vector3Df* h_textureData = p_scene->getTexturePtr();
 
 	CUDA_CHECK_RETURN(cudaMemcpy(d_camPtr, h_camPtr, sizeof(Camera), cudaMemcpyHostToDevice));
 	CUDA_CHECK_RETURN(cudaMemcpy(d_triPtr, h_triPtr, trianglesBytes, cudaMemcpyHostToDevice));
@@ -208,7 +207,7 @@ __host__ cudaTextureObject_t* ParallelRenderer::createTextureObjects() {
 	pixels_t* h_textureDimensions = p_scene->getTextureDimensionsPtr();
 	cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(32, 32, 32, 32, cudaChannelFormatKindFloat);
 	for (uint i = 0; i < numTextures; i++) {
-		Vector3Df* p_currentTextureData = p_scene->getTexturePtr(i);
+		float3* p_currentTextureData = p_scene->getTexturePtr(i);
 		pixels_t width = h_textureDimensions[2*i];
 		pixels_t height = h_textureDimensions[2*i + 1];
 		pixels_t numPixels = width * height;
@@ -258,9 +257,9 @@ __host__ void ParallelRenderer::createMaterialsData() {
 	float3* p_currentFloat = p_floatBuffer;
 	int2* p_currentIndex = p_intBuffer;
 	for (uint i = 0; i < numMaterials; i++) {
-		*p_currentFloat++ = make_float3(p_materials[i].kd);
-		*p_currentFloat++ = make_float3(p_materials[i].ka);
-		*p_currentFloat++ = make_float3(p_materials[i].ks);
+		*p_currentFloat++ = p_materials[i].kd;
+		*p_currentFloat++ = p_materials[i].ka;
+		*p_currentFloat++ = p_materials[i].ks;
 		*p_currentFloat++ = make_float3(p_materials[i].ns,
 										p_materials[i].ni,
 										p_materials[i].diffuseCoefficient);
@@ -316,7 +315,7 @@ __global__ void initializeCurandKernel(curandState* p_curandState) {
 	curand_init(1234, idx, 0, &p_curandState[idx]);
 }
 
-__global__ void renderKernel(Vector3Df* p_imgBuffer,
+__global__ void renderKernel(float3* p_imgBuffer,
 							uchar4* p_outImg,
 							Camera camera,
 							SceneData* p_sceneData,
@@ -329,7 +328,7 @@ __global__ void renderKernel(Vector3Df* p_imgBuffer,
 	uint blockOnlyIdx = threadIdx.x * blockDim.x + threadIdx.y;
 	uint idx = y * c_width + x;
 	p_samplers[blockOnlyIdx] = Sampler(&p_curandState[blockOnlyIdx]);
-	Vector3Df color = samplePixel(x, y,
+	float3 color = samplePixel(x, y,
 								  camera,
 								  p_sceneData,
 								  p_lightsIndices,
@@ -338,6 +337,6 @@ __global__ void renderKernel(Vector3Df* p_imgBuffer,
 								  &p_samplers[blockOnlyIdx],
 								  c_materialFloats,
 								  c_materialIndices);
-	p_imgBuffer[idx] += color;
-	p_outImg[idx] = vector3ToUchar4(p_imgBuffer[idx]/(float)sampleNumber);
+	p_imgBuffer[idx] = p_imgBuffer[idx] + color;
+	p_outImg[idx] = float3ToUchar4(p_imgBuffer[idx]/(float)sampleNumber);
 }

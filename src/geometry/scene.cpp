@@ -111,23 +111,23 @@ void Scene::loadTriangles() {
 			objl::Vertex v1 = vertices[indices[i*3]];
 			objl::Vertex v2 = vertices[indices[i*3 + 1]];
 			objl::Vertex v3 = vertices[indices[i*3 + 2]];
-			Vector3Df _v1(v1.Position);
-			Vector3Df _v2(v2.Position);
-			Vector3Df _v3(v3.Position);
+			float3 _v1 = make_float3(v1.Position);
+			float3 _v2 = make_float3(v2.Position);
+			float3 _v3 = make_float3(v3.Position);
 			p_current->_v1 = _v1;
-			p_current->_n1 = Vector3Df(v1.Normal);
-			p_current->_n2 = Vector3Df(v2.Normal);
-			p_current->_n3 = Vector3Df(v3.Normal);
-			p_current->_uv1 = Vector2Df(v1.TextureCoordinate);
-			p_current->_uv2 = Vector2Df(v2.TextureCoordinate);
-			p_current->_uv3 = Vector2Df(v3.TextureCoordinate);
+			p_current->_n1 = make_float3(v1.Normal);
+			p_current->_n2 = make_float3(v2.Normal);
+			p_current->_n3 = make_float3(v3.Normal);
+			p_current->_uv1 = make_float2(v1.TextureCoordinate.X, v1.TextureCoordinate.Y);
+			p_current->_uv2 = make_float2(v2.TextureCoordinate.X, v2.TextureCoordinate.Y);
+			p_current->_uv3 = make_float2(v3.TextureCoordinate.X, v3.TextureCoordinate.Y);
 			p_current->_e1 = _v2 - _v1;
 			p_current->_e2 = _v3 - _v1;
 
 			p_current->_materialId = materialId;
 			// Materials
 
-			p_current->_surfaceArea = cross(p_current->_e1, p_current->_e2).length()/2.0f;
+			p_current->_surfaceArea = length(cross(p_current->_e1, p_current->_e2))/2.0f;
 			p_current->_triId = triId++;
 
 			p_current++;
@@ -160,7 +160,7 @@ void Scene::constructLightList() {
 	// Process lights for surface area sampling
 	float lightsSurfaceArea = getLightsSurfaceArea();
 	for (uint i = 0; i < numMaterials; i++) {
-		p_materials[i].ka *= lightsSurfaceArea;
+		p_materials[i].ka = p_materials[i].ka * lightsSurfaceArea;
 	}
 }
 
@@ -174,9 +174,9 @@ float Scene::getLightsSurfaceArea() {
 
 Material materialFromMtl(objl::Material m) {
 	Material material;
-	material.ka = m.Ka * LIGHTS_GAIN;
-	material.kd = m.Kd;
-	material.ks = m.Ks;
+	material.ka = make_float3(m.Ka) * LIGHTS_GAIN;
+	material.kd = make_float3(m.Kd);
+	material.ks = make_float3(m.Ks);
 	material.ns = m.Ns;
 	material.ni = m.Ni;
 	material.diffuseCoefficient = m.diffuse;

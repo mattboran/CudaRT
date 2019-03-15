@@ -10,7 +10,7 @@
 
 using namespace std;
 
-Vector3Df vector3FromArray(picojson::array arr);
+float3 make_float3(picojson::array arr);
 
 CameraJsonLoader::CameraJsonLoader(string cam) {
 	verifyFileExists(cam);
@@ -35,11 +35,11 @@ Camera CameraJsonLoader::getCamera(pixels_t width, pixels_t height) {
 	p_camera->xpixels = width;
 	p_camera->ypixels = height;
 	p_camera->fov = tanf(f * 0.5f * M_PI/180.0f);
-	p_camera->eye = vector3FromArray(e);
-	Vector3Df dir = vector3FromArray(d);
-	p_camera->focusDistance = dir.length();
+	p_camera->eye = make_float3(e);
+	float3 dir = make_float3(d);
+	p_camera->focusDistance = length(dir);
 	p_camera->dir = normalize(dir);
-	p_camera->up = normalize(vector3FromArray(u));
+	p_camera->up = normalize(make_float3(u));
 	p_camera->right = normalize(cross(p_camera->dir, p_camera->up));
 	p_camera->apertureWidth = focalLength/fStop;
 	p_camera->aspect = (float)width / (float)height;
@@ -47,14 +47,18 @@ Camera CameraJsonLoader::getCamera(pixels_t width, pixels_t height) {
 	return *p_camera;
 }
 
-Vector3Df vector3FromArray(picojson::array arr) {
-	Vector3Df retVal;
+float3 make_float3(picojson::array arr) {
+	float3 retVal;
 	int idx = 0;
-	for (picojson::array::iterator it = arr.begin(); it != arr.end(); it++)
-	{
-		float val = it->get<double>();
-		retVal._v[idx] = val;
-		idx++;
-	}
+	float val = 0.0f;
+	auto it = arr.begin();
+	val = it->get<double>();
+	retVal.x = val;
+	it++;
+	val = it->get<double>();
+	retVal.y = val;
+	it++;
+	val = it->get<double>();
+	retVal.z = val;
 	return retVal;
 }

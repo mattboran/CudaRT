@@ -33,7 +33,7 @@ struct SceneData {
 	cudaTextureObject_t* p_cudaTexObjects;
 #ifndef __CUDA_ARCH__
 	LinearBVHNode* p_bvh;
-	Vector3Df* p_textureData;
+	float3* p_textureData;
 	pixels_t* p_textureDimensions;
 	pixels_t* p_textureOffsets;
 	uint numBVHNodes;
@@ -48,10 +48,10 @@ struct TextureContainer {
 	cudaTextureObject_t* p_textureObject = NULL;
 
 #else
-	__host__ __device__ TextureContainer(Vector3Df* p_texData, pixels_t* p_texDims) :
+	__host__ __device__ TextureContainer(float3* p_texData, pixels_t* p_texDims) :
 				p_textureData(p_texData), p_textureDimensions(p_texDims) {}
 
-	Vector3Df* p_textureData = NULL;
+	float3* p_textureData = NULL;
 	pixels_t* p_textureDimensions = NULL;
 #endif
 };
@@ -63,7 +63,7 @@ struct Sampler {
 	__host__ __device__ float getNextFloat();
 };
 
-__host__ __device__ Vector3Df samplePixel(int x, int y,
+__host__ __device__ float3 samplePixel(int x, int y,
                                           Camera p_camera,
                                           SceneData* p_SceneData,
                                           uint* p_lightsIndices,
@@ -73,7 +73,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
                                           float3* p_matFloats,
                                           int2* p_matIndices);
 __host__ __device__ void gammaCorrectPixel(uchar4 &p);
-__host__ __device__ Vector3Df sampleTexture(TextureContainer* p_textureContainer, float u, float v);
+__host__ __device__ float3 sampleTexture(TextureContainer* p_textureContainer, float u, float v);
 
 class Renderer {
 public:
@@ -109,7 +109,7 @@ public:
     __host__ void createMaterialsData();
 	__host__ ~ParallelRenderer();
 private:
-	Vector3Df* d_imgVectorPtr;
+	float3* d_imgVectorPtr;
 	uchar4* d_imgBytesPtr;
 	SceneData* d_sceneData;
 	Triangle* d_triPtr;
@@ -135,19 +135,19 @@ public:
     __host__ void createSceneData(SceneData* p_SceneData,
                                   Triangle* p_triangles,
                                   LinearBVHNode* p_bvh,
-                                  Vector3Df* p_textureData,
+                                  float3* p_textureData,
                                   pixels_t* p_textureDimensions,
                                   pixels_t* p_textureOffsets);
     __host__ void createMaterialsData();
 	__host__ ~SequentialRenderer();
 private:
 	uchar4* h_imgBytesPtr;
-	Vector3Df* h_imgVectorPtr;
+	float3* h_imgVectorPtr;
 	SceneData* h_sceneData;
 };
 
-__host__ __device__ inline uchar4 vector3ToUchar4(const Vector3Df& v) {
-	uchar4 retVal;
+__host__ __device__ inline uchar4 float3ToUchar4(const float3& v) {
+    uchar4 retVal;
 	retVal.x = (unsigned char)((v.x > 1.0f ? 1.0f: v.x)*(255.f));
 	retVal.y = (unsigned char)((v.y > 1.0f ? 1.0f: v.y)*(255.f));
 	retVal.z = (unsigned char)((v.z > 1.0f ? 1.0f: v.z)*(255.f));
