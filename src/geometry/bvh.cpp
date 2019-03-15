@@ -17,10 +17,10 @@ using namespace std;
 
 struct TriangleBBox {
 	int triId;
-	Vector3Df min;
-	Vector3Df max;
-	Vector3Df center;
-    TriangleBBox(int _triId, Vector3Df &_min, Vector3Df &_max)
+	float3 min;
+	float3 max;
+	float3 center;
+    TriangleBBox(int _triId, float3 &_min, float3 &_max)
     :
     triId(_triId), min(_min), max(_max) {
         center = (_min + _max) * 0.5f;
@@ -28,23 +28,23 @@ struct TriangleBBox {
 };
 
 struct BVHBuildNode {
-    Vector3Df min;
-    Vector3Df max;
+    float3 min;
+    float3 max;
     BVHBuildNode* children[2];
     uint splitAxis=0, firstTriOffset=0, numTriangles = 0;
     BVHBuildNode() { children[0] = children[1] = NULL; }
 	~BVHBuildNode() { if(children[0]) delete children[0]; if (children[1]) delete children[1]; }
-    void initLeaf(uint first, uint n, const Vector3Df& _min, const Vector3Df& _max);
+    void initLeaf(uint first, uint n, const float3& _min, const float3& _max);
     void initInner(uint axis, BVHBuildNode* c0, BVHBuildNode* c1);
 };
 
 
 // Vector math functions that are used in making BVH - possibly put these in geometry.h/cu
-Vector3Df offset(const Vector3Df& min, const Vector3Df& max, const Vector3Df& p);
-float surfaceArea(const Vector3Df& min, const Vector3Df& max);
-int maximumExtent(const Vector3Df& min, const Vector3Df& max);
-Vector3Df min2(const Vector3Df& a, const Vector3Df& b);
-Vector3Df max2(const Vector3Df& a, const Vector3Df& b);
+float3 offset(const float3& min, const float3& max, const float3& p);
+float surfaceArea(const float3& min, const float3& max);
+int maximumExtent(const float3& min, const float3& max);
+float3 min2(const float3& a, const float3& b);
+float3 max2(const float3& a, const float3& b);
 
 
 // Local functions
@@ -84,16 +84,16 @@ void createTriangleBboxes(Scene* p_scene)  {
         objl::Vertex v1 = p_vertices[p_indices[i*3]];
         objl::Vertex v2 = p_vertices[p_indices[i*3 + 1]];
         objl::Vertex v3 = p_vertices[p_indices[i*3 + 2]];
-        Vector3Df _v1(v1.Position);
-        Vector3Df _v2(v2.Position);
-        Vector3Df _v3(v3.Position);
-        Vector3Df _min = min3(_v1, _v2, _v3);
-        Vector3Df _max = max3(_v1, _v2, _v3);
+        float3 _v1(v1.Position);
+        float3 _v2(v2.Position);
+        float3 _v3(v3.Position);
+        float3 _min = min3(_v1, _v2, _v3);
+        float3 _max = max3(_v1, _v2, _v3);
         trianglesInfo.push_back(TriangleBBox(i, _min, _max));
     }
 }
 
-void BVHBuildNode::initLeaf(uint first, uint n, const Vector3Df& _min, const Vector3Df& _max) {
+void BVHBuildNode::initLeaf(uint first, uint n, const float3& _min, const float3& _max) {
     firstTriOffset = first;
     numTriangles = n;
     min = _min;
@@ -112,8 +112,8 @@ void BVHBuildNode::initInner(uint axis, BVHBuildNode* c0, BVHBuildNode* c1) {
 BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& trianglesInfo, uint start, uint end, uint* totalNodes, vector<Triangle>& orderedTriangles) {
     (*totalNodes)++;
     BVHBuildNode* p_node = new BVHBuildNode;
-    Vector3Df workingMin(FLT_MAX, FLT_MAX, FLT_MAX);
-    Vector3Df workingMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+    float3 workingMin = make_float3(FLT_MAX, FLT_MAX, FLT_MAX);
+    float3 workingMax = make_float3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
     for (uint i = start; i < end; i++) {
         workingMin = min2(workingMin, trianglesInfo[i].min);
         workingMax = max2(workingMax, trianglesInfo[i].max);
@@ -128,7 +128,7 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
         p_node->initLeaf(firstTriOffset, numTriangles, workingMin, workingMax);
     }
     else  {
-        Vector3Df centroidMin, centroidMax;
+        float3 centroidMin, centroidMax;
         for (uint i = start; i < end; i++) {
             centroidMin = min2(centroidMin, trianglesInfo[i].center);
             centroidMax = max2(centroidMax, trianglesInfo[i].center);
@@ -178,7 +178,7 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
 			constexpr int numBuckets = 8;
 			struct BucketInfo {
 				int count = 0;
-				Vector3Df minBound, maxBound;
+				float3 minBound, maxBound;
 			};
 			BucketInfo buckets[numBuckets];
 			// Initialize BucketInfo for SAH partition buckets by determining the bucket
@@ -193,7 +193,7 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
 			// Compute costs of splitting after each bucket
 			float cost[numBuckets-1];
 			for (int i = 0; i < numBuckets-1; i++) {
-				Vector3Df b0min,b0max, b1min, b1max;
+				float3 b0min,b0max, b1min, b1max;
 				int count0 = 0, count1 = 0;
 				for (int j = 0; j <= i; j++) {
 					b0min = min2(b0min, buckets[j].minBound);
@@ -270,21 +270,21 @@ int flattenBVHTree(LinearBVHNode* const p_linearNodes, BVHBuildNode* p_node, int
 }
 
 // TODO: Consider moving this into geometry.h
-Vector3Df offset(const Vector3Df& min, const Vector3Df& max, const Vector3Df& p) {
-	Vector3Df retVal = p - min;
+float3 offset(const float3& min, const float3& max, const float3& p) {
+	float3 retVal = p - min;
 	if (max.x > min.x) retVal.x /= (max.x - min.x);
 	if (max.y > min.y) retVal.y /= (max.y - min.y);
 	if (max.z > min.z) retVal.z /= (max.z - min.z);
 	return retVal;
 }
 
-float surfaceArea(const Vector3Df& min, const Vector3Df& max) {
-	Vector3Df diag = max - min;
+float surfaceArea(const float3& min, const float3& max) {
+	float3 diag = max - min;
 	return diag.x * diag.y * diag.z;
 }
 
-int maximumExtent(const Vector3Df& min, const Vector3Df& max) {
-    Vector3Df diag = max - min;
+int maximumExtent(const float3& min, const float3& max) {
+    float3 diag = max - min;
     if (diag.x > diag.y && diag.x > diag.z)
         return 0;
     if (diag.y > diag.z)
@@ -292,16 +292,16 @@ int maximumExtent(const Vector3Df& min, const Vector3Df& max) {
     return 2;
 }
 
-Vector3Df min2(const Vector3Df& a, const Vector3Df& b) {
+float3 min2(const float3& a, const float3& b) {
     float x = a.x < b.x ? a.x : b.x;
     float y = a.y < b.y ? a.y : b.y;
     float z = a.z < b.z ? a.z : b.z;
-    return Vector3Df(x, y, z);
+    return float3(x, y, z);
 }
 
-Vector3Df max2(const Vector3Df& a, const Vector3Df& b) {
+float3 max2(const float3& a, const float3& b) {
     float x = a.x > b.x ? a.x : b.x;
     float y = a.y > b.y ? a.y : b.y;
     float z = a.z > b.z ? a.z : b.z;
-    return Vector3Df(x, y, z);
+    return float3(x, y, z);
 }

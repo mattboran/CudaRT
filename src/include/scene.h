@@ -42,8 +42,8 @@ public:
 
 	uint getNumTextures() { return p_textureStore->getNumTextures(); }
 	pixels_t getTotalTexturePixels() { return p_textureStore->getTotalPixels(); }
-	Vector3Df* getTexturePtr(uint i) { return p_textureStore->getTextureDataPtr()[i]; }
-	Vector3Df* getTexturePtr() { return p_textureStore->getFlattenedTextureDataPtr(); }
+	float3* getTexturePtr(uint i) { return p_textureStore->getTextureDataPtr()[i]; }
+	float3* getTexturePtr() { return p_textureStore->getFlattenedTextureDataPtr(); }
 	pixels_t* getTextureDimensionsPtr() { return p_textureStore->getTextureDimensionsPtr(); }
 	pixels_t* getTextureOffsetsPtr() { return p_textureStore->getTextureOffsetsPtr(); }
 

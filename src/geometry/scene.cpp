@@ -21,6 +21,9 @@ using std::map;
 unsigned int populateMaterialsMap(vector<objl::Mesh> meshes);
 Material materialFromMtl(objl::Material m);
 
+float2 make_float2(const objl::Vector2 &v) { return make_float2(v.X, v.Y); }
+float3 make_float3(const objl::Vector3 &v) { return make_float3(v.X, v.Y, v.Z); }
+
 static vector<Material> materialsList;
 static map<Material, uint, materialComparator> materialsMap;
 
@@ -111,23 +114,23 @@ void Scene::loadTriangles() {
 			objl::Vertex v1 = vertices[indices[i*3]];
 			objl::Vertex v2 = vertices[indices[i*3 + 1]];
 			objl::Vertex v3 = vertices[indices[i*3 + 2]];
-			Vector3Df _v1(v1.Position);
-			Vector3Df _v2(v2.Position);
-			Vector3Df _v3(v3.Position);
+			float3 _v1 = make_float3(v1.Position);
+			float3 _v2 = make_float3(v2.Position);
+			float3 _v3 = make_float3(v3.Position);
 			p_current->_v1 = _v1;
-			p_current->_n1 = Vector3Df(v1.Normal);
-			p_current->_n2 = Vector3Df(v2.Normal);
-			p_current->_n3 = Vector3Df(v3.Normal);
-			p_current->_uv1 = Vector2Df(v1.TextureCoordinate);
-			p_current->_uv2 = Vector2Df(v2.TextureCoordinate);
-			p_current->_uv3 = Vector2Df(v3.TextureCoordinate);
+			p_current->_n1 = make_float3(v1.Normal);
+			p_current->_n2 = make_float3(v2.Normal);
+			p_current->_n3 = make_float3(v3.Normal);
+			p_current->_uv1 = make_float2(v1.TextureCoordinate);
+			p_current->_uv2 = make_float2(v2.TextureCoordinate);
+			p_current->_uv3 = make_float2(v3.TextureCoordinate);
 			p_current->_e1 = _v2 - _v1;
 			p_current->_e2 = _v3 - _v1;
 
 			p_current->_materialId = materialId;
 			// Materials
 
-			p_current->_surfaceArea = cross(p_current->_e1, p_current->_e2).length()/2.0f;
+			p_current->_surfaceArea = length(cross(p_current->_e1, p_current->_e2))/2.0f;
 			p_current->_triId = triId++;
 
 			p_current++;
