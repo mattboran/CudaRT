@@ -6,31 +6,37 @@
 using std::max;
 using std::min;
 
-Vector3Df min3(const Vector3Df& a, const Vector3Df& b,
-		const Vector3Df& c) {
+float3 min3(const float3& a, const float3& b,
+		const float3& c) {
 	float x = min(a.x, min(b.x, c.x));
 	float y = min(a.y, min(b.y, c.y));
 	float z = min(a.z, min(b.z, c.z));
-	return Vector3Df(x, y, z);
+	return make_float3(x, y, z);
 }
 
-Vector3Df max3(const Vector3Df& a, const Vector3Df& b,
-		const Vector3Df& c) {
+float3 max3(const float3& a, const float3& b,
+		const float3& c) {
 	float x = max(a.x, max(b.x, c.x));
 	float y = max(a.y, max(b.y, c.y));
 	float z = max(a.z, max(b.z, c.z));
-	return Vector3Df(x, y, z);
+	return make_float3(x, y, z);
 }
 
 __host__ __device__ Triangle::Triangle(const Triangle &t) :
-		_v1(t._v1), _e1(t._e1), _e2(t._e2),
-		_n1(t._n1), _n2(t._n2), _n3(t._n3),
-		_uv1(t._uv1), _uv2(t._uv2), _uv3(t._uv3),
 		_surfaceArea(t._surfaceArea), _triId(t._triId), _materialId(t._materialId) {
+	_v1 = t._v1;
+	_e1 = t._e1;
+	_e2 = t._e2;
+	_n1 = t._n1;
+	_n2 = t._n2;
+	_n3 = t._n3;
+	_uv1 = t._uv1;
+	_uv2 = t._uv2;
+	_uv3 = t._uv3;
 }
 
 __device__ float Triangle::intersect(const Ray& r, float &o_u, float &o_v) const {
-	Vector3Df P, Q, T;
+	float3 P, Q, T;
 	P = cross(r.dir, _e2);
 	float det = dot(_e1, P);
 
@@ -58,18 +64,18 @@ __device__ float Triangle::intersect(const Ray& r, float &o_u, float &o_v) const
 	return FLT_MAX;
 }
 
-__host__ __device__ Vector3Df Triangle::getNormal(const float u, const float v) const {
+__host__ __device__ float3 Triangle::getNormal(const float u, const float v) const {
 	// Face normal:
 	float w = 1.f - u - v;
-	return Vector3Df(normalize(_n1*w + _n2*u + _n3*v));
+	return normalize(_n1*w + _n2*u + _n3*v);
 }
 
-__host__ __device__ Vector3Df Triangle::getRandomPointOn(Sampler* p_sampler) const {
+__host__ __device__ float3 Triangle::getRandomPointOn(Sampler* p_sampler) const {
 	float u = p_sampler->getNextFloat();
 	float v = p_sampler->getNextFloat();
 	if (u + v >= 1.0f) {
 		u = 1.0f - u;
 		v = 1.0f - v;
 	}
-	return Vector3Df(_v1 + _e1 * u + _e2 * v);
+	return _v1 + _e1 * u + _e2 * v;
 }

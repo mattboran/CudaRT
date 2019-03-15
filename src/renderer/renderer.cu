@@ -24,7 +24,7 @@
 #define TEXTURE_CONTAINER_FACTOR_PARAMETERS(p_sceneData) p_sceneData->p_cudaTexObjects
 __constant__ uint c_maxBounces = 6;
 #else
-#define TEXTURE_CONTAINER_FACTORY_ARGUMENTS Vector3Df* p_texData, \
+#define TEXTURE_CONTAINER_FACTORY_ARGUMENTS float3* p_texData, \
 											pixels_t* p_texDimensions, \
 											pixels_t* p_texOffsets
 #define TEXTURE_CONTAINER_FACTOR_PARAMETERS(p_sceneData) p_sceneData->p_textureData, \
@@ -41,24 +41,24 @@ struct Fresnel {
 };
 
 __host__ __device__ bool intersectTriangles(Triangle* p_triangles, int16_t numTriangles, uint offset, SurfaceInteraction &interaction, Ray& ray);
-__host__ __device__ bool rayIntersectsBox(Ray& ray, const Vector3Df& min, const Vector3Df& max);
-__host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction,
+__host__ __device__ bool rayIntersectsBox(Ray& ray, const float3& min, const float3& max);
+__host__ __device__ float3 sampleDiffuseBSDF(SurfaceInteraction* p_interaction,
 												Triangle* p_hitTriangle,
-												const Vector3Df& diffuseColor,
+												const float3& diffuseColor,
 												dataPtr_t p_textureContainer,
 												Sampler* p_sampler);
-__host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction,
-												 const Vector3Df& specularColor);
-__host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light,
+__host__ __device__ float3 sampleSpecularBSDF(SurfaceInteraction* p_interaction,
+												 const float3& specularColor);
+__host__ __device__ float3 estimateDirectLighting(Triangle* p_light,
 													 uint lightIdx,
 													 SceneData* p_sceneData,
-													 const Vector3Df& lightColor,
+													 const float3& lightColor,
 													 const float lightsSurfaceArea,
 													 const SurfaceInteraction &interaction,
 													 Sampler* p_sampler);
 __host__ __device__ bool intersectBVH(dataPtr_t p_bvhData, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray);
-__host__ __device__ Vector3Df reflect(const Vector3Df& incedent, const Vector3Df& normal);
-__host__ __device__ Fresnel getFresnelReflectance(const SurfaceInteraction& interaction, const float ior, Vector3Df& transmittedDir);
+__host__ __device__ float3 reflect(const float3& incedent, const float3& normal);
+__host__ __device__ Fresnel getFresnelReflectance(const SurfaceInteraction& interaction, const float ior, float3& transmittedDir);
 __host__ __device__ dataPtr_t textureContainerFactory(int i, TEXTURE_CONTAINER_FACTORY_ARGUMENTS);
 
 #ifdef USE_SKYBOX
@@ -84,10 +84,10 @@ __host__ Renderer::Renderer(Scene* _scenePtr, pixels_t _width, pixels_t _height,
 	samplesRendered = 0;
 }
 
-__host__ __device__ Vector3Df sampleTexture(dataPtr_t p_textureContainer,  float u, float v) {
+__host__ __device__ float3 sampleTexture(dataPtr_t p_textureContainer,  float u, float v) {
 #ifdef __CUDA_ARCH__
 	float4 texValue = tex2D<float4>(*(cudaTextureObject_t*)p_textureContainer, u, v);
-	return Vector3Df(texValue);
+	return make_float3(texValue);
 #else
 	TextureContainer* p_texContainer = (TextureContainer*)p_textureContainer;
 	pixels_t* p_texDimensions = p_texContainer->p_textureDimensions;
@@ -104,19 +104,19 @@ __host__ __device__ Vector3Df sampleTexture(dataPtr_t p_textureContainer,  float
 	float ceilPixelCoordV = ceilf(pixelCoordV);
 
 	// Bilinear interpolation
-	Vector3Df* p_texture = p_texContainer->p_textureData;
-	Vector3Df valA1 = p_texture[j * width + i + 1] * (pixelCoordU - floorPixelCoordU);
-	Vector3Df valA2 = p_texture[j * width + i] * (ceilPixelCoordU - pixelCoordU);
-	Vector3Df valB1 = p_texture[(j + 1) * width + i + 1] * (pixelCoordU - floorPixelCoordU);
-	Vector3Df valB2 = p_texture[(j + 1) * width + i] * (ceilPixelCoordU - pixelCoordU);
+	float3* p_texture = p_texContainer->p_textureData;
+	float3 valA1 = p_texture[j * width + i + 1] * (pixelCoordU - floorPixelCoordU);
+	float3 valA2 = p_texture[j * width + i] * (ceilPixelCoordU - pixelCoordU);
+	float3 valB1 = p_texture[(j + 1) * width + i + 1] * (pixelCoordU - floorPixelCoordU);
+	float3 valB2 = p_texture[(j + 1) * width + i] * (ceilPixelCoordU - pixelCoordU);
 
-	Vector3Df valC1 = (valA1 + valA2) * (ceilPixelCoordV - pixelCoordV);
-	Vector3Df valC2 = (valB1 + valB2) * (pixelCoordV - floorPixelCoordV);
+	float3 valC1 = (valA1 + valA2) * (ceilPixelCoordV - pixelCoordV);
+	float3 valC2 = (valB1 + valB2) * (pixelCoordV - floorPixelCoordV);
 	return valC1 + valC2;
 #endif
 }
 
-__host__ __device__ Vector3Df samplePixel(int x, int y,
+__host__ __device__ float3 samplePixel(int x, int y,
 										  Camera camera,
 										  SceneData* p_sceneData,
 										  uint* p_lightsIndices,
@@ -127,8 +127,8 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
                                           int2* p_matIndices) {
 	Ray ray = camera.computeCameraRay(x, y, p_sampler);
 
-    Vector3Df color = Vector3Df(0.f, 0.f, 0.f);
-    Vector3Df mask = Vector3Df(1.f, 1.f, 1.f);
+    float3 color = make_float3(0.f, 0.f, 0.f);
+    float3 mask = make_float3(1.f, 1.f, 1.f);
     SurfaceInteraction interaction = SurfaceInteraction();
     Triangle* p_triangles = p_sceneData->p_triangles;
     Triangle* p_hitTriangle = NULL;
@@ -145,7 +145,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
     	if (!intersectBVH(p_bvh, p_triangles, interaction, ray))
         {
 #ifdef USE_SKYBOX
-    		color += mask * Vector3Df(skybox[0], skybox[1], skybox[2]);
+    		color = color + mask * make_float3(skybox[0], skybox[1], skybox[2]);
 #endif
     		break;
     	}
@@ -156,7 +156,8 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
 #endif
 		materialId = p_hitTriangle->_materialId;
         if (bounces == 0 || previousBsdf == SPECULAR || previousBsdf == REFRACTIVE) {
-			color += mask * Vector3Df(p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KA_OFFSET]) * oneOverLightsSA;
+			color = color + mask *
+					p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KA_OFFSET] * oneOverLightsSA;
         }
 
         interaction.normal = p_hitTriangle->getNormal(interaction.u, interaction.v);
@@ -172,15 +173,15 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
         	float p = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + AUX_OFFSET].z;
         	if (p_sampler->getNextFloat() < p) {
         		currentBsdf = DIFFUSE;
-				mask *= 1.0f / p;
+				mask = mask * (1.0f / p);
         	} else {
         		currentBsdf = SPECULAR;
-        		mask *= 1.0f / (1.0f - p);
+        		mask = mask * (1.0f / (1.0f - p));
         	}
         }
 
         if (currentBsdf == REFRACTIVE) {
-			Vector3Df reflectedDir, transmittedDir;
+			float3 transmittedDir;
 			float ni = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + AUX_OFFSET].y;
 			Fresnel fresnel = getFresnelReflectance(interaction, ni, transmittedDir);
 			if (fresnel.probReflection == 1.0f) {
@@ -195,9 +196,9 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
 				// Reason dictates that this should be Re
 				if (p_sampler->getNextFloat() > unknownMagicNumber) {
 					interaction.inputDirection = transmittedDir;
-					mask *= Vector3Df(p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KS_OFFSET]) * TP;
+					mask = mask * p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KS_OFFSET] * TP;
 				} else {
-					mask *= RP;
+					mask = mask * RP;
 					currentBsdf = SPECULAR;
 				}
 			}
@@ -207,8 +208,8 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
         if (currentBsdf == DIFFUSE) {
         	dataPtr_t p_texContainer = textureContainerFactory(p_matIndices[materialId].y,
         												   	   TEXTURE_CONTAINER_FACTOR_PARAMETERS(p_sceneData));
-			Vector3Df diffuseColor = Vector3Df(p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KD_OFFSET]);
-        	Vector3Df diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, diffuseColor, p_texContainer, p_sampler);
+			float3 diffuseColor = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KD_OFFSET];
+        	float3 diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, diffuseColor, p_texContainer, p_sampler);
 			mask = mask * diffuseSample / interaction.pdf;
 #ifndef __CUDA_ARCH__
         	delete (TextureContainer*)p_texContainer;
@@ -217,27 +218,27 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
 			float randomNumber = p_sampler->getNextFloat() * ((float)numLights - .00001f);
 			uint selectedLightIdx = p_lightsIndices[(uint)truncf(randomNumber)];
 			Triangle* p_light = p_triangles + selectedLightIdx;
-			Vector3Df lightColor = Vector3Df(p_matFloats[p_light->_materialId*MATERIALS_FLOAT_COMPONENTS + KA_OFFSET]);
-			Vector3Df directLighting = estimateDirectLighting(p_light,
-															  selectedLightIdx,
-															  p_sceneData,
-															  lightColor,
-															  lightsSurfaceArea,
-															  interaction,
-															  p_sampler);
+			float3 lightColor = p_matFloats[p_light->_materialId*MATERIALS_FLOAT_COMPONENTS + KA_OFFSET];
+			float3 directLighting = estimateDirectLighting(p_light,
+														   selectedLightIdx,
+														   p_sceneData,
+														   lightColor,
+														   lightsSurfaceArea,
+														   interaction,
+														   p_sampler);
 
 #ifndef UNBIASED
 			directLighting.x = clamp(directLighting.x, 0.0f, 1.0f);
 			directLighting.y = clamp(directLighting.y, 0.0f, 1.0f);
 			directLighting.z = clamp(directLighting.z, 0.0f, 1.0f);
 #endif
-			color += mask * directLighting;
+			color = color + mask * directLighting;
 		}
 
         // PURE SPECULAR BSDF
         if (currentBsdf == SPECULAR) {
-			Vector3Df specularColor = Vector3Df(p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KS_OFFSET]);
-        	Vector3Df perfectSpecularSample = sampleSpecularBSDF(&interaction, specularColor);
+			float3 specularColor = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KS_OFFSET];
+        	float3 perfectSpecularSample = sampleSpecularBSDF(&interaction, specularColor);
 			mask = mask * perfectSpecularSample / interaction.pdf;
         }
 
@@ -254,7 +255,7 @@ __host__ __device__ Vector3Df samplePixel(int x, int y,
             if (p_sampler->getNextFloat() > p) {
                 break;
             }
-            mask *= 1.0f / p;
+            mask = mask / p;
         }
     }
     return color;
@@ -282,15 +283,15 @@ __host__ __device__ bool intersectTriangles(Triangle* p_triangles, int16_t numTr
 __host__ __device__ bool intersectBVH(dataPtr_t p_bvhData, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray) {
 
 	bool hit = false;
-	Vector3Df invDir = Vector3Df(1/ray.dir.x, 1/ray.dir.y, 1/ray.dir.z);
+	float3 invDir = make_float3(1/ray.dir.x, 1/ray.dir.y, 1/ray.dir.z);
 	int dirIsNeg[3] = { invDir.x < 0, invDir.y < 0, invDir.z < 0 };
 	int toVisitOffset = 0, currentNodeIndex = 0;
 	int stack[16];
 	while(true) {
 #ifdef __CUDA_ARCH__
 		cudaTextureObject_t* p_textureObject = (cudaTextureObject_t*)p_bvhData;
-		Vector3Df minBound = Vector3Df(tex1Dfetch<float4>(p_textureObject[BVH_BOUNDS_OFFSET], 2*currentNodeIndex));
-		Vector3Df maxBound = Vector3Df(tex1Dfetch<float4>(p_textureObject[BVH_BOUNDS_OFFSET], 2*currentNodeIndex + 1));
+		float3 minBound = make_float3(tex1Dfetch<float4>(p_textureObject[BVH_BOUNDS_OFFSET], 2*currentNodeIndex));
+		float3 maxBound = make_float3(tex1Dfetch<float4>(p_textureObject[BVH_BOUNDS_OFFSET], 2*currentNodeIndex + 1));
 		int2 bvhOffsets = tex1Dfetch<int2>(p_textureObject[BVH_INDEX_OFFSET], currentNodeIndex);
 		int32_t offset = bvhOffsets.x;
 		int16_t numTriangles = (int16_t)((bvhOffsets.y & 0xFFFF0000) >> 16);
@@ -298,8 +299,8 @@ __host__ __device__ bool intersectBVH(dataPtr_t p_bvhData, Triangle* p_triangles
 #else
 		const LinearBVHNode* p_bvh = (LinearBVHNode*)p_bvhData;
 		const LinearBVHNode* p_node = &p_bvh[currentNodeIndex];
-		Vector3Df minBound = p_node->min;
-		Vector3Df maxBound = p_node->max;
+		float3 minBound = p_node->min;
+		float3 maxBound = p_node->max;
 		int32_t offset = p_node->secondChildOffset;
 		int16_t numTriangles = p_node->numTriangles;
 		int16_t axis = p_node->axis;
@@ -329,7 +330,7 @@ __host__ __device__ bool intersectBVH(dataPtr_t p_bvhData, Triangle* p_triangles
 }
 
 // Note: potential optimization here on page 128-129 (bounds.intersectP())
-__host__ __device__ bool rayIntersectsBox(Ray& ray, const Vector3Df& min, const Vector3Df& max) {
+__host__ __device__ bool rayIntersectsBox(Ray& ray, const float3& min, const float3& max) {
 	float t0 = -FLT_MAX, t1 = FLT_MAX;
 
 	float invRayDir = 1.f/ray.dir.x;
@@ -371,57 +372,57 @@ __host__ __device__ bool rayIntersectsBox(Ray& ray, const Vector3Df& min, const 
 	return true;
 }
 
-__host__ __device__ Vector3Df sampleDiffuseBSDF(SurfaceInteraction* p_interaction,
+__host__ __device__ float3 sampleDiffuseBSDF(SurfaceInteraction* p_interaction,
 												Triangle* p_hitTriangle,
-												const Vector3Df& diffuseColor,
+												const float3& diffuseColor,
 												dataPtr_t p_textureContainer,
 												Sampler* p_sampler) {
    float r1 = 2 * M_PI * p_sampler->getNextFloat();
    float r2 = p_sampler->getNextFloat();
    float r2sq = sqrtf(r2);
    // calculate orthonormal coordinates u, v, w, at hitpt
-   Vector3Df w = p_interaction->normal;
-   Vector3Df u = normalize(cross( (fabs(w.x) > 0.1f ?
-			   Vector3Df(0.f, 1.f, 0.f) :
-			   Vector3Df(1.f, 0.f, 0.f)), w));
-   Vector3Df v = cross(w, u);
+   float3 w = p_interaction->normal;
+   float3 u = normalize(cross( (fabs(w.x) > 0.1f ?
+			   make_float3(0.f, 1.f, 0.f) :
+			   make_float3(1.f, 0.f, 0.f)), w));
+   float3 v = cross(w, u);
    p_interaction->inputDirection = normalize(u * cosf(r1) * r2sq + v * sinf(r1) * r2sq + w * sqrtf(1.f - r2));
    p_interaction->pdf = 0.5f;
    float cosineWeight = dot(p_interaction->inputDirection, p_interaction->normal);
 
-   Vector3Df kd = diffuseColor;
+   float3 kd = diffuseColor;
    if (p_textureContainer != NULL) {
 	   float u = p_interaction->u;
 	   float v = p_interaction->v;
 	   float w = 1.f - u - v;
-	   Vector2Df uv = p_hitTriangle->_uv1 * w + p_hitTriangle->_uv2 * u + p_hitTriangle->_uv3 * v;
+	   float2 uv = p_hitTriangle->_uv1 * w + p_hitTriangle->_uv2 * u + p_hitTriangle->_uv3 * v;
 	   kd = sampleTexture(p_textureContainer, uv.x, uv.y);
    }
    return kd * cosineWeight;
 }
 
-__host__ __device__ Vector3Df sampleSpecularBSDF(SurfaceInteraction* p_interaction, const Vector3Df& specularColor) {
+__host__ __device__ float3 sampleSpecularBSDF(SurfaceInteraction* p_interaction, const float3& specularColor) {
 	p_interaction->inputDirection = reflect(p_interaction->outputDirection,  p_interaction->normal);
 	p_interaction->pdf = 1.0f;
 	return specularColor;
 }
 
-__host__ __device__ Vector3Df reflect(const Vector3Df& incedent, const Vector3Df& normal) {
+__host__ __device__ float3 reflect(const float3& incedent, const float3& normal) {
 	return incedent - normal * dot(incedent, normal) * 2.f;
 }
 
-__host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light,
+__host__ __device__ float3 estimateDirectLighting(Triangle* p_light,
 													 uint lightIdx,
 													 SceneData* p_sceneData,
-													 const Vector3Df& lightColor,
+													 const float3& lightColor,
 													 const float lightsSurfaceArea,
 													 const SurfaceInteraction &interaction,
 													 Sampler* p_sampler) {
 	if (interaction.hitTriIdx == lightIdx) {
-		return Vector3Df(0.0f, 0.0f, 0.0f);
+		return make_float3(0.0f, 0.0f, 0.0f);
 	}
-	Vector3Df directLighting(0.0f, 0.0f, 0.0f);
-	Vector3Df rayOrigin = interaction.position + interaction.normal * EPSILON;
+	float3 directLighting = make_float3(0.0f, 0.0f, 0.0f);
+	float3 rayOrigin = interaction.position + interaction.normal * EPSILON;
 	Ray ray(rayOrigin,  normalize(p_light->getRandomPointOn(p_sampler) - interaction.position));
 	SurfaceInteraction lightInteraction;
 	// Sample the light
@@ -436,9 +437,9 @@ __host__ __device__ Vector3Df estimateDirectLighting(Triangle* p_light,
 		float surfaceArea = p_light->_surfaceArea;
 		float distanceSquared = ray.tMax*ray.tMax;
 		// For directional lights also consider light direction
-		float cosTheta = fabs(dot(p_light->getNormal(lightInteraction.u, lightInteraction.v), -ray.dir));
+		float cosTheta = fabs(dot(p_light->getNormal(lightInteraction.u, lightInteraction.v), ray.dir * -1.0f));
 		float weightFactor = surfaceArea/(distanceSquared * lightsSurfaceArea) * cosTheta;
-		directLighting += lightColor * weightFactor;
+		directLighting = directLighting + lightColor * weightFactor;
 	}
 	return directLighting;
 }
@@ -454,26 +455,26 @@ __host__ __device__ dataPtr_t textureContainerFactory(int i, TEXTURE_CONTAINER_F
 	cudaTextureObject_t* p_textureObject = &p_texObject[i + TEXTURES_OFFSET];
 	return (dataPtr_t)(p_textureObject);
 #else
-	Vector3Df* p_textureData = &p_texData[p_texOffsets[i]];
+	float3* p_textureData = &p_texData[p_texOffsets[i]];
 	pixels_t* p_textureDimensions = &p_texDimensions[2 * i];
 	return (dataPtr_t)(new TextureContainer(p_textureData, p_textureDimensions));
 #endif
 }
 
-__host__ __device__ Fresnel getFresnelReflectance(const SurfaceInteraction& interaction, const float ior, Vector3Df& transmittedDir) {
+__host__ __device__ Fresnel getFresnelReflectance(const SurfaceInteraction& interaction, const float ior, float3& transmittedDir) {
 	Fresnel fresnel;
-	Vector3Df incedent = interaction.outputDirection;
-	Vector3Df normal = interaction.normal;
+	float3 incedent = interaction.outputDirection;
+	float3 normal = interaction.normal;
 	float cosi = dot(incedent, normal);
 	float etai = 1, etat = ior;
-	Vector3Df n = normal;
-	if (cosi < 0) {
+	float3 n = normal;
+	if (cosi < 0.0f) {
 		cosi = -cosi;
 	} else {
 		float temp = etai;
 		etai = etat;
 		etat = temp;
-		n = -normal;
+		n = normal * -1.0f;
 	}
 	float eta = etai / etat;
 	float k = 1 - eta * eta * (1 - cosi * cosi);

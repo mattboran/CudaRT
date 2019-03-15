@@ -22,7 +22,9 @@ struct TriangleBBox {
 	float3 center;
     TriangleBBox(int _triId, float3 &_min, float3 &_max)
     :
-    triId(_triId), min(_min), max(_max) {
+    triId(_triId) {
+    	min = _min;
+    	max = _max;
         center = (_min + _max) * 0.5f;
     }
 };
@@ -84,9 +86,9 @@ void createTriangleBboxes(Scene* p_scene)  {
         objl::Vertex v1 = p_vertices[p_indices[i*3]];
         objl::Vertex v2 = p_vertices[p_indices[i*3 + 1]];
         objl::Vertex v3 = p_vertices[p_indices[i*3 + 2]];
-        float3 _v1(v1.Position);
-        float3 _v2(v2.Position);
-        float3 _v3(v3.Position);
+        float3 _v1 = make_float3(v1.Position.X, v1.Position.Y, v1.Position.Z);
+        float3 _v2 = make_float3(v2.Position.X, v2.Position.Y, v2.Position.Z);
+        float3 _v3 = make_float3(v3.Position.X, v3.Position.Y, v3.Position.Z);
         float3 _min = min3(_v1, _v2, _v3);
         float3 _max = max3(_v1, _v2, _v3);
         trianglesInfo.push_back(TriangleBBox(i, _min, _max));
@@ -134,8 +136,23 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
             centroidMax = max2(centroidMax, trianglesInfo[i].center);
         }
         int dim = maximumExtent(centroidMin, centroidMax);
+        float cmpMax, cmpMin;
+        switch(dim){
+        case 0:
+        	cmpMax = centroidMax.x;
+        	cmpMin = centroidMin.x;
+        	break;
+        case 1:
+        	cmpMax = centroidMax.y;
+        	cmpMin = centroidMin.y;
+        	break;
+        case 2:
+        	cmpMax = centroidMax.z;
+        	cmpMin = centroidMin.z;
+        	break;
+        }
         uint mid = (start + end) / 2;
-        if (centroidMax._v[dim] == centroidMin._v[dim]) {
+        if (cmpMax == cmpMin) {
             uint firstTriOffset = orderedTriangles.size();
             for (uint i = start; i < end; i++) {
                 uint triId = trianglesInfo[i].triId;
@@ -171,7 +188,14 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
 			mid = (start + end) / 2;
 			std::nth_element(&trianglesInfo[start], &trianglesInfo[mid], &trianglesInfo[end-1] + 1,
 				[dim](const TriangleBBox& a, const TriangleBBox& b) {
-					return a.center._v[dim] < b.center._v[dim];
+					switch(dim){
+					case 0:
+						return a.center.x < b.center.x;
+					case 1:
+						return a.center.y < b.center.y;
+					case 2:
+						return a.center.z < b.center.z;
+					}
 				});
 		} else {
 			// Allocate BucketInfo for SAH partition buckets
@@ -184,7 +208,18 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
 			// Initialize BucketInfo for SAH partition buckets by determining the bucket
 			// that its centroid lies in and updating the bucket's bounds to include the Triangle bounds
 			for (uint i = start; i < end; i++) {
-				int b = numBuckets * offset(centroidMin, centroidMax, trianglesInfo[i].center)._v[dim];
+				int b;
+				switch(dim){
+				case 0:
+					b = numBuckets * offset(centroidMin, centroidMax, trianglesInfo[i].center).x;
+					break;
+				case 1:
+					b = numBuckets * offset(centroidMin, centroidMax, trianglesInfo[i].center).y;
+					break;
+				case 2:
+					b = numBuckets * offset(centroidMin, centroidMax, trianglesInfo[i].center).z;
+					break;
+				}
 				if (b == numBuckets) { b = numBuckets - 1; }
 				buckets[b].count++;
 				buckets[b].minBound = min2(buckets[b].minBound, trianglesInfo[i].min);
@@ -219,7 +254,18 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
 					TriangleBBox *p_mid = std::partition(&trianglesInfo[start], &trianglesInfo[end-1]+1,
 						[numBuckets, dim, minCostSplitBucket, centroidMin, centroidMax]
 						(const TriangleBBox &t) {
-							int b = numBuckets * offset(centroidMin, centroidMax, t.center)._v[dim];
+							int b;
+							switch(dim){
+							case 0:
+								b = numBuckets * offset(centroidMin, centroidMax, t.center).x;
+								break;
+							case 1:
+								b = numBuckets * offset(centroidMin, centroidMax, t.center).y;
+								break;
+							case 2:
+								b = numBuckets * offset(centroidMin, centroidMax, t.center).z;
+								break;
+							}
 							if (b == numBuckets) b = numBuckets - 1;
 							return b <= minCostSplitBucket;
 						});
@@ -231,7 +277,14 @@ BVHBuildNode* recursiveBuild(Triangle* p_triangles, vector<TriangleBBox>& triang
 					mid = (start + end) / 2;
 					std::nth_element(&trianglesInfo[start], &trianglesInfo[mid], &trianglesInfo[end-1] + 1,
 						[dim](const TriangleBBox& a, const TriangleBBox& b) {
-							return a.center._v[dim] < b.center._v[dim];
+							switch(dim){
+							case 0:
+								return a.center.x < b.center.x;
+							case 1:
+								return a.center.y < b.center.y;
+							case 2:
+								return a.center.z < b.center.z;
+							}
 						});
 					break;
 				}
@@ -296,12 +349,12 @@ float3 min2(const float3& a, const float3& b) {
     float x = a.x < b.x ? a.x : b.x;
     float y = a.y < b.y ? a.y : b.y;
     float z = a.z < b.z ? a.z : b.z;
-    return float3(x, y, z);
+    return make_float3(x, y, z);
 }
 
 float3 max2(const float3& a, const float3& b) {
     float x = a.x > b.x ? a.x : b.x;
     float y = a.y > b.y ? a.y : b.y;
     float z = a.z > b.z ? a.z : b.z;
-    return float3(x, y, z);
+    return make_float3(x, y, z);
 }

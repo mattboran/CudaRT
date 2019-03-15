@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+inline __host__ float3 make_float3(const objl::Vector3& v) { return make_float3(v.X, v.Y, v.Z); }
 
 struct LinearBVHNode;
 

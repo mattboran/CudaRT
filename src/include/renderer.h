@@ -134,7 +134,7 @@ public:
 	__host__ uchar4* getImgBytesPointer() { return h_imgBytesPtr; }
     __host__ void createSceneData(SceneData* p_SceneData,
                                   Triangle* p_triangles,
-                                  float3* p_bvh,
+                                  LinearBVHNode* p_bvh,
                                   float3* p_textureData,
                                   pixels_t* p_textureDimensions,
                                   pixels_t* p_textureOffsets);
@@ -148,15 +148,6 @@ private:
 
 __host__ __device__ inline uchar4 float3ToUchar4(const float3& v) {
     uchar4 retVal;
-	retVal.x = (unsigned char)((v.x > 1.0f ? 1.0f: v.x)*(255.f));
-	retVal.y = (unsigned char)((v.y > 1.0f ? 1.0f: v.y)*(255.f));
-	retVal.z = (unsigned char)((v.z > 1.0f ? 1.0f: v.z)*(255.f));
-	retVal.w = 255u;
-	return retVal;
-}
-
-__host__ __device__ inline uchar4 vector3ToUchar4(const Vector3Df& v) {
-	uchar4 retVal;
 	retVal.x = (unsigned char)((v.x > 1.0f ? 1.0f: v.x)*(255.f));
 	retVal.y = (unsigned char)((v.y > 1.0f ? 1.0f: v.y)*(255.f));
 	retVal.z = (unsigned char)((v.z > 1.0f ? 1.0f: v.z)*(255.f));

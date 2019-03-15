@@ -17,9 +17,9 @@ enum refl_t {
 struct Material {
     refl_t bsdf = DIFFUSE;
     // TODO: Union kd and ka because they'll never both be used in the same place
-    Vector3Df kd = Vector3Df(1,1,1);
-    Vector3Df ka = Vector3Df(0,0,0);
-    Vector3Df ks = Vector3Df(0,0,0);
+    float3 kd;// = make_float3(1,1,1);
+    float3 ka;// = float3(0,0,0);
+    float3 ks;// = float3(0,0,0);
     // Specular exponent
     float ns = 0.0f;
     // IOR
