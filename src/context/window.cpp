@@ -1,5 +1,6 @@
 #include "window.h"
 #include <iostream>
+#include <thread>
 
 #define INFO_LOG_BUFFER_SIZE 512
 
@@ -8,12 +9,19 @@ WindowManager::WindowManager(int width, int height, std::string name, bool useCu
 	window = createWindow(width, height, name);
 }
 
+void WindowManager::threadedLaunchRenderer(Renderer* p_renderer) {
+	uchar4* p_img = p_renderer->getImgBytesPointer();
+	p_renderer->renderOneSamplePerPixel(p_img);
+}
+
 void WindowManager::mainWindowLoop(Renderer* p_renderer) {
 	int width = p_renderer->getWidth();
 	int height = p_renderer->getHeight();
 	uchar4* p_img = p_renderer->getImgBytesPointer();
 	size_t bufferSize = 4 *width*height* sizeof(GLubyte);
-
+	std::thread* p_renderThread = NULL;
+	volatile uint samplesRendered = p_renderer->getSamplesRendered();
+	bool lock = false;
 	while (!glfwWindowShouldClose(window))
 	{
 		glBindVertexArray(vaoIndex);
@@ -25,8 +33,21 @@ void WindowManager::mainWindowLoop(Renderer* p_renderer) {
 			cudaGraphicsUnmapResources(1, &cudaPboResource, 0);
 		}
 		else {
-			p_renderer->renderOneSamplePerPixel(p_img);
-			glBufferData(GL_PIXEL_UNPACK_BUFFER, bufferSize, p_img, GL_STREAM_DRAW);
+			uint currentSamplesRendered = p_renderer->getSamplesRendered();
+			if (samplesRendered == currentSamplesRendered) {
+				if (!lock) {
+					p_renderThread = new std::thread(&WindowManager::threadedLaunchRenderer, this, p_renderer);
+					lock = true;
+				}
+			}
+			if (samplesRendered < currentSamplesRendered) {
+				p_renderThread->join();
+				delete p_renderThread;
+				p_renderThread = NULL;
+				lock = false;
+				glBufferData(GL_PIXEL_UNPACK_BUFFER, bufferSize, p_img, GL_STREAM_DRAW);
+				samplesRendered = currentSamplesRendered;
+			}
 		}
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -34,6 +55,12 @@ void WindowManager::mainWindowLoop(Renderer* p_renderer) {
 		glfwPollEvents();
 		glClear(GL_COLOR_BUFFER_BIT);
 		glClearColor(0.0f, 1.0f, 0.0f, 1.0f);
+	}
+	if (p_renderThread) {
+		std::cout << "Cleaning up active renderer..." << std::endl;
+		p_renderThread->join();
+		delete p_renderThread;
+		p_renderThread = NULL;
 	}
 	p_renderer->copyImageBytes(p_img);
 	glDisable(GL_TEXTURE_2D);

@@ -96,7 +96,7 @@ protected:
 	pixels_t width;
 	pixels_t height;
 	uint samples;
-	uint samplesRendered;
+	volatile uint samplesRendered;
 };
 
 class ParallelRenderer : public Renderer {
