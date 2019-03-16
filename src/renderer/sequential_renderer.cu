@@ -89,7 +89,6 @@ __host__ void SequentialRenderer::createSceneData(SceneData* p_sceneData,
 }
 
 __host__ void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
-	samplesRendered++;
 	Camera camera = *p_scene->getCameraPtr();
 	Sampler* p_sampler = new Sampler();
     uint* p_lightsIndices = p_scene->getLightsIndicesPtr();
@@ -109,9 +108,10 @@ __host__ void SequentialRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 									    materialFloats,
 									    materialIndices);
             h_imgVectorPtr[idx] = h_imgVectorPtr[idx] + sample;
-            p_img[idx] = float3ToUchar4(h_imgVectorPtr[idx]/samplesRendered);
+            p_img[idx] = float3ToUchar4(h_imgVectorPtr[idx]/((float)samplesRendered + 1));
         }
     }
+    samplesRendered++;
 	delete p_sampler;
 }
 

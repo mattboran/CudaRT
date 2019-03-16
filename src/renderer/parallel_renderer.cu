@@ -288,7 +288,6 @@ __host__ void ParallelRenderer::initializeCurand() {
 __host__ void ParallelRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 	dim3 block = dim3(BLOCK_WIDTH, BLOCK_WIDTH, 1);
 	dim3 grid = dim3(width/BLOCK_WIDTH, height/BLOCK_WIDTH, 1);
-	samplesRendered++;
 	Camera camera = *p_scene->getCameraPtr();
 	size_t sharedBytes = sizeof(Sampler) * BLOCK_WIDTH * BLOCK_WIDTH;
 	renderKernel<<<grid, block, sharedBytes>>>(d_imgVectorPtr,
@@ -298,6 +297,7 @@ __host__ void ParallelRenderer::renderOneSamplePerPixel(uchar4* p_img) {
 												d_lightsIndices,
 												d_curandStatePtr,
 												samplesRendered);
+	samplesRendered++;
 }
 
 __host__ void ParallelRenderer::copyImageBytes(uchar4* p_img) {
@@ -338,5 +338,5 @@ __global__ void renderKernel(float3* p_imgBuffer,
 								  c_materialFloats,
 								  c_materialIndices);
 	p_imgBuffer[idx] = p_imgBuffer[idx] + color;
-	p_outImg[idx] = float3ToUchar4(p_imgBuffer[idx]/(float)sampleNumber);
+	p_outImg[idx] = float3ToUchar4(p_imgBuffer[idx]/(float)(sampleNumber + 1));
 }

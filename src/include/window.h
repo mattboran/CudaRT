@@ -23,6 +23,7 @@ private:
 	void initializeVertexBuffer();
 	GLint compileAndLinkShaders();
 	void deleteShadersAndBuffers();
+	void threadedLaunchRenderer(Renderer* p_renderer);
 
 	GLuint vboIndex;
 	GLuint vaoIndex;
