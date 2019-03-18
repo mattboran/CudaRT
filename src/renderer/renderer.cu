@@ -158,7 +158,7 @@ __host__ __device__ float3 sampleBSDF(SceneData* p_sceneData,
 		sample = sampleSpecularBSDF(p_interaction, specularColor);
 	}
 
-	return sample * cosTheta;
+	return sample * cosTheta * rrWeight;
 }
 
 __host__ __device__ float3 samplePixel(int x, int y,
