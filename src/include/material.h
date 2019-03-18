@@ -9,7 +9,7 @@ enum refl_t {
     DIFFUSE,
     SPECULAR,
     DIFFSPEC,
-    MICROFACET,
+    MICROFACET, //glossy
     REFRACTIVE,
     EMISSIVE
 };
@@ -17,9 +17,9 @@ enum refl_t {
 struct Material {
     refl_t bsdf = DIFFUSE;
     // TODO: Union kd and ka because they'll never both be used in the same place
-    float3 kd;// = make_float3(1,1,1);
-    float3 ka;// = float3(0,0,0);
-    float3 ks;// = float3(0,0,0);
+    float3 kd;
+    float3 ka;
+    float3 ks;
     // Specular exponent
     float ns = 0.0f;
     // IOR
@@ -27,7 +27,7 @@ struct Material {
     // Diffuse Coefficient
     float diffuseCoefficient = 1.0f;
     int texKdIdx = NO_TEXTURE;
-    
+
     inline __host__  bool operator==(const Material& m) const{
     	if (bsdf != m.bsdf) {
 			return false;

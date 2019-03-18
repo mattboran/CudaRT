@@ -116,6 +116,36 @@ __host__ __device__ float3 sampleTexture(dataPtr_t p_textureContainer,  float u,
 #endif
 }
 
+__host__ __device__ float3 sampleBSDF(SceneData* p_sceneData,
+									  Triangle* p_triangles,
+									  Sampler* p_sampler,
+									  float3* p_matFloats,
+									  int2* p_matIndices,
+								  	  SurfaceInteraction* p_interaction,
+								  	  refl_t& currentBsdf) {
+	float3 sample = make_float3(0.0f, 0.0f, 0.0f);
+	Triangle* p_hitTriangle = p_triangles + p_interaction->hitTriIdx;
+	uint materialId = p_hitTriangle->_materialId;
+	float cosTheta = 1.0f;
+	if (currentBsdf == DIFFUSE) {
+		dataPtr_t p_texContainer = textureContainerFactory(p_matIndices[materialId].y,
+														   TEXTURE_CONTAINER_FACTOR_PARAMETERS(p_sceneData));
+		float3 diffuseColor = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KD_OFFSET];
+		sample = sampleDiffuseBSDF(p_interaction, p_hitTriangle, diffuseColor, p_texContainer, p_sampler);
+#ifndef __CUDA_ARCH__
+		delete (TextureContainer*)p_texContainer;
+#endif
+		cosTheta = dot(p_interaction->normal, p_interaction->inputDirection);
+	}
+
+	if (currentBsdf == SPECULAR) {
+		float3 specularColor = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KS_OFFSET];
+		sample = sampleSpecularBSDF(p_interaction, specularColor);
+	}
+
+	return sample * cosTheta;
+}
+
 __host__ __device__ float3 samplePixel(int x, int y,
 										  Camera camera,
 										  SceneData* p_sceneData,
@@ -126,7 +156,6 @@ __host__ __device__ float3 samplePixel(int x, int y,
                                           float3* p_matFloats,
                                           int2* p_matIndices) {
 	Ray ray = camera.computeCameraRay(x, y, p_sampler);
-
     float3 color = make_float3(0.f, 0.f, 0.f);
     float3 mask = make_float3(1.f, 1.f, 1.f);
     SurfaceInteraction interaction = SurfaceInteraction();
@@ -135,7 +164,7 @@ __host__ __device__ float3 samplePixel(int x, int y,
     refl_t currentBsdf = DIFFUSE;
     refl_t previousBsdf = DIFFUSE;
 	uint materialId;
-	float oneOverLightsSA = 1.f/lightsSurfaceArea;
+	const float oneOverLightsSA = 1.f/lightsSurfaceArea;
 #ifdef __CUDA_ARCH__
     dataPtr_t p_bvh = (dataPtr_t)p_sceneData->p_cudaTexObjects;
 #else
@@ -155,9 +184,13 @@ __host__ __device__ float3 samplePixel(int x, int y,
         return p_hitTriangle->getNormal(interaction.u, interaction.v);
 #endif
 		materialId = p_hitTriangle->_materialId;
+		currentBsdf = (refl_t)p_matIndices[materialId].x;
         if (bounces == 0 || previousBsdf == SPECULAR || previousBsdf == REFRACTIVE) {
-			color = color + mask *
+			if (currentBsdf == EMISSIVE) {
+				color = color + mask *
 					p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KA_OFFSET] * oneOverLightsSA;
+				break;
+			}
         }
 
         interaction.normal = p_hitTriangle->getNormal(interaction.u, interaction.v);
@@ -165,9 +198,8 @@ __host__ __device__ float3 samplePixel(int x, int y,
         interaction.outputDirection = normalize(ray.dir);
 
         // SHADING CALCULATIONS
-        currentBsdf = (refl_t)p_matIndices[materialId].x;
 
-        // DIFFUSE AND SPECULAR BSDF
+        // DIFFUSE AND SPECULAR BSDF -- resolve to one or the other
         if (currentBsdf == DIFFSPEC) {
 			// use Russian roulette to decide whether to evaluate diffuse or specular BSDF
         	float p = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + AUX_OFFSET].z;
@@ -196,6 +228,7 @@ __host__ __device__ float3 samplePixel(int x, int y,
 				// Reason dictates that this should be Re
 				if (p_sampler->getNextFloat() > unknownMagicNumber) {
 					interaction.inputDirection = transmittedDir;
+					// mask = mask * dot(interaction.inputDirection, fresnel.normal);
 					mask = mask * p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KS_OFFSET] * TP;
 				} else {
 					mask = mask * RP;
@@ -206,14 +239,14 @@ __host__ __device__ float3 samplePixel(int x, int y,
 
         // DIFFUSE BSDF
         if (currentBsdf == DIFFUSE) {
-        	dataPtr_t p_texContainer = textureContainerFactory(p_matIndices[materialId].y,
-        												   	   TEXTURE_CONTAINER_FACTOR_PARAMETERS(p_sceneData));
-			float3 diffuseColor = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KD_OFFSET];
-        	float3 diffuseSample = sampleDiffuseBSDF(&interaction, p_hitTriangle, diffuseColor, p_texContainer, p_sampler);
-			mask = mask * diffuseSample / interaction.pdf;
-#ifndef __CUDA_ARCH__
-        	delete (TextureContainer*)p_texContainer;
-#endif
+			float3 bsdfSample =	sampleBSDF(p_sceneData,
+										   p_triangles,
+										   p_sampler,
+										   p_matFloats,
+										   p_matIndices,
+										   &interaction,
+										   currentBsdf);
+   			mask = mask * bsdfSample / interaction.pdf;
 
 			float randomNumber = p_sampler->getNextFloat() * ((float)numLights - .00001f);
 			uint selectedLightIdx = p_lightsIndices[(uint)truncf(randomNumber)];
@@ -237,9 +270,14 @@ __host__ __device__ float3 samplePixel(int x, int y,
 
         // PURE SPECULAR BSDF
         if (currentBsdf == SPECULAR) {
-			float3 specularColor = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KS_OFFSET];
-        	float3 perfectSpecularSample = sampleSpecularBSDF(&interaction, specularColor);
-			mask = mask * perfectSpecularSample / interaction.pdf;
+        	float3 bsdfSample = sampleBSDF(p_sceneData,
+										   p_triangles,
+										   p_sampler,
+										   p_matFloats,
+										   p_matIndices,
+										   &interaction,
+										   currentBsdf);
+			mask = mask * bsdfSample / interaction.pdf;
         }
 
         previousBsdf = currentBsdf;
@@ -388,7 +426,6 @@ __host__ __device__ float3 sampleDiffuseBSDF(SurfaceInteraction* p_interaction,
    float3 v = cross(w, u);
    p_interaction->inputDirection = normalize(u * cosf(r1) * r2sq + v * sinf(r1) * r2sq + w * sqrtf(1.f - r2));
    p_interaction->pdf = 0.5f;
-   float cosineWeight = dot(p_interaction->inputDirection, p_interaction->normal);
 
    float3 kd = diffuseColor;
    if (p_textureContainer != NULL) {
@@ -398,7 +435,7 @@ __host__ __device__ float3 sampleDiffuseBSDF(SurfaceInteraction* p_interaction,
 	   float2 uv = p_hitTriangle->_uv1 * w + p_hitTriangle->_uv2 * u + p_hitTriangle->_uv3 * v;
 	   kd = sampleTexture(p_textureContainer, uv.x, uv.y);
    }
-   return kd * cosineWeight;
+   return kd;
 }
 
 __host__ __device__ float3 sampleSpecularBSDF(SurfaceInteraction* p_interaction, const float3& specularColor) {
