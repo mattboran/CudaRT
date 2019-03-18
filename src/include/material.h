@@ -9,7 +9,7 @@ enum refl_t {
     DIFFUSE,
     SPECULAR,
     DIFFSPEC,
-    GLOSSY_REFL, //glossy
+    GLOSSY_REFL,
     REFRACTIVE,
     EMISSIVE
 };

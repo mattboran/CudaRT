@@ -27,6 +27,9 @@
 #define MATERIALS_FLOAT_COMPONENTS (AUX_OFFSET + 1)
 
 typedef unsigned int pixels_t;
+typedef void* dataPtr_t;
+
+__host__ __device__ bool intersectBVH(dataPtr_t p_bvhData, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray);
 
 struct SceneData {
 	Triangle* p_triangles;

@@ -93,6 +93,7 @@ cuda_add_executable(CudaRT
 					${RENDERER}/parallel_renderer.cu
 					${RENDERER}/renderer.cu
 					${RENDERER}/sequential_renderer.cu
+					${RENDERER}/surface_samplers.cu
 					main.cpp
 					OPTIONS -arch=sm_52 -maxrregcount 64 
 					--use_fast_math -Xcompiler="-pthread")
