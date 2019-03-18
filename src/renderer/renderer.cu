@@ -156,10 +156,10 @@ __host__ __device__ float3 sampleBSDF(SceneData* p_sceneData,
 			float TP = fresnel.probTransmission / (1.f - P);
 			if (p_sampler->getNextFloat() > unknownMagicNumber) {
 				p_interaction->inputDirection = transmittedDir;
-				rrWeight = TP;
+				rrWeight = RP;
 				sample = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KS_OFFSET];
 			} else {
-				rrWeight = RP;
+				rrWeight = TP;
 				currentBsdf = SPECULAR;
 			}
 		}
@@ -232,7 +232,7 @@ __host__ __device__ float3 samplePixel(int x, int y,
         }
 
         interaction.normal = p_hitTriangle->getNormal(interaction.u, interaction.v);
-        interaction.position = ray.origin + ray.dir * ray.tMax;
+        interaction.position = ray.origin + ray.dir * ray.tMax + interaction.normal * EPSILON_2;
         interaction.outputDirection = normalize(ray.dir);
 
         // SHADING CALCULATIONS
