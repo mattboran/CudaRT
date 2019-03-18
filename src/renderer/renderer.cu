@@ -127,6 +127,21 @@ __host__ __device__ float3 sampleBSDF(SceneData* p_sceneData,
 	Triangle* p_hitTriangle = p_triangles + p_interaction->hitTriIdx;
 	uint materialId = p_hitTriangle->_materialId;
 	float cosTheta = 1.0f;
+	float rrWeight = 1.0f;
+
+// RESOLVERS
+	if (currentBsdf == DIFFSPEC) {
+		// use Russian roulette to decide whether to evaluate diffuse or specular BSDF
+		float p = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + AUX_OFFSET].z;
+		if (p_sampler->getNextFloat() < p) {
+			currentBsdf = DIFFUSE;
+			rrWeight = (1.0f / p);
+		} else {
+			currentBsdf = SPECULAR;
+			rrWeight = (1.0f / (1.0f - p));
+		}
+	}
+// EVALUATORS
 	if (currentBsdf == DIFFUSE) {
 		dataPtr_t p_texContainer = textureContainerFactory(p_matIndices[materialId].y,
 														   TEXTURE_CONTAINER_FACTOR_PARAMETERS(p_sceneData));
@@ -200,17 +215,6 @@ __host__ __device__ float3 samplePixel(int x, int y,
         // SHADING CALCULATIONS
 
         // DIFFUSE AND SPECULAR BSDF -- resolve to one or the other
-        if (currentBsdf == DIFFSPEC) {
-			// use Russian roulette to decide whether to evaluate diffuse or specular BSDF
-        	float p = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + AUX_OFFSET].z;
-        	if (p_sampler->getNextFloat() < p) {
-        		currentBsdf = DIFFUSE;
-				mask = mask * (1.0f / p);
-        	} else {
-        		currentBsdf = SPECULAR;
-        		mask = mask * (1.0f / (1.0f - p));
-        	}
-        }
 
         if (currentBsdf == REFRACTIVE) {
 			float3 transmittedDir;
@@ -237,17 +241,20 @@ __host__ __device__ float3 samplePixel(int x, int y,
 			}
         }
 
-        // DIFFUSE BSDF
-        if (currentBsdf == DIFFUSE) {
-			float3 bsdfSample =	sampleBSDF(p_sceneData,
+        // PURE SPECULAR BSDF
+        if (currentBsdf != REFRACTIVE) {
+        	float3 bsdfSample = sampleBSDF(p_sceneData,
 										   p_triangles,
 										   p_sampler,
 										   p_matFloats,
 										   p_matIndices,
 										   &interaction,
 										   currentBsdf);
-   			mask = mask * bsdfSample / interaction.pdf;
+			mask = mask * bsdfSample / interaction.pdf;
+        }
 
+        // DIFFUSE BSDF
+        if (currentBsdf == DIFFUSE) {
 			float randomNumber = p_sampler->getNextFloat() * ((float)numLights - .00001f);
 			uint selectedLightIdx = p_lightsIndices[(uint)truncf(randomNumber)];
 			Triangle* p_light = p_triangles + selectedLightIdx;
@@ -267,18 +274,6 @@ __host__ __device__ float3 samplePixel(int x, int y,
 #endif
 			color = color + mask * directLighting;
 		}
-
-        // PURE SPECULAR BSDF
-        if (currentBsdf == SPECULAR) {
-        	float3 bsdfSample = sampleBSDF(p_sceneData,
-										   p_triangles,
-										   p_sampler,
-										   p_matFloats,
-										   p_matIndices,
-										   &interaction,
-										   currentBsdf);
-			mask = mask * bsdfSample / interaction.pdf;
-        }
 
         previousBsdf = currentBsdf;
 
