@@ -55,7 +55,8 @@ struct SurfaceInteraction {
 	float3 normal;
 	float3 inputDirection;
 	float3 outputDirection;
-	float pdf, u, v, t;
+	float pdf = 1.0f;
+	float u, v, t;
 	uint hitTriIdx;
 };
 

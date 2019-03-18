@@ -58,7 +58,7 @@ __host__ __device__ float3 estimateDirectLighting(Triangle* p_light,
 													 Sampler* p_sampler);
 __host__ __device__ bool intersectBVH(dataPtr_t p_bvhData, Triangle* p_triangles, SurfaceInteraction &interaction, Ray& ray);
 __host__ __device__ float3 reflect(const float3& incedent, const float3& normal);
-__host__ __device__ Fresnel getFresnelReflectance(const SurfaceInteraction& interaction, const float ior, float3& transmittedDir);
+__host__ __device__ Fresnel getFresnelReflectance(SurfaceInteraction* p_interaction, const float ior, float3& transmittedDir);
 __host__ __device__ dataPtr_t textureContainerFactory(int i, TEXTURE_CONTAINER_FACTORY_ARGUMENTS);
 
 #ifdef USE_SKYBOX
@@ -129,7 +129,7 @@ __host__ __device__ float3 sampleBSDF(SceneData* p_sceneData,
 	float cosTheta = 1.0f;
 	float rrWeight = 1.0f;
 
-// RESOLVERS
+	// RESOLVERS
 	if (currentBsdf == DIFFSPEC) {
 		// use Russian roulette to decide whether to evaluate diffuse or specular BSDF
 		float p = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + AUX_OFFSET].z;
@@ -141,7 +141,31 @@ __host__ __device__ float3 sampleBSDF(SceneData* p_sceneData,
 			rrWeight = (1.0f / (1.0f - p));
 		}
 	}
-// EVALUATORS
+
+	else if (currentBsdf == REFRACTIVE) {
+		float3 transmittedDir;
+		float ni = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + AUX_OFFSET].y;
+		Fresnel fresnel = getFresnelReflectance(p_interaction, ni, transmittedDir);
+		if (fresnel.probReflection == 1.0f) {
+			currentBsdf = SPECULAR;
+		}
+		else {
+			float unknownMagicNumber = 0.25f;
+			float P = unknownMagicNumber + .5f * fresnel.probReflection;
+			float RP = fresnel.probReflection /P;
+			float TP = fresnel.probTransmission / (1.f - P);
+			if (p_sampler->getNextFloat() > unknownMagicNumber) {
+				p_interaction->inputDirection = transmittedDir;
+				rrWeight = TP;
+				sample = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KS_OFFSET];
+			} else {
+				rrWeight = RP;
+				currentBsdf = SPECULAR;
+			}
+		}
+    }
+
+	// EVALUATORS
 	if (currentBsdf == DIFFUSE) {
 		dataPtr_t p_texContainer = textureContainerFactory(p_matIndices[materialId].y,
 														   TEXTURE_CONTAINER_FACTOR_PARAMETERS(p_sceneData));
@@ -152,8 +176,7 @@ __host__ __device__ float3 sampleBSDF(SceneData* p_sceneData,
 #endif
 		cosTheta = dot(p_interaction->normal, p_interaction->inputDirection);
 	}
-
-	if (currentBsdf == SPECULAR) {
+	else if (currentBsdf == SPECULAR) {
 		float3 specularColor = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KS_OFFSET];
 		sample = sampleSpecularBSDF(p_interaction, specularColor);
 	}
@@ -209,49 +232,21 @@ __host__ __device__ float3 samplePixel(int x, int y,
         }
 
         interaction.normal = p_hitTriangle->getNormal(interaction.u, interaction.v);
-        interaction.position = ray.origin + ray.dir * ray.tMax + interaction.normal * EPSILON_2;
+        interaction.position = ray.origin + ray.dir * ray.tMax;
         interaction.outputDirection = normalize(ray.dir);
 
         // SHADING CALCULATIONS
 
         // DIFFUSE AND SPECULAR BSDF -- resolve to one or the other
 
-        if (currentBsdf == REFRACTIVE) {
-			float3 transmittedDir;
-			float ni = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + AUX_OFFSET].y;
-			Fresnel fresnel = getFresnelReflectance(interaction, ni, transmittedDir);
-			if (fresnel.probReflection == 1.0f) {
-				currentBsdf = SPECULAR;
-			}
-			else {
-				// TODO: What's this magic number?
-				float unknownMagicNumber = 0.25f;
-				float P = unknownMagicNumber + .5f * fresnel.probReflection;
-				float RP = fresnel.probReflection /P;
-				float TP = fresnel.probTransmission / (1.f - P);
-				// Reason dictates that this should be Re
-				if (p_sampler->getNextFloat() > unknownMagicNumber) {
-					interaction.inputDirection = transmittedDir;
-					// mask = mask * dot(interaction.inputDirection, fresnel.normal);
-					mask = mask * p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KS_OFFSET] * TP;
-				} else {
-					mask = mask * RP;
-					currentBsdf = SPECULAR;
-				}
-			}
-        }
-
-        // PURE SPECULAR BSDF
-        if (currentBsdf != REFRACTIVE) {
-        	float3 bsdfSample = sampleBSDF(p_sceneData,
-										   p_triangles,
-										   p_sampler,
-										   p_matFloats,
-										   p_matIndices,
-										   &interaction,
-										   currentBsdf);
-			mask = mask * bsdfSample / interaction.pdf;
-        }
+       	float3 bsdfSample = sampleBSDF(p_sceneData,
+									   p_triangles,
+									   p_sampler,
+									   p_matFloats,
+									   p_matIndices,
+									   &interaction,
+									   currentBsdf);
+		mask = mask * bsdfSample / interaction.pdf;
 
         // DIFFUSE BSDF
         if (currentBsdf == DIFFUSE) {
@@ -493,10 +488,10 @@ __host__ __device__ dataPtr_t textureContainerFactory(int i, TEXTURE_CONTAINER_F
 #endif
 }
 
-__host__ __device__ Fresnel getFresnelReflectance(const SurfaceInteraction& interaction, const float ior, float3& transmittedDir) {
+__host__ __device__ Fresnel getFresnelReflectance(SurfaceInteraction* p_interaction, const float ior, float3& transmittedDir) {
 	Fresnel fresnel;
-	float3 incedent = interaction.outputDirection;
-	float3 normal = interaction.normal;
+	float3 incedent = p_interaction->outputDirection;
+	float3 normal = p_interaction->normal;
 	float cosi = dot(incedent, normal);
 	float etai = 1, etat = ior;
 	float3 n = normal;
