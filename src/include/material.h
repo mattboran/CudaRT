@@ -9,7 +9,7 @@ enum refl_t {
     DIFFUSE,
     SPECULAR,
     DIFFSPEC,
-    MICROFACET, //glossy
+    GLOSSY_REFL, //glossy
     REFRACTIVE,
     EMISSIVE
 };
@@ -21,7 +21,7 @@ struct Material {
     float3 ka;
     float3 ks;
     // Specular exponent
-    float ns = 0.0f;
+    float ns = 10000.0f;
     // IOR
     float ni = 1.0f;
     // Diffuse Coefficient

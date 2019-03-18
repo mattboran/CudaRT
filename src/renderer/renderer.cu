@@ -42,6 +42,7 @@ struct Fresnel {
 
 __host__ __device__ bool intersectTriangles(Triangle* p_triangles, int16_t numTriangles, uint offset, SurfaceInteraction &interaction, Ray& ray);
 __host__ __device__ bool rayIntersectsBox(Ray& ray, const float3& min, const float3& max);
+__host__ __device__ float3 randomPointOnHemisphere(const float e, Sampler* p_sampler);
 __host__ __device__ float3 sampleDiffuseBSDF(SurfaceInteraction* p_interaction,
 												Triangle* p_hitTriangle,
 												const float3& diffuseColor,
@@ -49,6 +50,10 @@ __host__ __device__ float3 sampleDiffuseBSDF(SurfaceInteraction* p_interaction,
 												Sampler* p_sampler);
 __host__ __device__ float3 sampleSpecularBSDF(SurfaceInteraction* p_interaction,
 												 const float3& specularColor);
+__host__ __device__ float3 sampleGlossyBSDF(SurfaceInteraction* p_interaction,
+											const float exp,
+											const float3& specularColor,
+											Sampler* p_sampler);
 __host__ __device__ float3 estimateDirectLighting(Triangle* p_light,
 													 uint lightIdx,
 													 SceneData* p_sceneData,
@@ -155,11 +160,12 @@ __host__ __device__ float3 sampleBSDF(SceneData* p_sceneData,
 			float RP = fresnel.probReflection /P;
 			float TP = fresnel.probTransmission / (1.f - P);
 			if (p_sampler->getNextFloat() > unknownMagicNumber) {
+				p_interaction->pdf = 1.0f;
 				p_interaction->inputDirection = transmittedDir;
-				rrWeight = RP;
+				rrWeight = TP;
 				sample = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KS_OFFSET];
 			} else {
-				rrWeight = TP;
+				rrWeight = RP;
 				currentBsdf = SPECULAR;
 			}
 		}
@@ -179,6 +185,11 @@ __host__ __device__ float3 sampleBSDF(SceneData* p_sceneData,
 	else if (currentBsdf == SPECULAR) {
 		float3 specularColor = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KS_OFFSET];
 		sample = sampleSpecularBSDF(p_interaction, specularColor);
+	}
+	else if (currentBsdf == GLOSSY_REFL) {
+		float3 specularColor = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KS_OFFSET];
+		float exp = p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + AUX_OFFSET].x;
+		sample = sampleGlossyBSDF(p_interaction, exp, specularColor, p_sampler);
 	}
 
 	return sample * cosTheta * rrWeight;
@@ -223,10 +234,9 @@ __host__ __device__ float3 samplePixel(int x, int y,
 #endif
 		materialId = p_hitTriangle->_materialId;
 		currentBsdf = (refl_t)p_matIndices[materialId].x;
-        if (bounces == 0 || previousBsdf == SPECULAR || previousBsdf == REFRACTIVE) {
+        if (bounces == 0 || previousBsdf == SPECULAR || previousBsdf == REFRACTIVE || previousBsdf == GLOSSY_REFL) {
 			if (currentBsdf == EMISSIVE) {
-				color = color + mask *
-					p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KA_OFFSET] * oneOverLightsSA;
+				color = color + mask * p_matFloats[materialId*MATERIALS_FLOAT_COMPONENTS + KA_OFFSET] * oneOverLightsSA;
 				break;
 			}
         }
@@ -400,12 +410,25 @@ __host__ __device__ bool rayIntersectsBox(Ray& ray, const float3& min, const flo
 	return true;
 }
 
+__host__ __device__ float3 randomPointOnHemisphere(const float e, Sampler* p_sampler) {
+	float phi = 2.0f * M_PI * p_sampler->getNextFloat();
+	float cosPhi = cosf(phi);
+	float sinPhi = sinf(phi);
+	float theta = 1.0f - p_sampler->getNextFloat();
+	float cosTheta = powf((theta), (1.f/(e + 1.f)));
+	float sinTheta = sqrtf(1.0f - cosTheta * cosTheta);
+	float pu = sinTheta * cosPhi;
+	float pv = sinTheta * sinPhi;
+	float pw = cosTheta;
+	return make_float3(pu, pv, pw);
+}
+
 __host__ __device__ float3 sampleDiffuseBSDF(SurfaceInteraction* p_interaction,
 												Triangle* p_hitTriangle,
 												const float3& diffuseColor,
 												dataPtr_t p_textureContainer,
 												Sampler* p_sampler) {
-   float r1 = 2 * M_PI * p_sampler->getNextFloat();
+   float r1 = 2.0f * M_PI * p_sampler->getNextFloat();
    float r2 = p_sampler->getNextFloat();
    float r2sq = sqrtf(r2);
    // calculate orthonormal coordinates u, v, w, at hitpt
@@ -432,6 +455,22 @@ __host__ __device__ float3 sampleSpecularBSDF(SurfaceInteraction* p_interaction,
 	p_interaction->inputDirection = reflect(p_interaction->outputDirection,  p_interaction->normal);
 	p_interaction->pdf = 1.0f;
 	return specularColor;
+}
+
+__host__ __device__ float3 sampleGlossyBSDF(SurfaceInteraction* p_interaction, const float exp, const float3& specularColor, Sampler* p_sampler) {
+	float3 w = reflect(p_interaction->outputDirection,  p_interaction->normal);
+	float3 u = normalize(cross( (fabs(w.x) > 0.1f ?
+			   make_float3(0.f, 1.f, 0.f) :
+			   make_float3(1.f, 0.f, 0.f)), w));
+	float3 v = cross(w, u);
+	float3 sp = randomPointOnHemisphere(exp, p_sampler);
+	float3 wi = sp.x * u + sp.y * v + sp.z * w;
+	if (dot(p_interaction->normal, wi) < 0.0) // reflected ray is below surface
+		wi = -sp.x * u - sp.y * v + sp.z * w;
+	float phong_lobe = powf(dot(w,  wi), exp);
+	p_interaction->inputDirection = wi;
+	p_interaction->pdf = phong_lobe * (dot(w, wi));
+	return specularColor * phong_lobe * 0.9f;
 }
 
 __host__ __device__ float3 reflect(const float3& incedent, const float3& normal) {

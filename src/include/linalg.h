@@ -38,5 +38,5 @@ inline __host__ __device__ float distancesq(const float3& v1, const float3& v2){
 inline __host__ __device__ float distance(const float3& v1, const float3& v2){ return sqrtf((v1.x - v2.x)*(v1.x - v2.x) + (v1.y - v2.y)*(v1.y - v2.y) + (v1.z - v2.z)*(v1.z - v2.z)); }
 inline __host__ __device__ float lengthsq(const float3& v){ return v.x*v.x + v.y*v.y + v.z*v.z; }
 inline __host__ __device__ float length(const float3& v) { return sqrtf(v.x*v.x + v.y*v.y + v.z*v.z); }
-
+inline __host__ __device__ float clamp(const float&v, const float& min, const float& max) { if (v < min) return min; if (v > max) return max; return v;}
 #endif

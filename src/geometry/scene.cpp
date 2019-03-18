@@ -28,7 +28,7 @@ const static std::map<std::string, refl_t> reflDict = {
 		{"LAMBERT", DIFFUSE},
 		{"SPECULAR", SPECULAR},
 		{"DIFFSPEC", DIFFSPEC},
-		{"MICROFACET", MICROFACET},
+		{"GLOSSY_REFL", GLOSSY_REFL},
 		{"REFRACTIVE", REFRACTIVE},
 		{"EMISSIVE", EMISSIVE}
 };
